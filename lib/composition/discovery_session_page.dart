@@ -56,7 +56,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   late final LibraryActionsRepository _libraryActions;
   StreamSubscription<DiscoveryState>? _discoverySubscription;
   String? _loadedFilterFingerprint;
-  bool _refillingShuffle = false;
+  String? _loadingShuffleFingerprint;
   DiscoveryMode? _lastMode;
   DateTime? _lastFavoriteSync;
   bool _syncingFavorites = false;
@@ -149,11 +149,8 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     }
     if (state.mode == DiscoveryMode.shuffle &&
         state.noEligibleCandidates &&
-        !_refillingShuffle) {
-      _refillingShuffle = true;
-      unawaited(
-        _loadCatalog(state).whenComplete(() => _refillingShuffle = false),
-      );
+        _loadingShuffleFingerprint != fingerprint) {
+      unawaited(_loadCatalog(state));
     }
   }
 
@@ -165,31 +162,44 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
       await _catalogCubit.load(filter: filter);
       return;
     }
-    // Shuffle narrows the request; each fallback widens it until something
-    // comes back, so an exhausted cycle never looks like a broken library.
-    final rejected = Set<String>.unmodifiable(state.rejectedIds.take(100));
-    final shortlist = _shuffleShortlist(state);
-    final attempts = <({Set<String> included, Set<String> excluded})>[
-      // Liked titles: the reel itself avoids recent repeats.
-      if (shortlist.isNotEmpty) (included: shortlist, excluded: const {}),
-      // A random batch of titles not shown recently.
-      (included: const {}, excluded: _shuffleExclusions(state)),
-      // Everything was shown recently: start a fresh cycle.
-      if (state.recentPickIds.isNotEmpty)
-        (included: const {}, excluded: rejected),
-    ];
-    for (final attempt in attempts) {
-      await _catalogCubit.load(
-        filter: filter,
-        excludedIds: attempt.excluded,
-        includedIds: attempt.included,
-      );
-      final empty = switch (_catalogCubit.state) {
-        CatalogLoaded(candidates: final values) => values.isEmpty,
-        _ => false,
-      };
-      if (!mounted || !empty || _loadedFilterFingerprint != fingerprint) {
-        return;
+    if (_loadingShuffleFingerprint == fingerprint) {
+      return;
+    }
+    _loadingShuffleFingerprint = fingerprint;
+    try {
+      // Shuffle narrows the request; each fallback widens it until something
+      // comes back, so an exhausted cycle never looks like a broken library.
+      final rejected = Set<String>.unmodifiable(state.rejectedIds.take(100));
+      final shortlist = _shuffleShortlist(state);
+      final attempts = <({Set<String> included, Set<String> excluded})>[
+        // Liked titles: the reel itself avoids recent repeats.
+        if (shortlist.isNotEmpty) (included: shortlist, excluded: const {}),
+        // A random batch of titles not shown recently.
+        (included: const {}, excluded: _shuffleExclusions(state)),
+        // Everything was shown recently: start a fresh cycle.
+        if (state.recentPickIds.isNotEmpty)
+          (included: const {}, excluded: rejected),
+      ];
+      for (final attempt in attempts) {
+        await _catalogCubit.load(
+          filter: filter,
+          excludedIds: attempt.excluded,
+          includedIds: attempt.included,
+        );
+        if (!mounted || _loadedFilterFingerprint != fingerprint) {
+          return;
+        }
+        final discovery = _discoveryCubit.state;
+        final usable =
+            discovery.currentRevealId != null ||
+            discovery.eligibleCandidates.isNotEmpty;
+        if (usable) {
+          return;
+        }
+      }
+    } finally {
+      if (_loadingShuffleFingerprint == fingerprint) {
+        _loadingShuffleFingerprint = null;
       }
     }
   }

@@ -310,11 +310,13 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     final reveal = stillListed
         ? current
         : _validReveal(values, state.filter, current);
-    return state.copyWith(
+    final next = state.copyWith(
       candidates: values,
       currentRevealId: reveal,
       currentPickId: reveal == null ? null : state.currentPickId,
-      noEligibleCandidates: false,
+    );
+    return next.copyWith(
+      noEligibleCandidates: reveal == null && next.eligibleCandidates.isEmpty,
     );
   }
 
@@ -324,11 +326,13 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
       filter,
       state.currentRevealId,
     );
-    return state.copyWith(
+    final next = state.copyWith(
       filter: filter,
       currentRevealId: reveal,
       currentPickId: reveal == null ? null : state.currentPickId,
-      noEligibleCandidates: false,
+    );
+    return next.copyWith(
+      noEligibleCandidates: reveal == null && next.eligibleCandidates.isEmpty,
     );
   }
 
