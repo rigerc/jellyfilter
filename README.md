@@ -7,7 +7,7 @@
 <p align="center">A Jellyfin discovery companion that helps you decide what to watch tonight.</p>
 
 <p align="center">
-  <a href="https://github.com/rigerc/jellyfin-picker/actions/workflows/android-ci.yml"><img src="https://github.com/rigerc/jellyfin-picker/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
+  <a href="https://github.com/rigerc/jellyfilter/actions/workflows/android-ci.yml"><img src="https://github.com/rigerc/jellyfilter/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
 </p>
 
 Jellyfilter signs in to your Jellyfin server and turns a large library into
