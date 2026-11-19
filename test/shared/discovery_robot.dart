@@ -302,8 +302,13 @@ final class DiscoveryRobot {
     await openFilterTab(3);
     final nameField = find.byKey(WidgetKeys.discoveryPresetName);
     final saveButton = find.byKey(WidgetKeys.discoverySavePreset);
+    await tester.scrollUntilVisible(
+      saveButton,
+      CandySpacing.section,
+      scrollable: _filterScrollable,
+    );
+    await tester.pumpAndSettle();
     await tester.enterText(nameField, name);
-    await tester.ensureVisible(saveButton);
     await tester.tap(saveButton);
     await tester.pump();
   }

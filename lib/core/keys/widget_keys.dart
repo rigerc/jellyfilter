@@ -86,6 +86,10 @@ abstract final class WidgetKeys {
       Key('discovery-series-status-$value');
 
   static Key discoveryPreset(String name) => Key('discovery-preset-$name');
+  static Key discoveryDeletePreset(String name) =>
+      Key('discovery-delete-preset-$name');
+  static Key discoverySuggestedPreset(String id) =>
+      Key('discovery-suggested-preset-$id');
 
   static const discoveryActiveFilters = Key('discovery-active-filters');
   static const discoverySwipeLike = Key('discovery-swipe-like');

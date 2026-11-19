@@ -51,9 +51,18 @@ typedef DiscoveryMetadataFilterData = ({
   ValueChanged<DiscoveryTriState> onFavoriteChanged,
 });
 
+typedef DiscoverySuggestedPreset = ({
+  String id,
+  String label,
+  CatalogFilter filter,
+});
+
 typedef DiscoveryPresetFilterData = ({
   TextEditingController nameController,
   Map<String, CatalogFilter> presets,
+  List<DiscoverySuggestedPreset> suggestedPresets,
   ValueChanged<String> onApply,
+  ValueChanged<CatalogFilter> onApplySuggested,
+  ValueChanged<String> onDelete,
   VoidCallback onSave,
 });

@@ -5,8 +5,10 @@ import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_default_presets.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_form.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 final class DiscoveryFilterSheet extends StatefulWidget {
   const DiscoveryFilterSheet({
@@ -182,7 +184,12 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
       presets: (
         nameController: _presetText,
         presets: state.presets,
+        suggestedPresets: buildDiscoveryDefaultPresets(
+          AppLocalizations.of(context),
+        ),
         onApply: _applyPreset,
+        onApplySuggested: _applySuggested,
+        onDelete: _deletePreset,
         onSave: _savePreset,
       ),
       onReset: _reset,
@@ -289,6 +296,14 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
     await context.read<DiscoveryCubit>().applyPreset(name);
     if (mounted) Navigator.pop(context);
   }
+
+  Future<void> _applySuggested(CatalogFilter filter) async {
+    await context.read<DiscoveryCubit>().updateFilter(filter);
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _deletePreset(String name) =>
+      context.read<DiscoveryCubit>().deletePreset(name);
 
   static DiscoveryTriState _triState(bool? value) => switch (value) {
     true => DiscoveryTriState.yes,

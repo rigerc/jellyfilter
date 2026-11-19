@@ -40,7 +40,7 @@ directly, so what you pick here is what you find there.
 - Tag lists are capped at your chosen tags plus the most used ones, with a
   search box, so libraries that carry thousands of TMDb keywords as tags stay
   responsive.
-- Save the filters you just set as a preset.
+- Start from handy suggested presets, or save the filters you just set as your own.
 
 **Details and library actions**
 

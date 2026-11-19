@@ -5,7 +5,7 @@ import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_fi
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
-/// Presets tab: apply a saved lineup or save the filters set in this sheet.
+/// Presets tab: apply a handy or saved lineup, or save the filters set here.
 final class DiscoveryPresetFilterTab extends StatelessWidget {
   const DiscoveryPresetFilterTab({required this.data, super.key});
 
@@ -17,6 +17,23 @@ final class DiscoveryPresetFilterTab extends StatelessWidget {
     final theme = Theme.of(context);
     return DiscoveryFilterTabList(
       children: <Widget>[
+        DiscoveryFilterGroup(
+          title: l10n.discoverySuggestedPresetsLabel,
+          child: Wrap(
+            spacing: CandySpacing.compact / 1.5,
+            runSpacing: CandySpacing.compact / 1.5,
+            children: data.suggestedPresets
+                .map(
+                  (preset) => ActionChip(
+                    key: WidgetKeys.discoverySuggestedPreset(preset.id),
+                    avatar: const Icon(Icons.auto_awesome_outlined),
+                    label: Text(preset.label),
+                    onPressed: () => data.onApplySuggested(preset.filter),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ),
         DiscoveryFilterGroup(
           title: l10n.discoverySavedPresetsLabel,
           value: data.presets.isEmpty ? null : '${data.presets.length}',
@@ -32,11 +49,15 @@ final class DiscoveryPresetFilterTab extends StatelessWidget {
                   runSpacing: CandySpacing.compact / 1.5,
                   children: data.presets.keys
                       .map(
-                        (name) => ActionChip(
+                        (name) => InputChip(
                           key: WidgetKeys.discoveryPreset(name),
                           avatar: const Icon(Icons.bookmark_rounded),
                           label: Text(name),
                           onPressed: () => data.onApply(name),
+                          deleteIcon: const Icon(Icons.close_rounded, size: 18),
+                          deleteButtonTooltipMessage: l10n
+                              .discoveryDeletePresetLabel(name),
+                          onDeleted: () => data.onDelete(name),
                         ),
                       )
                       .toList(growable: false),

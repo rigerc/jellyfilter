@@ -465,6 +465,21 @@ void main() {
     await cubit.close();
   });
 
+  test('should delete a saved preset', () async {
+    final cubit = _cubit(FakeDiscoverySelector(null));
+    await cubit.savePreset('Favorites');
+    await cubit.savePreset('Unwatched');
+
+    await cubit.deletePreset('  Favorites  ');
+
+    expect(cubit.state.presets.containsKey('Favorites'), isFalse);
+    expect(cubit.state.presets.containsKey('Unwatched'), isTrue);
+
+    await cubit.deletePreset('Missing');
+    expect(cubit.state.presets.containsKey('Unwatched'), isTrue);
+    await cubit.close();
+  });
+
   test('should hydrate state across a new cubit instance', () async {
     final store = FakeDiscoveryStore();
     final restoredAnchor = DateTime.utc(2026, 8, 11, 12);

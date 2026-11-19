@@ -222,6 +222,16 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     return filter == null ? Future<void>.value() : updateFilter(filter);
   }
 
+  Future<void> deletePreset(String name) {
+    final normalized = name.trim();
+    if (!state.presets.containsKey(normalized)) {
+      return Future<void>.value();
+    }
+    final presets = Map<String, CatalogFilter>.of(state.presets)
+      ..remove(normalized);
+    return _commit(state.copyWith(presets: presets));
+  }
+
   Future<void> clearDiscovery() async {
     final generation = ++_generation;
     _lastWritten = null;

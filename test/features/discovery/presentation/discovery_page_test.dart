@@ -624,15 +624,178 @@ void main() {
     await tester.tap(find.byKey(WidgetKeys.discoveryUnwatchedFilter));
     await tester.pump();
     await robot.openFilterTab(3);
+    final saveButton = find.byKey(WidgetKeys.discoverySavePreset);
+    await tester.scrollUntilVisible(
+      saveButton,
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(WidgetKeys.discoveryFilterSheet),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            ),
+          )
+          .last,
+    );
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(WidgetKeys.discoveryPresetName),
       'Fresh picks',
     );
-    await tester.tap(find.byKey(WidgetKeys.discoverySavePreset));
+    await tester.tap(saveButton);
     await tester.pumpAndSettle();
 
     expect(cubit.state.presets['Fresh picks']?.watched, isFalse);
     expect(cubit.state.filter.watched, isNull);
+    await cubit.close();
+  });
+
+  testWidgets('should show suggested presets when no saved presets exist', (
+    tester,
+  ) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit);
+    await robot.openQuickFilters();
+    await robot.openFilterTab(3);
+
+    for (final id in <String>[
+      'unwatched',
+      'favorites',
+      'new_and_unseen',
+      'unwatched_gems',
+      'short_gems',
+      'critics_picks',
+    ]) {
+      expect(
+        find.byKey(WidgetKeys.discoverySuggestedPreset(id)),
+        findsOneWidget,
+      );
+    }
+    expect(find.text('Suggested presets'), findsOneWidget);
+    expect(cubit.state.presets, isEmpty);
+    await cubit.close();
+  });
+
+  testWidgets('should apply a suggested preset filter', (tester) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit);
+    await robot.openQuickFilters();
+    await robot.openFilterTab(3);
+    await tester.tap(
+      find.byKey(WidgetKeys.discoverySuggestedPreset('unwatched_gems')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.filter.watched, isFalse);
+    expect(cubit.state.filter.minimumCommunityRating, 7.5);
+    expect(find.byKey(WidgetKeys.discoveryFilterSheet), findsNothing);
+    await cubit.close();
+  });
+
+  testWidgets('should delete a saved preset from the presets tab', (
+    tester,
+  ) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit);
+    await robot.savePreset('Movie night');
+    await tester.tap(find.byKey(WidgetKeys.discoveryApplyFilters));
+    await tester.pumpAndSettle();
+    await robot.openQuickFilters();
+    await robot.openFilterTab(3);
+    await tester.scrollUntilVisible(
+      find.byKey(WidgetKeys.discoveryPreset('Movie night')),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(WidgetKeys.discoveryFilterSheet),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            ),
+          )
+          .last,
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(WidgetKeys.discoveryPreset('Movie night')),
+        matching: find.byIcon(Icons.close_rounded),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.presets.containsKey('Movie night'), isFalse);
+    expect(find.byKey(WidgetKeys.discoveryPreset('Movie night')), findsNothing);
+    await cubit.close();
+  });
+
+  testWidgets('should apply an advanced suggested preset filter', (
+    tester,
+  ) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit);
+    await robot.openQuickFilters();
+    await robot.openFilterTab(3);
+    await tester.tap(
+      find.byKey(WidgetKeys.discoverySuggestedPreset('new_and_unseen')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.filter.watched, isFalse);
+    expect(cubit.state.filter.addedWithin, CatalogAddedWindow.thirtyDays);
+    expect(find.byKey(WidgetKeys.discoveryFilterSheet), findsNothing);
+    await cubit.close();
+  });
+
+  testWidgets('should keep suggested presets after reset and clear', (
+    tester,
+  ) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit);
+    await robot.openQuickFilters();
+    await robot.openFilterTab(3);
+    await tester.tap(
+      find.byKey(WidgetKeys.discoverySuggestedPreset('unwatched')),
+    );
+    await tester.pumpAndSettle();
+    expect(cubit.state.filter.watched, isFalse);
+
+    await cubit.resetFilters();
+    await tester.pumpAndSettle();
+    await robot.openQuickFilters();
+    await robot.openFilterTab(3);
+    expect(
+      find.byKey(WidgetKeys.discoverySuggestedPreset('unwatched')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(WidgetKeys.discoveryApplyFilters));
+    await tester.pumpAndSettle();
+
+    await cubit.clearDiscovery();
+    await tester.pumpAndSettle();
+    await robot.openQuickFilters();
+    await robot.openFilterTab(3);
+    expect(
+      find.byKey(WidgetKeys.discoverySuggestedPreset('favorites')),
+      findsOneWidget,
+    );
     await cubit.close();
   });
 

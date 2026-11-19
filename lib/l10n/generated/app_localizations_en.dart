@@ -606,8 +606,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryOrderTitle => 'Library & order';
 
   @override
+  String get discoverySuggestedPresetsLabel => 'Suggested presets';
+
+  @override
+  String get discoveryPresetUnwatchedLabel => 'Unwatched';
+
+  @override
+  String get discoveryPresetFavoritesLabel => 'Favorites';
+
+  @override
+  String get discoveryPresetNewAndUnseenLabel => 'New & unseen';
+
+  @override
+  String get discoveryPresetUnwatchedGemsLabel => 'Unwatched gems';
+
+  @override
+  String get discoveryPresetShortGemsLabel => 'Short gems';
+
+  @override
+  String get discoveryPresetCriticsPicksLabel => 'Critics\' picks';
+
+  @override
+  String discoveryDeletePresetLabel(String preset) {
+    return 'Delete preset $preset';
+  }
+
+  @override
   String get discoveryPresetsEmpty =>
-      'No presets yet. Save the filters you use most and bring them back with one tap.';
+      'No saved presets yet. Save the filters you use most and bring them back with one tap.';
 
   @override
   String get discoverySavedPresetsLabel => 'Saved presets';

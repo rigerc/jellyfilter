@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.29 — 2026-11-19
+
+- Reduce suggested presets to a smaller, more useful set.
+- Delete saved presets directly from the Presets tab.
+
+## 1.0.28 — 2026-11-19
+
+- Add more combined suggested presets in Filters → Presets, including Unwatched
+  favorites, Short gems, Recent hits, Unwatched critics' picks, and Epic picks.
+
+## 1.0.27 — 2026-11-19
+
+- Add more advanced suggested presets in Filters → Presets, including Unwatched
+  gems, New & unseen, Quick watch, and Critics' picks.
+
+## 1.0.26 — 2026-11-19
+
+- Start from handy suggested presets in the Filters → Presets tab, including
+  Unwatched, Favorites, Added this month, Highly rated, and Under 2 hours.
+
 ## 1.0.25 — 2026-11-19
 
 - Fix lag in libraries with many tags (Jellyfin often stores TMDb keywords as

@@ -1108,10 +1108,58 @@ abstract class AppLocalizations {
   /// **'Library & order'**
   String get discoveryOrderTitle;
 
+  /// No description provided for @discoverySuggestedPresetsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested presets'**
+  String get discoverySuggestedPresetsLabel;
+
+  /// No description provided for @discoveryPresetUnwatchedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unwatched'**
+  String get discoveryPresetUnwatchedLabel;
+
+  /// No description provided for @discoveryPresetFavoritesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get discoveryPresetFavoritesLabel;
+
+  /// No description provided for @discoveryPresetNewAndUnseenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New & unseen'**
+  String get discoveryPresetNewAndUnseenLabel;
+
+  /// No description provided for @discoveryPresetUnwatchedGemsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unwatched gems'**
+  String get discoveryPresetUnwatchedGemsLabel;
+
+  /// No description provided for @discoveryPresetShortGemsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Short gems'**
+  String get discoveryPresetShortGemsLabel;
+
+  /// No description provided for @discoveryPresetCriticsPicksLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Critics\' picks'**
+  String get discoveryPresetCriticsPicksLabel;
+
+  /// No description provided for @discoveryDeletePresetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete preset {preset}'**
+  String discoveryDeletePresetLabel(String preset);
+
   /// No description provided for @discoveryPresetsEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No presets yet. Save the filters you use most and bring them back with one tap.'**
+  /// **'No saved presets yet. Save the filters you use most and bring them back with one tap.'**
   String get discoveryPresetsEmpty;
 
   /// No description provided for @discoverySavedPresetsLabel.
