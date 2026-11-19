@@ -40,7 +40,10 @@ final class DiscoveryShuffle extends StatefulWidget {
 
 final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
+  /// Built on first use: a shuffle screen that never spins must not own a
+  /// ticker, and `dispose` must never create one on a dead element.
+  AnimationController? _controllerOrNull;
+  AnimationController get _controller => _controllerOrNull ??=
       AnimationController(vsync: this, duration: CandyMotion.reelSpin)
         ..addListener(_onTick)
         ..addStatusListener(_onStatus);
@@ -71,7 +74,8 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controllerOrNull?.dispose();
+    _controllerOrNull = null;
     super.dispose();
   }
 

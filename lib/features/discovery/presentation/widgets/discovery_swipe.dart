@@ -53,8 +53,12 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
   /// Room below the top card where the waiting cards peek out.
   static const _peek = 20.0;
 
-  late final AnimationController _controller = AnimationController(vsync: this)
-    ..addListener(_onAnimate);
+  /// Built on first use so a deck that never animates owns no ticker; the
+  /// getter must not run from `dispose`.
+  AnimationController? _controllerOrNull;
+  AnimationController get _controller =>
+      _controllerOrNull ??= AnimationController(vsync: this)
+        ..addListener(_onAnimate);
   Animation<Offset>? _animation;
   Offset _drag = Offset.zero;
   Size _deck = Size.zero;
@@ -78,7 +82,8 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controllerOrNull?.dispose();
+    _controllerOrNull = null;
     super.dispose();
   }
 
