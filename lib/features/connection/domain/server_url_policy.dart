@@ -1,4 +1,4 @@
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
 
 /// Normalizes server addresses and applies the transport safety policy.
 abstract final class ServerUrlPolicy {

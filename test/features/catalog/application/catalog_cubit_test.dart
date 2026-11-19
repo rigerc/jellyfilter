@@ -1,14 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/catalog/application/catalog_cubit.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_facets.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_page.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_result.dart';
-import 'package:jellyfin_picker/features/catalog/domain/failures/catalog_failure.dart';
+import 'package:jellyfilter/features/catalog/application/catalog_cubit.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_page.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_result.dart';
+import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dart';
 import '../../../shared/fake_catalog_repository.dart';
 
 void main() {

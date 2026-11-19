@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/core/widgets/candy_bounce.dart';
+import 'package:jellyfilter/core/widgets/candy_bounce.dart';
 
 void main() {
   testWidgets('should scale down and restore on a normal press', (

@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:jellyfin_picker/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
 
 final class RandomDiscoverySelector implements DiscoverySelector {
   RandomDiscoverySelector({Random? random}) : _random = random ?? Random();

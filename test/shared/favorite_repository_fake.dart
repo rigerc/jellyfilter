@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:jellyfin_picker/features/favorites/domain/repositories/favorite_repository.dart';
+import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 
 final class FavoriteRepositoryInvocation {
   const FavoriteRepositoryInvocation({

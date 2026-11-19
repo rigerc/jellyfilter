@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/app.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/repositories/connection_repository.dart';
-import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/discovery_page.dart';
+import 'package:jellyfilter/app.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/repositories/connection_repository.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 
 import 'shared/app_robot.dart';
 import 'shared/connection_robot.dart';

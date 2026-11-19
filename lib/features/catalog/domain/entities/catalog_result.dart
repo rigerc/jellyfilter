@@ -1,4 +1,4 @@
-import 'package:jellyfin_picker/features/catalog/domain/failures/catalog_failure.dart';
+import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dart';
 
 final class CatalogResult<T> {
   const CatalogResult.success(this.value) : failure = null;

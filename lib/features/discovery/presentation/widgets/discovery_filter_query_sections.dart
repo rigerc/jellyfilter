@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/assets/app_assets.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_models.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sections.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_quick_filters.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/assets/app_assets.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_models.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_quick_filters.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Basics tab: search, quick filters, library and order, recency, status.
 final class DiscoveryBasicsFilterTab extends StatelessWidget {

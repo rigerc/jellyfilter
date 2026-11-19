@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_facets.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library.dart';
-import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_clear_dialog.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_controls.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_details_sheet.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_mode_selector.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_mode_switcher.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_clear_dialog.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_controls.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_selector.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_switcher.dart';
 
 typedef FavoriteToggle = Future<bool> Function(CatalogCandidate candidate);
 typedef CandidateDetailsLoader =

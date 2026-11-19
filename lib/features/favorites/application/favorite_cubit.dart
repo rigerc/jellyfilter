@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/features/favorites/domain/failures/favorite_failure.dart';
-import 'package:jellyfin_picker/features/favorites/domain/repositories/favorite_repository.dart';
+import 'package:jellyfilter/features/favorites/domain/failures/favorite_failure.dart';
+import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 
 enum FavoriteStatus { pending, succeeded, failed }
 

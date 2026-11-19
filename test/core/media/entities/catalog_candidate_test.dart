@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 
 void main() {
   test(

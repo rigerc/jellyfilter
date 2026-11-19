@@ -1,4 +1,4 @@
-import 'package:jellyfin_picker/features/favorites/domain/failures/favorite_failure.dart';
+import 'package:jellyfilter/features/favorites/domain/failures/favorite_failure.dart';
 
 sealed class FavoriteUpdateResult {
   const FavoriteUpdateResult();

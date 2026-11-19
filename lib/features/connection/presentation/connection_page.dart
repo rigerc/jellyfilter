@@ -2,15 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/core/assets/app_assets.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/connection_request.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/session_summary.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
-import 'package:jellyfin_picker/features/connection/presentation/connection_cubit.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/assets/app_assets.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/connection/domain/entities/connection_request.dart';
+import 'package:jellyfilter/features/connection/domain/entities/session_summary.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/presentation/connection_cubit.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Connection form with an injected [ConnectionCubit].
 final class ConnectionPage extends StatelessWidget {

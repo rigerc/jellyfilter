@@ -3,15 +3,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:jellyfin_picker/core/network/media_browser_authorization.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_facets.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_page.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_result.dart';
-import 'package:jellyfin_picker/features/catalog/domain/failures/catalog_failure.dart';
-import 'package:jellyfin_picker/features/catalog/domain/repositories/catalog_repository.dart';
+import 'package:jellyfilter/core/network/media_browser_authorization.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_page.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_result.dart';
+import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dart';
+import 'package:jellyfilter/features/catalog/domain/repositories/catalog_repository.dart';
 
 /// Paginated Jellyfin catalog transport and deterministic local refinement.
 final class JellyfinCatalogRepository implements CatalogRepository {

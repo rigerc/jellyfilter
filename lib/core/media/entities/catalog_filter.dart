@@ -1,6 +1,6 @@
 import 'dart:collection';
 
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 
 enum CatalogAddedWindow {
   sevenDays,

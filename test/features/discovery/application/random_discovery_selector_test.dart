@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/discovery/application/random_discovery_selector.dart';
+import 'package:jellyfilter/features/discovery/application/random_discovery_selector.dart';
 
 void main() {
   test('should produce a stable deterministic sequence for the same seed', () {

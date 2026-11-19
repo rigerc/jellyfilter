@@ -1,16 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_metadata_section.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_models.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_preset_section.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_rating_section.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sections.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_metadata_section.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_models.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_preset_section.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_rating_section.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// The filter sheet: a fixed header, four tabs of grouped controls, and a
 /// pinned apply bar so the primary action never scrolls away.

@@ -1,9 +1,9 @@
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_facets.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_page.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_result.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_page.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_result.dart';
 
 abstract interface class CatalogRepository {
   Future<CatalogPage> loadPage({

@@ -3,14 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jellyfin_picker/core/navigation/app_router.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/connection/domain/repositories/connection_repository.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/presentation/connection_cubit.dart';
-import 'package:jellyfin_picker/features/connection/presentation/connection_page.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
-import 'package:jellyfin_picker/presentation/home_page.dart';
+import 'package:jellyfilter/core/navigation/app_router.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/connection/domain/repositories/connection_repository.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/presentation/connection_cubit.dart';
+import 'package:jellyfilter/features/connection/presentation/connection_page.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/presentation/home_page.dart';
 
 /// Builds the concrete app router at the composition boundary.
 typedef AuthenticatedBuilder =

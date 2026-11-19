@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 Future<void> confirmClearDiscovery(BuildContext context) async {
   final localization = AppLocalizations.of(context);

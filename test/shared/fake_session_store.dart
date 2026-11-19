@@ -1,5 +1,5 @@
-import 'package:jellyfin_picker/features/connection/data/session_store.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/data/session_store.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 
 final class FakeSessionStore implements SessionStore {
   FakeSessionStore({this.session});

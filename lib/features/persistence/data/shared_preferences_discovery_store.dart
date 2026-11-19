@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_snapshot.dart';
-import 'package:jellyfin_picker/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
 
 abstract interface class DiscoveryBlobPreferences {
   String keyFor(String scope);

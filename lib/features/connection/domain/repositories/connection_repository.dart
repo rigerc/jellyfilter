@@ -1,6 +1,6 @@
-import 'package:jellyfin_picker/features/connection/domain/entities/connection_request.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/domain/entities/connection_request.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
 
 sealed class ConnectionResult {
   const ConnectionResult();

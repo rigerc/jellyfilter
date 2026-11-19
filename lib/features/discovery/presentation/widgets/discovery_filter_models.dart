@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
 
 typedef DiscoveryQueryFilterData = ({
   TextEditingController searchController,

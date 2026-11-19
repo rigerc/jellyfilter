@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
 
 void main() {
   test('should include a candidate at every inclusive filter boundary', () {

@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/connection_request.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/session_summary.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
-import 'package:jellyfin_picker/features/connection/domain/repositories/connection_repository.dart';
-import 'package:jellyfin_picker/features/connection/presentation/connection_cubit.dart';
+import 'package:jellyfilter/features/connection/domain/entities/connection_request.dart';
+import 'package:jellyfilter/features/connection/domain/entities/session_summary.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/domain/repositories/connection_repository.dart';
+import 'package:jellyfilter/features/connection/presentation/connection_cubit.dart';
 import '../../../shared/fake_connection_repository.dart';
 
 void main() {

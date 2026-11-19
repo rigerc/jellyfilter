@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/connection/data/flutter_secure_session_store.dart';
-import 'package:jellyfin_picker/features/connection/data/session_store.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/data/flutter_secure_session_store.dart';
+import 'package:jellyfilter/features/connection/data/session_store.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 
 void main() {
   test('should persist only the documented session keys', () async {

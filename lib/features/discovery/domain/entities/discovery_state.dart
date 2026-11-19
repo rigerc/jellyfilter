@@ -1,6 +1,6 @@
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 
 final class DiscoveryState {
   DiscoveryState({

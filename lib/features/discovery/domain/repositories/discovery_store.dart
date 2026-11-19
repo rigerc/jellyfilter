@@ -1,4 +1,4 @@
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 
 abstract interface class DiscoveryStore {
   Future<DiscoverySnapshot?> read(String scope);

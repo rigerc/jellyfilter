@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/assets/app_assets.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_header_actions.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/assets/app_assets.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_header_actions.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 final class DiscoveryHeader extends StatelessWidget {
   const DiscoveryHeader({

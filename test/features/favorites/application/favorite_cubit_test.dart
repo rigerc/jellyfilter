@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/favorites/application/favorite_cubit.dart';
-import 'package:jellyfin_picker/features/favorites/domain/failures/favorite_failure.dart';
-import 'package:jellyfin_picker/features/favorites/domain/repositories/favorite_repository.dart';
+import 'package:jellyfilter/features/favorites/application/favorite_cubit.dart';
+import 'package:jellyfilter/features/favorites/domain/failures/favorite_failure.dart';
+import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 
 import '../../../shared/favorite_repository_fake.dart';
 

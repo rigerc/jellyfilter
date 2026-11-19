@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
 
 /// Adds a small, transform-only press response to an interactive child.
 final class CandyBounce extends StatefulWidget {

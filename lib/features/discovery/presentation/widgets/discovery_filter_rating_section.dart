@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_models.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sections.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_models.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Ratings tab: runtime window and minimum scores.
 final class DiscoveryRatingFilterTab extends StatelessWidget {

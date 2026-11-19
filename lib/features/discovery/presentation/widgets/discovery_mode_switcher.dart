@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mode.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_state.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/discovery_page.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_grid.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_shuffle.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_swipe.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
+import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_grid.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_shuffle.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_swipe.dart';
 
 final class DiscoveryModeSwitcher extends StatelessWidget {
   const DiscoveryModeSwitcher({

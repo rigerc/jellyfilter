@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_models.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sections.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_models.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Content tab: genres, decades, and content ratings.
 final class DiscoveryContentFilterTab extends StatelessWidget {

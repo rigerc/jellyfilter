@@ -1,4 +1,4 @@
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 
 abstract interface class SecureKeyValueStore {
   Future<String?> read(String key);

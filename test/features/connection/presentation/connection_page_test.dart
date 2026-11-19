@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/connection_request.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
-import 'package:jellyfin_picker/features/connection/domain/repositories/connection_repository.dart';
-import 'package:jellyfin_picker/features/connection/presentation/connection_cubit.dart';
-import 'package:jellyfin_picker/features/connection/presentation/connection_page.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/connection/domain/entities/connection_request.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/domain/repositories/connection_repository.dart';
+import 'package:jellyfilter/features/connection/presentation/connection_cubit.dart';
+import 'package:jellyfilter/features/connection/presentation/connection_page.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 import '../../../shared/connection_robot.dart';
 import '../../../shared/fake_connection_repository.dart';
 

@@ -2,14 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/discovery_page.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_candidate_card.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_details_metadata.dart';
-import 'package:jellyfin_picker/features/favorites/domain/repositories/favorite_repository.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_metadata.dart';
+import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Opens the playlists & tags sheet for a title.
 typedef CandidateOrganizer =

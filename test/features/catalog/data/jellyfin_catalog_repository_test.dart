@@ -4,12 +4,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:jellyfin_picker/features/catalog/data/jellyfin_catalog_repository.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_facets.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library.dart';
-import 'package:jellyfin_picker/features/catalog/domain/failures/catalog_failure.dart';
+import 'package:jellyfilter/features/catalog/data/jellyfin_catalog_repository.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dart';
 import '../../../shared/recording_http_client.dart';
 
 void main() {

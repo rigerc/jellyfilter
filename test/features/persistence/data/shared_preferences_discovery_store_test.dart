@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_snapshot.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mode.dart';
-import 'package:jellyfin_picker/features/persistence/data/shared_preferences_discovery_store.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/persistence/data/shared_preferences_discovery_store.dart';
 
 void main() {
   test('should persist one scoped versioned JSON blob', () async {

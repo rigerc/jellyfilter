@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
 
 void main() {
   test('should expose the marquee amber palette without violet hues', () {

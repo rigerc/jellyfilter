@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mode.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 final class DiscoveryModeSelector extends StatelessWidget {
   const DiscoveryModeSelector({super.key});

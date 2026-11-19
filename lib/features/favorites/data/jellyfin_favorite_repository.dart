@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:jellyfin_picker/core/network/media_browser_authorization.dart';
-import 'package:jellyfin_picker/features/favorites/domain/failures/favorite_failure.dart';
-import 'package:jellyfin_picker/features/favorites/domain/repositories/favorite_repository.dart';
+import 'package:jellyfilter/core/network/media_browser_authorization.dart';
+import 'package:jellyfilter/features/favorites/domain/failures/favorite_failure.dart';
+import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 
 final class JellyfinFavoriteRepository implements FavoriteRepository {
   const JellyfinFavoriteRepository({

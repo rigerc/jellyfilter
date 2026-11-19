@@ -4,12 +4,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:jellyfin_picker/features/connection/data/jellyfin_connection_repository.dart';
-import 'package:jellyfin_picker/features/connection/data/session_store.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/connection_request.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
-import 'package:jellyfin_picker/features/connection/domain/repositories/connection_repository.dart';
+import 'package:jellyfilter/features/connection/data/jellyfin_connection_repository.dart';
+import 'package:jellyfilter/features/connection/data/session_store.dart';
+import 'package:jellyfilter/features/connection/domain/entities/connection_request.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/domain/repositories/connection_repository.dart';
 import '../../../shared/fake_session_store.dart';
 import '../../../shared/recording_http_client.dart';
 

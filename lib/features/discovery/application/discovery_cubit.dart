@@ -1,10 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mode.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_snapshot.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_state.dart';
-import 'package:jellyfin_picker/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
 
 final class DiscoveryCubit extends Cubit<DiscoveryState> {
   DiscoveryCubit({

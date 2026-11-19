@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 final class DiscoveryEmptyState extends StatelessWidget {
   const DiscoveryEmptyState({super.key});

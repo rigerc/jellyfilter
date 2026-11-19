@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:jellyfin_picker/app.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/repositories/connection_repository.dart';
-import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_snapshot.dart';
-import 'package:jellyfin_picker/features/discovery/domain/repositories/discovery_store.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/discovery_page.dart';
+import 'package:jellyfilter/app.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/repositories/connection_repository.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 
 import '../test/shared/discovery_robot.dart';
 import '../test/shared/fake_connection_repository.dart';

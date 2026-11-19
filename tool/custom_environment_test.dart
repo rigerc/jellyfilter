@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/core/config/environment_config.dart';
+import 'package:jellyfilter/core/config/environment_config.dart';
 
 void main() {
   test(

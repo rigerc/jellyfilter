@@ -1,5 +1,5 @@
-import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 
 abstract final class CatalogFilterCodec {
   static Map<String, Object?> encode(CatalogFilter filter) => <String, Object?>{

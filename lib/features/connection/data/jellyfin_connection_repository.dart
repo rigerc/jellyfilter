@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:jellyfin_picker/core/network/media_browser_authorization.dart';
-import 'package:jellyfin_picker/features/connection/data/session_store.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/connection_request.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
-import 'package:jellyfin_picker/features/connection/domain/repositories/connection_repository.dart';
-import 'package:jellyfin_picker/features/connection/domain/server_url_policy.dart';
+import 'package:jellyfilter/core/network/media_browser_authorization.dart';
+import 'package:jellyfilter/features/connection/data/session_store.dart';
+import 'package:jellyfilter/features/connection/domain/entities/connection_request.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/domain/repositories/connection_repository.dart';
+import 'package:jellyfilter/features/connection/domain/server_url_policy.dart';
 
 /// Jellyfin HTTP boundary with injectable transport and persistence.
 final class JellyfinConnectionRepository implements ConnectionRepository {

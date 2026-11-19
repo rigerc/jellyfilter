@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_facets.dart';
-import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library.dart';
-import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mode.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_state.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sheet.dart';
-import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_header.dart';
-import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
+import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
+import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sheet.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_header.dart';
+import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 final class DiscoveryControls extends StatelessWidget {
   const DiscoveryControls({

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_snapshot.dart';
-import 'package:jellyfin_picker/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
 
 final class FakeDiscoveryStore implements DiscoveryStore {
   DiscoverySnapshot? snapshot;

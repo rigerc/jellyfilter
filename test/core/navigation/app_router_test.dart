@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/app.dart';
-import 'package:jellyfin_picker/core/navigation/app_router.dart';
+import 'package:jellyfilter/app.dart';
+import 'package:jellyfilter/core/navigation/app_router.dart';
 
 void main() {
   test('should expose stable paths when route constants are read', () {

@@ -1,6 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:jellyfin_picker/features/connection/data/session_store.dart';
-import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
+import 'package:jellyfilter/features/connection/data/session_store.dart';
+import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 
 /// Secure Keychain/Keystore-backed session persistence.
 final class FlutterSecureSessionStore implements SessionStore {

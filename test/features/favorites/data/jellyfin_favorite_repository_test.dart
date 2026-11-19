@@ -4,9 +4,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:jellyfin_picker/features/favorites/data/jellyfin_favorite_repository.dart';
-import 'package:jellyfin_picker/features/favorites/domain/failures/favorite_failure.dart';
-import 'package:jellyfin_picker/features/favorites/domain/repositories/favorite_repository.dart';
+import 'package:jellyfilter/features/favorites/data/jellyfin_favorite_repository.dart';
+import 'package:jellyfilter/features/favorites/domain/failures/favorite_failure.dart';
+import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 
 import '../../../shared/recording_http_client.dart';
 

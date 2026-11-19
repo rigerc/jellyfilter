@@ -1,6 +1,6 @@
-import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
-import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mode.dart';
-import 'package:jellyfin_picker/features/discovery/domain/serialization/catalog_filter_codec.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/domain/serialization/catalog_filter_codec.dart';
 
 final class DiscoverySnapshot {
   static const maxDecisionIdCount = 2000;

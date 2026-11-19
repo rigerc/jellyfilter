@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_picker/features/connection/domain/server_url_policy.dart';
-import 'package:jellyfin_picker/features/connection/domain/failures/connection_failure.dart';
+import 'package:jellyfilter/features/connection/domain/server_url_policy.dart';
+import 'package:jellyfilter/features/connection/domain/failures/connection_failure.dart';
 
 void main() {
   test('should default to HTTPS when a scheme is omitted', () {
