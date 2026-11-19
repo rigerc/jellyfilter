@@ -56,7 +56,8 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   late final LibraryActionsRepository _libraryActions;
   StreamSubscription<DiscoveryState>? _discoverySubscription;
   String? _loadedFilterFingerprint;
-  bool _refillingShuffle = false;
+  String? _loadingShuffleFingerprint;
+  int _catalogLoadGeneration = 0;
   DiscoveryMode? _lastMode;
   DateTime? _lastFavoriteSync;
   bool _syncingFavorites = false;
@@ -149,47 +150,54 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     }
     if (state.mode == DiscoveryMode.shuffle &&
         state.noEligibleCandidates &&
-        !_refillingShuffle) {
-      _refillingShuffle = true;
-      unawaited(
-        _loadCatalog(state).whenComplete(() => _refillingShuffle = false),
-      );
+        _loadingShuffleFingerprint != fingerprint) {
+      unawaited(_loadCatalog(state));
     }
   }
 
   Future<void> _loadCatalog(DiscoveryState state) async {
     final filter = _effectiveFilter(state);
     final fingerprint = CatalogFilterCodec.encode(filter).toString();
+    if (state.mode == DiscoveryMode.shuffle &&
+        _loadingShuffleFingerprint == fingerprint) {
+      return;
+    }
+    final generation = ++_catalogLoadGeneration;
     _loadedFilterFingerprint = fingerprint;
+    // A Grid/Swipe load supersedes any pending Shuffle request too.
+    _loadingShuffleFingerprint = state.mode == DiscoveryMode.shuffle
+        ? fingerprint
+        : null;
     if (state.mode != DiscoveryMode.shuffle) {
       await _catalogCubit.load(filter: filter);
       return;
     }
-    // Shuffle narrows the request; each fallback widens it until something
-    // comes back, so an exhausted cycle never looks like a broken library.
-    final rejected = Set<String>.unmodifiable(state.rejectedIds.take(100));
-    final shortlist = _shuffleShortlist(state);
-    final attempts = <({Set<String> included, Set<String> excluded})>[
-      // Liked titles: the reel itself avoids recent repeats.
-      if (shortlist.isNotEmpty) (included: shortlist, excluded: const {}),
-      // A random batch of titles not shown recently.
-      (included: const {}, excluded: _shuffleExclusions(state)),
-      // Everything was shown recently: start a fresh cycle.
-      if (state.recentPickIds.isNotEmpty)
-        (included: const {}, excluded: rejected),
-    ];
-    for (final attempt in attempts) {
-      await _catalogCubit.load(
-        filter: filter,
-        excludedIds: attempt.excluded,
-        includedIds: attempt.included,
-      );
-      final empty = switch (_catalogCubit.state) {
-        CatalogLoaded(candidates: final values) => values.isEmpty,
-        _ => false,
-      };
-      if (!mounted || !empty || _loadedFilterFingerprint != fingerprint) {
-        return;
+    try {
+      // Shuffle narrows the request; each fallback widens it until something
+      // comes back, so an exhausted cycle never looks like a broken library.
+      final rejected = Set<String>.unmodifiable(state.rejectedIds.take(100));
+      final attempts = <Set<String>>[
+        // A random batch of titles not shown recently.
+        _shuffleExclusions(state),
+        // Everything was shown recently: start a fresh cycle.
+        if (state.recentPickIds.isNotEmpty) rejected,
+      ];
+      for (final attempt in attempts) {
+        await _catalogCubit.load(filter: filter, excludedIds: attempt);
+        if (!mounted || generation != _catalogLoadGeneration) {
+          return;
+        }
+        final discovery = _discoveryCubit.state;
+        final usable =
+            discovery.currentRevealId != null ||
+            discovery.eligibleCandidates.isNotEmpty;
+        if (usable) {
+          return;
+        }
+      }
+    } finally {
+      if (generation == _catalogLoadGeneration) {
+        _loadingShuffleFingerprint = null;
       }
     }
   }
@@ -207,9 +215,6 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     exclusions.addAll(state.rejectedIds);
     return Set<String>.unmodifiable(exclusions.take(100));
   }
-
-  Set<String> _shuffleShortlist(DiscoveryState state) =>
-      Set<String>.unmodifiable(state.likedIds.take(50));
 
   @override
   void dispose() {

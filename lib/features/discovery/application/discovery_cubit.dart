@@ -310,11 +310,13 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     final reveal = stillListed
         ? current
         : _validReveal(values, state.filter, current);
-    return state.copyWith(
+    final next = state.copyWith(
       candidates: values,
       currentRevealId: reveal,
       currentPickId: reveal == null ? null : state.currentPickId,
-      noEligibleCandidates: false,
+    );
+    return next.copyWith(
+      noEligibleCandidates: reveal == null && next.eligibleCandidates.isEmpty,
     );
   }
 
@@ -324,11 +326,13 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
       filter,
       state.currentRevealId,
     );
-    return state.copyWith(
+    final next = state.copyWith(
       filter: filter,
       currentRevealId: reveal,
       currentPickId: reveal == null ? null : state.currentPickId,
-      noEligibleCandidates: false,
+    );
+    return next.copyWith(
+      noEligibleCandidates: reveal == null && next.eligibleCandidates.isEmpty,
     );
   }
 
@@ -350,14 +354,6 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
       return null;
     }
     if (state.rejectedIds.contains(reveal)) {
-      return null;
-    }
-    // Same rule as eligibility: the liked shortlist only applies when some
-    // liked title fits the filter.
-    final shortlistApplies = candidates.any(
-      (item) => state.likedIds.contains(item.id) && filter.matches(item),
-    );
-    if (shortlistApplies && !state.likedIds.contains(reveal)) {
       return null;
     }
     return reveal;

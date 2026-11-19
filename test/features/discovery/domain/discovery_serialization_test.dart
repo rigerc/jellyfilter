@@ -335,7 +335,7 @@ void main() {
     },
   );
 
-  test('should compute shortlist and undecided eligibility immutably', () {
+  test('should keep unliked matches eligible after browsing decisions', () {
     const movie = CatalogCandidate(
       id: 'movie',
       name: 'Movie',
@@ -351,14 +351,15 @@ void main() {
       backdrop: CatalogImage.fallback(),
     );
     final state = DiscoveryState(
-      candidates: <CatalogCandidate>[movie, series],
+      candidates: <CatalogCandidate>[movie, _candidate('fresh'), series],
       likedIds: <String>{'movie'},
       rejectedIds: <String>{'series'},
     );
 
-    expect(state.undecidedCandidates, isEmpty);
+    expect(state.undecidedCandidates.single.id, 'fresh');
     expect(state.eligibleCandidates.map((candidate) => candidate.id), <String>[
       'movie',
+      'fresh',
     ]);
   });
 
