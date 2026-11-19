@@ -57,6 +57,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   StreamSubscription<DiscoveryState>? _discoverySubscription;
   String? _loadedFilterFingerprint;
   String? _loadingShuffleFingerprint;
+  int _catalogLoadGeneration = 0;
   DiscoveryMode? _lastMode;
   DateTime? _lastFavoriteSync;
   bool _syncingFavorites = false;
@@ -157,15 +158,20 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   Future<void> _loadCatalog(DiscoveryState state) async {
     final filter = _effectiveFilter(state);
     final fingerprint = CatalogFilterCodec.encode(filter).toString();
+    if (state.mode == DiscoveryMode.shuffle &&
+        _loadingShuffleFingerprint == fingerprint) {
+      return;
+    }
+    final generation = ++_catalogLoadGeneration;
     _loadedFilterFingerprint = fingerprint;
+    // A Grid/Swipe load supersedes any pending Shuffle request too.
+    _loadingShuffleFingerprint = state.mode == DiscoveryMode.shuffle
+        ? fingerprint
+        : null;
     if (state.mode != DiscoveryMode.shuffle) {
       await _catalogCubit.load(filter: filter);
       return;
     }
-    if (_loadingShuffleFingerprint == fingerprint) {
-      return;
-    }
-    _loadingShuffleFingerprint = fingerprint;
     try {
       // Shuffle narrows the request; each fallback widens it until something
       // comes back, so an exhausted cycle never looks like a broken library.
@@ -178,7 +184,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
       ];
       for (final attempt in attempts) {
         await _catalogCubit.load(filter: filter, excludedIds: attempt);
-        if (!mounted || _loadedFilterFingerprint != fingerprint) {
+        if (!mounted || generation != _catalogLoadGeneration) {
           return;
         }
         final discovery = _discoveryCubit.state;
@@ -190,7 +196,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
         }
       }
     } finally {
-      if (_loadingShuffleFingerprint == fingerprint) {
+      if (generation == _catalogLoadGeneration) {
         _loadingShuffleFingerprint = null;
       }
     }

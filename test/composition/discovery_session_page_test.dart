@@ -20,6 +20,58 @@ import '../shared/fake_discovery_store.dart';
 import '../shared/recording_http_client.dart';
 
 void main() {
+  testWidgets('should reload Shuffle after a Grid load supersedes it', (
+    tester,
+  ) async {
+    final pendingShuffle = Completer<http.Response>();
+    var randomRequests = 0;
+    final client = RecordingHttpClient((request) async {
+      final path = request.url.path;
+      if (path == '/UserViews') {
+        return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+      }
+      if (path == '/Items/Filters' || path == '/Items/Filters2') {
+        return _jsonResponse(<String, Object?>{});
+      }
+      if (path == '/Items') {
+        randomRequests++;
+        if (randomRequests == 1) return pendingShuffle.future;
+        return _jsonResponse({
+          'Items': [_movie('fresh')],
+          'TotalRecordCount': 1,
+        });
+      }
+      if (path == '/Items/Suggestions') {
+        return _jsonResponse({
+          'Items': [_movie('suggested')],
+          'TotalRecordCount': 1,
+        });
+      }
+      return http.Response('', 404);
+    });
+    await tester.pumpWidget(_app(client));
+    await tester.pumpAndSettle();
+    final cubit = tester
+        .widget<DiscoveryPage>(find.byType(DiscoveryPage))
+        .cubit;
+    await cubit.setMode(DiscoveryMode.shuffle);
+    await tester.pump();
+    expect(randomRequests, 1);
+    await cubit.setMode(DiscoveryMode.grid);
+    await tester.pumpAndSettle();
+    await cubit.setMode(DiscoveryMode.shuffle);
+    await tester.pump();
+    pendingShuffle.complete(
+      _jsonResponse({
+        'Items': [_movie('stale')],
+        'TotalRecordCount': 1,
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(randomRequests, 2);
+    expect(cubit.state.candidates.single.id, 'fresh');
+  });
+
   group('exhausted shuffle', exhaustedShuffleTests);
   group('optimistic favorites', optimisticFavoriteTests);
   group('favorite freshness', favoriteFreshnessTests);
