@@ -4,6 +4,17 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseSigning = listOf(
+    "ANDROID_KEYSTORE_PATH",
+    "ANDROID_KEYSTORE_PASSWORD",
+    "ANDROID_KEY_ALIAS",
+    "ANDROID_KEY_PASSWORD",
+).associateWith { System.getenv(it)?.takeIf(String::isNotBlank) }
+val hasReleaseSigning = releaseSigning.values.all { it != null }
+require(hasReleaseSigning || releaseSigning.values.all { it == null }) {
+    "Set all four ANDROID signing environment variables, or none."
+}
+
 android {
     namespace = "com.jellyfinpicker.jellyfin_picker"
     compileSdk = flutter.compileSdkVersion
@@ -25,11 +36,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseSigning["ANDROID_KEYSTORE_PATH"]))
+                storePassword = releaseSigning["ANDROID_KEYSTORE_PASSWORD"]
+                keyAlias = releaseSigning["ANDROID_KEY_ALIAS"]
+                keyPassword = releaseSigning["ANDROID_KEY_PASSWORD"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without credentials, local release builds are unsigned.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

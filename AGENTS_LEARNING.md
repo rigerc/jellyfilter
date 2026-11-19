@@ -67,3 +67,10 @@ requested another page and Shuffle could keep reusing its initial pool. Test
 full catalog availability through app composition in every mode, not only
 repository pagination. Show the first page immediately and continue loading
 the remaining pages without requiring gestures or exhausted candidates.
+
+## 2026-11-19 — Serialize Flutter builds and tests
+
+Running the release build alongside the quality gate raced on the generated
+Android plugin registrant: tests included `integration_test` while the release
+Java compilation excluded that plugin. Run Flutter tests and Android builds
+sequentially in the same checkout so generated plugin files stay consistent.

@@ -38,6 +38,55 @@ The GitHub Actions workflow runs the same commands and uploads both coverage
 and Android artifacts. It does not prove Android installation, device flows,
 iOS behavior, integration coverage, or release acceptance.
 
+## Android Release Workflow
+
+`.github/workflows/release.yml` runs when a `v*` tag is pushed. It can also be
+started manually by selecting an existing tag in Actions. Branch runs fail
+before building. Tags must match `version:` in `pubspec.yaml` (for example,
+`1.0.32+33` uses tag `v1.0.32`), and the changelog must contain a nonempty dated
+entry for that version. Before each new release, increase both the version and
+build number and add user-facing release notes to `CHANGELOG.md`.
+
+Configure these repository Actions secrets before pushing a release tag:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | Base64 encoding of the release signing keystore file. |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password. |
+| `ANDROID_KEY_ALIAS` | Signing key alias within the keystore. |
+| `ANDROID_KEY_PASSWORD` | Signing key password. |
+
+Use the existing distribution key if the app has already been distributed;
+keep a secure backup for future updates. Follow Flutter's
+[Android signing guide](https://docs.flutter.dev/deployment/android#sign-the-app)
+to create a key when preparing the first release. Never commit a keystore or
+password. Debug builds continue to use the development key. Local release builds
+are unsigned unless all four `ANDROID_KEYSTORE_PATH`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`
+environment variables are set; the path must be absolute. The workflow requires
+all signing secrets and removes the temporary keystore after the build.
+
+After committing the version and changelog updates, tag that commit and push
+the tag (replace the example with the new version):
+
+```bash
+git tag -a v1.0.32 -m 'Jellyfilter 1.0.32'
+git push origin v1.0.32
+```
+
+The workflow runs the full quality gate, checks that generated localization is
+committed, and builds a signed universal APK and Android App Bundle. A 30-day
+Actions artifact and a draft GitHub release contain the versioned binaries,
+`SHA256SUMS`, and notes extracted from the changelog. Download both binaries and
+the checksum file into one directory and run `sha256sum --check SHA256SUMS`.
+
+Install the release APK and complete the device checks below before publishing
+the draft in GitHub. The AAB is provided for a separate Play Console upload;
+this workflow does not upload to an app store or build/sign iOS. The draft uses
+GitHub CLI's [`--draft` and `--verify-tag` options](https://cli.github.com/manual/gh_release_create).
+If release creation fails after leaving a partial draft, delete only that draft
+and rerun the workflow on the same tag. Existing releases are never overwritten.
+
 ## Install And Launch
 
 Install the Android artifact on an attached development device:
