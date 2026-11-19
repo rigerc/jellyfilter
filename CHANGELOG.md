@@ -1,5 +1,108 @@
 # Changelog
 
+## 1.0.25 — 2026-11-19
+
+- Fix lag in libraries with many tags (Jellyfin often stores TMDb keywords as
+  tags): the Content tab now shows your chosen tags plus the 30 most used,
+  with a search box for the rest, instead of thousands of chips.
+- Filtering is much faster: each title's tags and genres are prepared once,
+  and filtered lists are computed once per change instead of once per view.
+
+## 1.0.24 — 2026-11-19
+
+- Reverse any directional sort (Title, Release year, Rating, Runtime, Recently
+  added) from the header sort menu or the filter sheet.
+- Filter by Jellyfin tags; titles must carry every tag you pick.
+- Exclude genres, tags, decades, and content ratings: tap a filter chip once
+  to require it, twice to exclude it, and again to clear it. Exclusions show
+  as coral "Not …" chips above your titles.
+- Tags edited from "Playlists & tags" apply to tag filters right away.
+
+## 1.0.23 — 2026-11-19
+
+- Fix Shuffle stalling with a favorites filter: liked titles only form the
+  shortlist when some of them match the filters, and un-hearting the current
+  pick keeps it on screen until the next spin.
+- Sort Grid and Swipe from the header: Recommended, Recently added, Title,
+  Release year, Community rating, or Runtime.
+- Turn on "Fade watched" from the ⋯ menu to dim watched titles with a badge.
+- Add titles to Jellyfin playlists (or create one) and edit Jellyfin tags:
+  long-press a poster in Grid, or use the playlist button in Swipe, Shuffle,
+  and the details sheet. Tag edits need a Jellyfin administrator.
+- Redesigned details sheet: poster and score header, clear section headings,
+  and Overview / Details / Trailers tabs.
+
+## 1.0.22 — 2026-11-19
+
+- Fix "Your library is unavailable" when opening Shuffle after every liked
+  title had been shown recently; liked shortlists no longer exclude recent
+  picks, and an exhausted random cycle starts over.
+- An empty result for a narrowed Shuffle request now reads as "no titles fit",
+  never as a library error.
+
+## 1.0.21 — 2026-11-19
+
+- Hearts respond instantly with a small pop and haptic tick, then confirm
+  with Jellyfin in the background; a failed update flips back with a message.
+- Rapid double taps on a heart now land on the right state without a
+  spurious error.
+- Background favorite refreshes and details loads can no longer undo a heart
+  you just tapped.
+- Smoother card dragging in Swipe, and fewer needless storage writes.
+
+## 1.0.20 — 2026-11-19
+
+- Keep favorites current: hearts you toggle no longer revert when more titles
+  load, and favorites changed in other Jellyfin apps appear when you return
+  to the app or switch modes.
+- Opening a title's details also refreshes its favorite state everywhere.
+
+## 1.0.19 — 2026-11-19
+
+- Swipe like a dating app: cards follow your finger and tilt, LIKE and NOPE
+  stamps fade in as you drag, a quick flick or a long drag sends the card
+  flying, and a short drag springs it back.
+- See the next titles waiting in a stack that rises into place as the top
+  card leaves.
+- Use round Nope, Details, and Like buttons; the one you are dragging toward
+  fills in, with haptic feedback when a release will count.
+
+## 1.0.18 — 2026-11-19
+
+- Lean Shuffle toward your Jellyfin favorites with a "Favor favorites" slider:
+  at 70%, at least seven in ten spins land on a favorite when one is
+  available. The setting is remembered per server and user.
+
+## 1.0.17 — 2026-11-19
+
+- See every active filter as a chip above your titles in Grid, Swipe, and
+  Shuffle; tap a chip to adjust filters, or its × to drop just that one.
+- Clear all filters at once from the end of the chip strip.
+
+## 1.0.16 — 2026-11-19
+
+- Find filters faster in a tabbed sheet — Basics, Content, Ratings, and
+  Presets — with flat, well-spaced groups instead of stacked cards.
+- See how many choices are active on each tab and in the sheet header.
+- Keep "Show matches" pinned at the bottom of the sheet on every tab.
+- Pick watched and favorite states with one-tap Any / Yes / No toggles, and
+  read runtime and rating thresholds at a glance beside each slider.
+- Save presets from the filters you just set in the sheet, not only the ones
+  already applied.
+- Browse content ratings from youngest audience to oldest.
+
+## 1.0.15 — 2026-11-19
+
+- Spin Shuffle like a slot machine: the reel winds up, races through posters
+  with motion blur and haptic ticks, then locks onto tonight's pick.
+- Enjoy a new warm marquee look: charcoal surfaces with amber highlights
+  replace the violet palette, including the app icon.
+- Browse a roomier grid with poster-first tiles, title and year · runtime
+  captions, and a lighter header that gives more space to your library.
+- See a clear message in Shuffle when no titles are left to pick.
+- Read the selected mode label clearly in the bottom bar in every system
+  appearance.
+
 ## 1.0.14 — 2026-08-14
 
 - Play trailers supplied by Jellyfin directly from movie details.
