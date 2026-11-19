@@ -12,6 +12,7 @@ import 'package:jellyfilter/features/connection/domain/entities/stored_session.d
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 import '../shared/discovery_robot.dart';
@@ -130,35 +131,20 @@ void main() {
     robot.expectCandidateVisible('Fresh');
   });
 
-  testWidgets('should restore a bounded local shortlist in shuffle', (
+  testWidgets('should shuffle all filter matches despite two saved likes', (
     tester,
   ) async {
-    final client = RecordingHttpClient((request) async {
-      if (request.url.path == '/UserViews') {
-        return _jsonResponse({
-          'Items': <Map<String, Object?>>[],
-          'TotalRecordCount': 0,
-        });
-      }
-      if (request.url.path == '/Items/Filters' ||
-          request.url.path == '/Items/Filters2') {
-        return _jsonResponse(<String, Object?>{});
-      }
-      if (request.url.path == '/Items') {
-        return _jsonResponse({
-          'Items': <Map<String, Object?>>[_movie('liked')],
-          'StartIndex': 0,
-          'TotalRecordCount': 1,
-        });
-      }
-      return http.Response('', 404);
-    });
+    final client = _narrowingClient(<String>['liked1', 'liked2', 'fresh']);
     final store = ImmediateDiscoveryStore()
       ..snapshot = const DiscoverySnapshot(
         mode: DiscoveryMode.shuffle,
-        likedIds: <String>{'liked'},
+        filter: CatalogFilter(
+          genres: <String>{'Drama'},
+          watched: false,
+          maximumRuntimeMinutes: 90,
+        ),
+        likedIds: <String>{'liked1', 'liked2'},
       );
-    final robot = DiscoveryRobot(tester);
 
     await tester.pumpWidget(_app(client, discoveryStore: store));
     await tester.pumpAndSettle();
@@ -166,12 +152,19 @@ void main() {
     final request = client.requests.singleWhere(
       (request) => request.url.path == '/Items',
     );
-    expect(request.url.queryParameters['ids'], 'liked');
-    expect(request.url.queryParameters, isNot(contains('excludeItemIds')));
-
-    await robot.reveal();
-    await tester.pumpAndSettle();
-    robot.expectCandidateVisible('Liked');
+    expect(request.url.queryParameters, isNot(contains('ids')));
+    expect(request.url.queryParameters['genres'], 'Drama');
+    expect(request.url.queryParameters['isPlayed'], 'false');
+    expect(request.url.queryParameters['sortBy'], 'Random');
+    final cubit = tester
+        .widget<DiscoveryPage>(find.byType(DiscoveryPage))
+        .cubit;
+    expect(
+      cubit.state.eligibleCandidates.map((candidate) => candidate.id),
+      <String>['liked1', 'liked2', 'fresh'],
+    );
+    expect(cubit.state.favoriteBias, 0);
+    expect(cubit.state.likedIds, <String>{'liked1', 'liked2'});
   });
 
   testWidgets('should show no matches when an accessible filter returns none', (
@@ -411,7 +404,7 @@ RecordingHttpClient _narrowingClient(List<String> library) =>
 
 void exhaustedShuffleTests() {
   testWidgets(
-    'should open Shuffle after every liked title was shown recently',
+    'should offer fresh matches when liked titles were shown recently',
     (tester) async {
       final client = _narrowingClient(<String>['liked', 'fresh']);
       final store = ImmediateDiscoveryStore()
@@ -426,11 +419,14 @@ void exhaustedShuffleTests() {
       await tester.pumpAndSettle();
 
       expect(find.text('Your library is unavailable'), findsNothing);
-      DiscoveryRobot(tester).expectCandidateVisible('Liked');
-      final shortlistRequest = client.requests.firstWhere(
-        (request) => request.url.queryParameters['ids'] != null,
+      final request = client.requests.singleWhere(
+        (request) => request.url.path == '/Items',
       );
-      expect(shortlistRequest.url.queryParameters['excludeItemIds'], isNull);
+      expect(request.url.queryParameters['ids'], isNull);
+      expect(request.url.queryParameters['excludeItemIds'], 'liked');
+      await DiscoveryRobot(tester).reveal();
+      await tester.pumpAndSettle();
+      DiscoveryRobot(tester).expectCandidateVisible('Fresh');
     },
   );
 

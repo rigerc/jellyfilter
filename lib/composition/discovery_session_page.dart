@@ -170,22 +170,14 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
       // Shuffle narrows the request; each fallback widens it until something
       // comes back, so an exhausted cycle never looks like a broken library.
       final rejected = Set<String>.unmodifiable(state.rejectedIds.take(100));
-      final shortlist = _shuffleShortlist(state);
-      final attempts = <({Set<String> included, Set<String> excluded})>[
-        // Liked titles: the reel itself avoids recent repeats.
-        if (shortlist.isNotEmpty) (included: shortlist, excluded: const {}),
+      final attempts = <Set<String>>[
         // A random batch of titles not shown recently.
-        (included: const {}, excluded: _shuffleExclusions(state)),
+        _shuffleExclusions(state),
         // Everything was shown recently: start a fresh cycle.
-        if (state.recentPickIds.isNotEmpty)
-          (included: const {}, excluded: rejected),
+        if (state.recentPickIds.isNotEmpty) rejected,
       ];
       for (final attempt in attempts) {
-        await _catalogCubit.load(
-          filter: filter,
-          excludedIds: attempt.excluded,
-          includedIds: attempt.included,
-        );
+        await _catalogCubit.load(filter: filter, excludedIds: attempt);
         if (!mounted || _loadedFilterFingerprint != fingerprint) {
           return;
         }
@@ -217,9 +209,6 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     exclusions.addAll(state.rejectedIds);
     return Set<String>.unmodifiable(exclusions.take(100));
   }
-
-  Set<String> _shuffleShortlist(DiscoveryState state) =>
-      Set<String>.unmodifiable(state.likedIds.take(50));
 
   @override
   void dispose() {

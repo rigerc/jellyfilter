@@ -143,19 +143,43 @@ void main() {
   });
 
   test(
-    'should restrict final picks to liked titles when likes exist',
+    'should pick any matching unrejected title even when likes exist',
     () async {
       final selector = FakeDiscoverySelector('movie-2');
       final cubit = _cubit(selector);
       await cubit.replaceCandidates(<CatalogCandidate>[
-        _candidate('movie-1'),
-        _candidate('movie-2'),
+        _candidate('movie-1', watched: false),
+        _candidate('movie-2', watched: false),
+        _candidate('watched', watched: true),
+        _candidate('rejected', watched: false),
+      ]);
+      await cubit.like('movie-1');
+      await cubit.like('watched');
+      await cubit.reject('rejected');
+      await cubit.updateFilter(const CatalogFilter(watched: false));
+      await cubit.revealNext();
+
+      expect(selector.receivedIds, <String>['movie-1', 'movie-2']);
+      expect(cubit.state.currentRevealId, 'movie-2');
+      await cubit.close();
+    },
+  );
+
+  test(
+    'should keep a matching unliked pick when filters are applied',
+    () async {
+      final cubit = _cubit(FakeDiscoverySelector('movie-2'));
+      await cubit.replaceCandidates(<CatalogCandidate>[
+        _candidate('movie-1', watched: false),
+        _candidate('movie-2', watched: false),
       ]);
       await cubit.like('movie-1');
       await cubit.revealNext();
 
-      expect(selector.receivedIds, <String>['movie-1']);
-      expect(cubit.state.currentRevealId, isNull);
+      await cubit.updateFilter(const CatalogFilter(watched: false));
+
+      expect(cubit.state.currentRevealId, 'movie-2');
+      expect(cubit.state.currentPickId, 'movie-2');
       await cubit.close();
     },
   );
@@ -733,6 +757,7 @@ void favoriteBiasTests() {
       final selector = FakeDiscoverySelector('movie-2')..chance = 0.49;
       final cubit = _cubit(selector);
       await cubit.replaceCandidates(mixed());
+      await cubit.like('movie-1');
       await cubit.setFavoriteBias(0.5);
 
       await cubit.revealNext();

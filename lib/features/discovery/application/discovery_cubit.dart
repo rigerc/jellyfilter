@@ -356,14 +356,6 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     if (state.rejectedIds.contains(reveal)) {
       return null;
     }
-    // Same rule as eligibility: the liked shortlist only applies when some
-    // liked title fits the filter.
-    final shortlistApplies = candidates.any(
-      (item) => state.likedIds.contains(item.id) && filter.matches(item),
-    );
-    if (shortlistApplies && !state.likedIds.contains(reveal)) {
-      return null;
-    }
     return reveal;
   }
 

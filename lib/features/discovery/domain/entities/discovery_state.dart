@@ -61,23 +61,10 @@ final class DiscoveryState {
       )
       .toList(growable: false);
 
-  /// Titles Shuffle may pick. Liked titles form a shortlist, but only when
-  /// some of them fit the current filters; otherwise (for example with a
-  /// favorites filter and no liked favorites) every unrejected match counts.
-  late final List<CatalogCandidate> eligibleCandidates = _eligible();
-
-  List<CatalogCandidate> _eligible() {
-    final filtered = filteredCandidates;
-    final shortlist = filtered
-        .where((candidate) => likedIds.contains(candidate.id))
-        .toList(growable: false);
-    if (shortlist.isNotEmpty) {
-      return shortlist;
-    }
-    return filtered
-        .where((candidate) => !rejectedIds.contains(candidate.id))
-        .toList(growable: false);
-  }
+  /// Shuffle may pick any unrejected title matching the active filters.
+  late final List<CatalogCandidate> eligibleCandidates = filteredCandidates
+      .where((candidate) => !rejectedIds.contains(candidate.id))
+      .toList(growable: false);
 
   DiscoveryState copyWith({
     Iterable<CatalogCandidate>? candidates,
