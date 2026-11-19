@@ -145,14 +145,11 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     if (modeChanged) {
       unawaited(_syncFavorites());
     }
-    if (state.mode == DiscoveryMode.shuffle && state.noEligibleCandidates) {
-      unawaited(_catalogCubit.loadMore());
-    }
   }
 
   Future<void> _loadCatalog(DiscoveryState state) async {
     _loadedFilterFingerprint = _fingerprint(state);
-    await _catalogCubit.load(filter: state.filter);
+    await _catalogCubit.load(filter: state.filter, loadAllPages: true);
   }
 
   String _fingerprint(DiscoveryState state) =>

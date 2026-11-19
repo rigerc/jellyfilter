@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.32 — 2026-11-19
+
+- Keep loading the full movie catalog in the background after the first page appears, in Grid, Swipe, and Shuffle.
+
 ## 1.0.31 — 2026-11-19
 
 - Browse highest-rated movies first with smaller downloads and consistent paging.

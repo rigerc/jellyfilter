@@ -58,3 +58,12 @@ Pass only Dart files or Dart source directories to `dart format`; validate Markd
 Check query parameters against each endpoint's OpenAPI definition. Playlist
 contents returns a total but does not accept the `enableTotalRecordCount`
 parameter supported by `/Items`; do not copy request options between endpoints.
+
+
+## 2026-11-19 — Discovery needs more than its first page
+
+The API efficiency fix preserved 50-item pages but missed that Swipe never
+requested another page and Shuffle could keep reusing its initial pool. Test
+full catalog availability through app composition in every mode, not only
+repository pagination. Show the first page immediately and continue loading
+the remaining pages without requiring gestures or exhausted candidates.

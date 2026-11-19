@@ -75,6 +75,7 @@ final class CatalogCubit extends Cubit<CatalogState> {
   Set<String> _includedIds = const <String>{};
   List<CatalogLibrary>? _libraries;
   CatalogRequestCancellation? _pageCancellation;
+  Future<void>? _loadMoreRequest;
   Future<CatalogResult<List<CatalogLibrary>>>? _librariesRequest;
   final _facetRequests = <String?, Future<CatalogResult<CatalogFacets>>>{};
   final _detailRequests = <String, Future<CatalogResult<CatalogCandidate>>>{};
@@ -83,6 +84,7 @@ final class CatalogCubit extends Cubit<CatalogState> {
 
   Future<void> load({
     CatalogFilter filter = const CatalogFilter(),
+    bool loadAllPages = false,
     Set<String> excludedIds = const <String>{},
     Set<String> includedIds = const <String>{},
   }) async {
@@ -95,6 +97,7 @@ final class CatalogCubit extends Cubit<CatalogState> {
     _excludedIds = Set<String>.unmodifiable(excludedIds);
     _includedIds = Set<String>.unmodifiable(includedIds);
     _pageCancellation?.cancel();
+    _loadMoreRequest = null;
     final cancellation = _pageCancellation = CatalogRequestCancellation();
     final librariesRequest = _loadLibraries();
     final parentId = filter.libraryId;
@@ -123,9 +126,15 @@ final class CatalogCubit extends Cubit<CatalogState> {
         failure: page.failure,
       ),
     );
+    // Publish the first page immediately, then fill the shared discovery pool
+    // without requiring a scroll or an exhausted Shuffle/Swipe deck.
+    final remainingPages = loadAllPages
+        ? _loadRemainingPages(generation)
+        : Future<void>.value();
     final librariesResult = await librariesRequest;
     final facetsResult = await facetsRequest;
     if (isClosed || generation != _generation) {
+      await remainingPages;
       return;
     }
     if (librariesResult.value case final libraries?) {
@@ -147,9 +156,29 @@ final class CatalogCubit extends Cubit<CatalogState> {
         ),
       );
     }
+    await remainingPages;
   }
 
-  Future<void> loadMore() async {
+  Future<void> _loadRemainingPages(int generation) async {
+    while (!isClosed && generation == _generation) {
+      final current = state;
+      if (current is! CatalogLoaded || !current.hasMore) {
+        return;
+      }
+      await loadMore();
+    }
+  }
+
+  Future<void> loadMore() {
+    final pending = _loadMoreRequest;
+    if (pending != null) return pending;
+    final request = _loadMoreRequest = _loadMore();
+    return request.whenComplete(() {
+      if (identical(_loadMoreRequest, request)) _loadMoreRequest = null;
+    });
+  }
+
+  Future<void> _loadMore() async {
     final current = state;
     if (current is! CatalogLoaded ||
         !current.hasMore ||
@@ -177,13 +206,14 @@ final class CatalogCubit extends Cubit<CatalogState> {
       for (final candidate in page.candidates)
         candidate.id: _withKnownFavorite(candidate),
     }.values.toList(growable: false);
+    final stalled = page.hasMore && page.nextIndex <= current.nextIndex;
     emit(
       latest.copyWith(
         candidates: List<CatalogCandidate>.unmodifiable(candidates),
-        hasMore: page.hasMore,
-        nextIndex: page.nextIndex,
+        hasMore: page.hasMore && !stalled,
+        nextIndex: stalled ? current.nextIndex : page.nextIndex,
         total: page.total,
-        failure: page.failure,
+        failure: stalled ? const PartialCatalogFailure() : page.failure,
         loadingMore: false,
       ),
     );

@@ -20,6 +20,55 @@ import '../shared/fake_discovery_store.dart';
 import '../shared/recording_http_client.dart';
 
 void main() {
+  for (final mode in DiscoveryMode.values) {
+    testWidgets(
+      'should fill the whole catalog in ${mode.name} without interaction',
+      (tester) async {
+        final remaining = Completer<void>();
+        final starts = <int>[];
+        final client = RecordingHttpClient((request) async {
+          final path = request.url.path;
+          if (path == '/UserViews') {
+            return _jsonResponse({'Items': <Object?>[]});
+          }
+          if (path == '/Items/Filters' || path == '/Items/Filters2') {
+            return _jsonResponse(<String, Object?>{});
+          }
+          if (path == '/Items') {
+            final query = request.url.queryParameters;
+            final start = int.parse(query['startIndex']!);
+            expect(query['limit'], '50');
+            starts.add(start);
+            if (start == 50) await remaining.future;
+            final end = (start + 50).clamp(0, 125);
+            return _jsonResponse({
+              'Items': [for (var i = start; i < end; i++) _movie('movie-$i')],
+              'StartIndex': start,
+              'TotalRecordCount': 125,
+            });
+          }
+          return http.Response('', 404);
+        });
+        final store = ImmediateDiscoveryStore()
+          ..snapshot = DiscoverySnapshot(mode: mode);
+        await tester.pumpWidget(_app(client, discoveryStore: store));
+        await tester.pump();
+        final cubit = tester
+            .widget<DiscoveryPage>(find.byType(DiscoveryPage))
+            .cubit;
+        // The first page is interactive even while the next page is pending.
+        expect(cubit.state.candidates, hasLength(50));
+        expect(starts, [0, 50]);
+        remaining.complete();
+        await tester.pumpAndSettle();
+        expect(starts, [0, 50, 100]);
+        expect(cubit.state.candidates, hasLength(125));
+        expect(cubit.state.candidates.last.id, 'movie-124');
+        expect(find.text('125 titles'), findsOneWidget);
+      },
+    );
+  }
+
   testWidgets(
     'should retain the same filtered catalog and count across modes',
     (tester) async {

@@ -13,6 +13,100 @@ import 'package:jellyfilter/features/catalog/domain/repositories/catalog_reposit
 import '../../../shared/fake_catalog_repository.dart';
 
 void main() {
+  test(
+    'should progressively fill the catalog without load-more gestures',
+    () async {
+      final repository = PagingCatalogRepository(
+        pages: {
+          for (var start = 0; start < 2000; start += 50)
+            start: _pageOf(start, hasMore: start + 50 < 2000),
+        },
+      );
+      final cubit = CatalogCubit(repository);
+      final sizes = <int>[];
+      final subscription = cubit.stream.listen((state) {
+        if (state is CatalogLoaded) sizes.add(state.candidates.length);
+      });
+      final fullyLoaded = cubit.stream.firstWhere(
+        (state) =>
+            state is CatalogLoaded &&
+            state.candidates.length == 2000 &&
+            !state.loadingMore,
+      );
+      await cubit.load(loadAllPages: true);
+      await fullyLoaded;
+      expect((cubit.state as CatalogLoaded).candidates, hasLength(2000));
+      expect(repository.startIndexes, [for (var i = 0; i < 2000; i += 50) i]);
+      expect(sizes, containsAllInOrder([50, 100, 2000]));
+      expect((cubit.state as CatalogLoaded).hasMore, isFalse);
+      await subscription.cancel();
+      await cubit.close();
+    },
+  );
+
+  test(
+    'should stop automatic paging if the server repeats its offset',
+    () async {
+      final repository = PagingCatalogRepository(
+        pages: {0: _pageOf(0, hasMore: true), 50: _pageOf(0, hasMore: true)},
+      );
+      final cubit = CatalogCubit(repository);
+      await cubit.load(loadAllPages: true);
+      final state = cubit.state as CatalogLoaded;
+      expect(repository.startIndexes, [0, 50]);
+      expect(state.candidates, hasLength(50));
+      expect(state.hasMore, isFalse);
+      expect(state.failure, isA<PartialCatalogFailure>());
+      await cubit.close();
+    },
+  );
+
+  test(
+    'should retain the first page and stop automatic paging on failure',
+    () async {
+      final repository = PagingCatalogRepository(
+        pages: {
+          0: _pageOf(0, hasMore: true),
+          50: const CatalogPage(
+            candidates: [],
+            hasMore: false,
+            nextIndex: 50,
+            total: 2000,
+            failure: ServerCatalogFailure(),
+          ),
+        },
+      );
+      final cubit = CatalogCubit(repository);
+      await cubit.load(loadAllPages: true);
+      final state = cubit.state as CatalogLoaded;
+      expect(repository.startIndexes, [0, 50]);
+      expect(state.candidates, hasLength(50));
+      expect(state.loadingMore, isFalse);
+      expect(state.failure, isA<ServerCatalogFailure>());
+      await cubit.close();
+    },
+  );
+
+  test('should abandon automatic paging after a filter change', () async {
+    final repository = ControlledCatalogRepository();
+    final cubit = CatalogCubit(repository);
+    final oldLoad = cubit.load(loadAllPages: true);
+    repository.pageCompleters[0].complete(_pageOf(0, hasMore: true));
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.pageCompleters, hasLength(2));
+    final newLoad = cubit.load(
+      filter: const CatalogFilter(searchTerm: 'new'),
+      loadAllPages: true,
+    );
+    repository.pageCompleters[2].complete(_page('new'));
+    await newLoad;
+    repository.pageCompleters[1].complete(_pageOf(50, hasMore: true));
+    await oldLoad;
+    expect(repository.pageCompleters, hasLength(3));
+    expect((cubit.state as CatalogLoaded).candidates.single.id, 'new');
+    await cubit.close();
+  });
+
   group('favorite freshness', () {
     CatalogCandidate movie(String id, {bool? favorite}) => CatalogCandidate(
       id: id,
