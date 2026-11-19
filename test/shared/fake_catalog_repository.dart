@@ -61,6 +61,7 @@ final class FakeCatalogRepository extends CatalogRepositoryFakeBase {
   Future<CatalogPage> loadPage({
     CatalogFilter filter = const CatalogFilter(),
     int startIndex = 0,
+    CatalogRequestCancellation? cancellation,
     Set<String> excludedIds = const <String>{},
     Set<String> includedIds = const <String>{},
   }) async {
@@ -96,6 +97,7 @@ final class FakeCatalogRepository extends CatalogRepositoryFakeBase {
 }
 
 final class ControlledCatalogRepository extends CatalogRepositoryFakeBase {
+  final cancellations = <CatalogRequestCancellation?>[];
   final controllers = <StreamController<CatalogPage>>[];
   final pageCompleters = <Completer<CatalogPage>>[];
 
@@ -103,9 +105,11 @@ final class ControlledCatalogRepository extends CatalogRepositoryFakeBase {
   Future<CatalogPage> loadPage({
     CatalogFilter filter = const CatalogFilter(),
     int startIndex = 0,
+    CatalogRequestCancellation? cancellation,
     Set<String> excludedIds = const <String>{},
     Set<String> includedIds = const <String>{},
   }) {
+    cancellations.add(cancellation);
     final completer = Completer<CatalogPage>();
     pageCompleters.add(completer);
     return completer.future;
@@ -130,6 +134,7 @@ final class SequenceCatalogRepository extends CatalogRepositoryFakeBase {
   Future<CatalogPage> loadPage({
     CatalogFilter filter = const CatalogFilter(),
     int startIndex = 0,
+    CatalogRequestCancellation? cancellation,
     Set<String> excludedIds = const <String>{},
     Set<String> includedIds = const <String>{},
   }) async => pages.first;
@@ -162,6 +167,7 @@ final class PagingCatalogRepository extends CatalogRepositoryFakeBase {
   Future<CatalogPage> loadPage({
     CatalogFilter filter = const CatalogFilter(),
     int startIndex = 0,
+    CatalogRequestCancellation? cancellation,
     Set<String> excludedIds = const <String>{},
     Set<String> includedIds = const <String>{},
   }) async {

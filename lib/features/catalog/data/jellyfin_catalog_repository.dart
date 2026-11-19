@@ -47,6 +47,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
   Future<CatalogPage> loadPage({
     CatalogFilter filter = const CatalogFilter(),
     int startIndex = 0,
+    CatalogRequestCancellation? cancellation,
     Set<String> excludedIds = const <String>{},
     Set<String> includedIds = const <String>{},
   }) async {
@@ -64,19 +65,22 @@ final class JellyfinCatalogRepository implements CatalogRepository {
     var requestedStartIndex = startIndex;
     var readAhead = 0;
     while (true) {
-      final uri =
-          filter.sort == CatalogSort.defaultOrder &&
-              !filter.isActive &&
-              includedIds.isEmpty
-          ? _suggestionsUri(baseUrl, requestedStartIndex)
-          : _itemsUri(
-              baseUrl,
-              requestedStartIndex,
-              filter,
-              excludedIds: excludedIds,
-              includedIds: includedIds,
-            );
-      final request = await _get(uri);
+      if (cancellation?.isCancelled ?? false) {
+        return CatalogPage(
+          candidates: const <CatalogCandidate>[],
+          hasMore: false,
+          nextIndex: requestedStartIndex,
+          total: 0,
+        );
+      }
+      final uri = _itemsUri(
+        baseUrl,
+        requestedStartIndex,
+        filter,
+        excludedIds: excludedIds,
+        includedIds: includedIds,
+      );
+      final request = await _get(uri, cancellation: cancellation);
       final response = request.response;
       if (response == null) {
         return CatalogPage(
@@ -106,6 +110,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       // Local refinement (all genres/tags, exclusions) can empty a page; keep
       // reading ahead, but only so far, so a strict filter stays responsive.
       final shouldReadAhead =
+          !(cancellation?.isCancelled ?? false) &&
           filter.needsLocalRefinement &&
           page.candidates.isEmpty &&
           page.failure == null &&
@@ -485,23 +490,47 @@ final class JellyfinCatalogRepository implements CatalogRepository {
     }
   }
 
-  Future<http.Response> _send(Uri uri) async {
-    final request = http.Request('GET', uri)
-      ..followRedirects = false
-      ..headers.addAll(<String, String>{
-        'Authorization': MediaBrowserAuthorization.value(
-          deviceId: deviceId,
-          token: accessToken,
-        ),
-      });
-    return http.Response.fromStream(
-      await client.send(request).timeout(timeout),
+  Future<http.Response> _send(
+    Uri uri, {
+    CatalogRequestCancellation? cancellation,
+  }) async {
+    final abort = Completer<void>();
+    void cancel() {
+      if (!abort.isCompleted) abort.complete();
+    }
+
+    unawaited(cancellation?.whenCancelled.then((_) => cancel()));
+    if (cancellation?.isCancelled ?? false) {
+      throw http.RequestAbortedException(uri);
+    }
+    final request =
+        http.AbortableRequest('GET', uri, abortTrigger: abort.future)
+          ..followRedirects = false
+          ..headers.addAll(<String, String>{
+            'Authorization': MediaBrowserAuthorization.value(
+              deviceId: deviceId,
+              token: accessToken,
+            ),
+          });
+    return (() async {
+      return http.Response.fromStream(await client.send(request));
+    })().timeout(
+      timeout,
+      onTimeout: () {
+        cancel();
+        throw TimeoutException('Catalog request timed out', timeout);
+      },
     );
   }
 
-  Future<_CatalogHttpResult> _get(Uri uri) async {
+  Future<_CatalogHttpResult> _get(
+    Uri uri, {
+    CatalogRequestCancellation? cancellation,
+  }) async {
     try {
-      return _CatalogHttpResult.response(await _send(uri));
+      return _CatalogHttpResult.response(
+        await _send(uri, cancellation: cancellation),
+      );
     } on HandshakeException {
       return const _CatalogHttpResult.failure(
         InvalidCertificateCatalogFailure(),
@@ -647,29 +676,11 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         if (includedIds.isNotEmpty)
           'ids': (includedIds.toList()..sort()).take(pageSize).join(','),
         ..._sortParameters(
-          filter.sort == CatalogSort.defaultOrder
-              ? CatalogSort.communityRating
-              : filter.sort,
+          filter.sort,
           reversed: filter.canReverseSort && filter.sortReversed,
         ),
         'startIndex': '$startIndex',
         'limit': '$pageSize',
-      },
-    );
-  }
-
-  Uri _suggestionsUri(Uri baseUrl, int startIndex) {
-    return _endpoint(baseUrl, <String>['Items', 'Suggestions']).replace(
-      queryParameters: <String, String>{
-        'userId': userId,
-        'type': 'Movie',
-        'startIndex': '$startIndex',
-        'limit': '$pageSize',
-        'fields': 'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
-        'enableUserData': 'true',
-        'enableImages': 'true',
-        'imageTypeLimit': '1',
-        'enableTotalRecordCount': 'true',
       },
     );
   }
@@ -1017,7 +1028,10 @@ final class JellyfinCatalogRepository implements CatalogRepository {
 
   Map<String, String> _naturalSortParameters(CatalogSort sort) =>
       switch (sort) {
-        CatalogSort.defaultOrder => const <String, String>{},
+        CatalogSort.defaultOrder => const <String, String>{
+          'sortBy': 'CommunityRating,SortName',
+          'sortOrder': 'Descending,Ascending',
+        },
         CatalogSort.random => const <String, String>{'sortBy': 'Random'},
         CatalogSort.recentlyAdded => const <String, String>{
           'sortBy': 'DateCreated',

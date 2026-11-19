@@ -281,14 +281,17 @@ http.Response _userData({required bool isFavorite}) => http.Response(
   headers: <String, String>{'content-type': 'application/json'},
 );
 
-JellyfinLibraryActionsRepository _actions(RecordingHttpClient client) =>
-    JellyfinLibraryActionsRepository(
-      client: client,
-      serverUrl: 'https://example.test/jellyfin',
-      accessToken: 'token',
-      deviceId: 'device',
-      userId: 'user-id',
-    );
+JellyfinLibraryActionsRepository _actions(
+  RecordingHttpClient client, {
+  DateTime Function()? now,
+}) => JellyfinLibraryActionsRepository(
+  client: client,
+  serverUrl: 'https://example.test/jellyfin',
+  accessToken: 'token',
+  deviceId: 'device',
+  userId: 'user-id',
+  now: now,
+);
 
 http.Response _json(Object value, [int status = 200]) => http.Response(
   jsonEncode(value),
@@ -359,6 +362,179 @@ void libraryActionTests() {
     expect(posts.single.url.path, '/jellyfin/Playlists/p1/Items');
     expect(posts.single.url.queryParameters['ids'], 'movie');
   });
+
+  test(
+    'should cache playlist lists briefly and invalidate after creation',
+    () async {
+      var now = DateTime.utc(2026, 11, 19);
+      final client = RecordingHttpClient(
+        (request) async => request.method == 'POST'
+            ? _json({'Id': 'new'})
+            : _json({'Items': <Object?>[]}),
+      );
+      final actions = _actions(client, now: () => now);
+      await Future.wait([actions.loadPlaylists(), actions.loadPlaylists()]);
+      await actions.loadPlaylists();
+      expect(client.requests, hasLength(1));
+      expect(client.requests.single.url.queryParameters['fields'], '');
+      now = now.add(const Duration(seconds: 31));
+      await actions.loadPlaylists();
+      expect(client.requests, hasLength(2));
+      await actions.createPlaylist(name: 'New', itemId: 'movie');
+      await actions.loadPlaylists();
+      expect(client.requests, hasLength(4));
+      final duplicate = await actions.addToPlaylist(
+        playlistId: 'new',
+        itemId: 'movie',
+      );
+      expect(duplicate.value, isFalse);
+      expect(client.requests, hasLength(4));
+    },
+  );
+
+  test('should share membership and serialize concurrent additions', () async {
+    final client = RecordingHttpClient(
+      (request) async => request.method == 'GET'
+          ? _json({'Items': <Object?>[], 'TotalRecordCount': 0})
+          : http.Response('', 204),
+    );
+    final actions = _actions(client);
+    final results = await Future.wait([
+      actions.addToPlaylist(playlistId: 'p', itemId: 'movie'),
+      actions.addToPlaylist(playlistId: 'p', itemId: 'movie'),
+      actions.addToPlaylist(playlistId: 'p', itemId: 'another'),
+    ]);
+    expect(results.map((result) => result.value), [true, false, true]);
+    expect(
+      client.requests.where((request) => request.method == 'GET'),
+      hasLength(1),
+    );
+    expect(
+      client.requests.where((request) => request.method == 'POST'),
+      hasLength(2),
+    );
+  });
+
+  test(
+    'should refresh expired membership before checking duplicates',
+    () async {
+      var now = DateTime.utc(2026, 11, 19);
+      var serverIds = <String>[];
+      final client = RecordingHttpClient(
+        (request) async => request.method == 'GET'
+            ? _json({
+                'Items': [
+                  for (final id in serverIds) {'Id': id},
+                ],
+              })
+            : http.Response('', 204),
+      );
+      final actions = _actions(client, now: () => now);
+      await actions.addToPlaylist(playlistId: 'p', itemId: 'movie');
+      now = now.add(const Duration(seconds: 31));
+      serverIds = ['external'];
+      final result = await actions.addToPlaylist(
+        playlistId: 'p',
+        itemId: 'external',
+      );
+      expect(result.value, isFalse);
+      expect(
+        client.requests.where((request) => request.method == 'GET'),
+        hasLength(2),
+      );
+    },
+  );
+
+  test('should find duplicates beyond the former 5000-member cutoff', () async {
+    final client = RecordingHttpClient((request) async {
+      expect(request.method, 'GET');
+      final query = request.url.queryParameters;
+      final start = int.parse(query['startIndex']!);
+      final limit = int.parse(query['limit']!);
+      expect(limit, 500);
+      expect(query['fields'], '');
+      final end = (start + limit).clamp(0, 5501);
+      return _json({
+        'Items': [
+          for (var i = start; i < end; i++) {'Id': 'movie-$i'},
+        ],
+        'TotalRecordCount': 5501,
+      });
+    });
+    final result = await _actions(
+      client,
+    ).addToPlaylist(playlistId: 'p', itemId: 'movie-5500');
+    expect(result.value, isFalse);
+    expect(client.requests.last.url.queryParameters['startIndex'], '5500');
+  });
+
+  test('should retry failed membership reads without writing', () async {
+    var failRead = true;
+    final client = RecordingHttpClient((request) async {
+      if (request.method == 'GET') {
+        return failRead
+            ? http.Response('', 503)
+            : _json({'Items': <Object?>[]});
+      }
+      return http.Response('', 204);
+    });
+    final actions = _actions(client);
+    expect(
+      (await actions.addToPlaylist(playlistId: 'p', itemId: 'movie')).failure,
+      LibraryActionFailure.server,
+    );
+    expect(client.requests, hasLength(1));
+    failRead = false;
+    expect(
+      (await actions.addToPlaylist(playlistId: 'p', itemId: 'movie')).value,
+      isTrue,
+    );
+    expect(client.requests, hasLength(3));
+  });
+
+  test('should discard membership after an uncertain write failure', () async {
+    var failWrite = true;
+    final client = RecordingHttpClient(
+      (request) async => request.method == 'GET'
+          ? _json({'Items': <Object?>[]})
+          : http.Response('', failWrite ? 503 : 204),
+    );
+    final actions = _actions(client);
+    await actions.addToPlaylist(playlistId: 'p', itemId: 'movie');
+    failWrite = false;
+    await actions.addToPlaylist(playlistId: 'p', itemId: 'movie');
+    expect(
+      client.requests.where((request) => request.method == 'GET'),
+      hasLength(2),
+    );
+  });
+
+  test(
+    'should load only tag metadata when no known tags are available',
+    () async {
+      final client = RecordingHttpClient(
+        (request) async => _json({
+          'Items': [
+            {
+              'Id': 'movie',
+              'Tags': ['cozy'],
+            },
+          ],
+        }),
+      );
+      final result = await _actions(client).loadTags('movie');
+      expect(result.value, ['cozy']);
+      expect(client.requests.single.url.path, '/jellyfin/Items');
+      expect(
+        client.requests.single.url.queryParameters,
+        containsPair('fields', 'Tags'),
+      );
+      expect(
+        client.requests.single.url.queryParameters,
+        containsPair('enableImages', 'false'),
+      );
+    },
+  );
 
   test('should create a video playlist that starts with the title', () async {
     final client = RecordingHttpClient(

@@ -440,6 +440,7 @@ Future<void> showDiscoveryOrganizer(
   CatalogCandidate candidate, {
   required LibraryActionsRepository repository,
   List<String> knownTags = const <String>[],
+  List<String>? initialTags,
   void Function(String itemId, List<String> tags)? onTagsSaved,
 }) => showModalBottomSheet<void>(
   context: context,
@@ -449,6 +450,7 @@ Future<void> showDiscoveryOrganizer(
     candidate: candidate,
     repository: repository,
     knownTags: knownTags,
+    initialTags: initialTags,
     onTagsSaved: onTagsSaved,
   ),
 );
@@ -459,6 +461,7 @@ final class DiscoveryOrganizerSheet extends StatefulWidget {
     required this.candidate,
     required this.repository,
     this.knownTags = const <String>[],
+    this.initialTags,
     this.onTagsSaved,
     super.key,
   });
@@ -469,6 +472,7 @@ final class DiscoveryOrganizerSheet extends StatefulWidget {
   final CatalogCandidate candidate;
   final LibraryActionsRepository repository;
   final List<String> knownTags;
+  final List<String>? initialTags;
 
   @override
   State<DiscoveryOrganizerSheet> createState() =>
@@ -496,7 +500,12 @@ final class _DiscoveryOrganizerSheetState
   void initState() {
     super.initState();
     unawaited(_loadPlaylists());
-    unawaited(_loadTags());
+    final initialTags = widget.initialTags;
+    if (initialTags == null) {
+      unawaited(_loadTags());
+    } else {
+      _tags = List<String>.of(initialTags);
+    }
   }
 
   @override

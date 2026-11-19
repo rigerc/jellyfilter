@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
@@ -72,6 +74,10 @@ final class CatalogCubit extends Cubit<CatalogState> {
   Set<String> _excludedIds = const <String>{};
   Set<String> _includedIds = const <String>{};
   List<CatalogLibrary>? _libraries;
+  CatalogRequestCancellation? _pageCancellation;
+  Future<CatalogResult<List<CatalogLibrary>>>? _librariesRequest;
+  final _facetRequests = <String?, Future<CatalogResult<CatalogFacets>>>{};
+  final _detailRequests = <String, Future<CatalogResult<CatalogCandidate>>>{};
   final _facetCache = <String?, CatalogFacets>{};
   final _detailCache = <String, CatalogResult<CatalogCandidate>>{};
 
@@ -88,20 +94,15 @@ final class CatalogCubit extends Cubit<CatalogState> {
     _filter = filter;
     _excludedIds = Set<String>.unmodifiable(excludedIds);
     _includedIds = Set<String>.unmodifiable(includedIds);
-    final librariesRequest = _libraries == null
-        ? repository.loadLibraries()
-        : Future<CatalogResult<List<CatalogLibrary>>>.value(
-            CatalogResult<List<CatalogLibrary>>.success(_libraries),
-          );
+    _pageCancellation?.cancel();
+    final cancellation = _pageCancellation = CatalogRequestCancellation();
+    final librariesRequest = _loadLibraries();
     final parentId = filter.libraryId;
     final cachedFacets = _facetCache[parentId];
-    final facetsRequest = cachedFacets == null
-        ? repository.loadFacets(parentId: parentId)
-        : Future<CatalogResult<CatalogFacets>>.value(
-            CatalogResult<CatalogFacets>.success(cachedFacets),
-          );
+    final facetsRequest = _loadFacets(parentId);
     final pageRequest = repository.loadPage(
       filter: filter,
+      cancellation: cancellation,
       excludedIds: _excludedIds,
       includedIds: _includedIds,
     );
@@ -160,6 +161,7 @@ final class CatalogCubit extends Cubit<CatalogState> {
     emit(current.copyWith(loadingMore: true));
     final page = await repository.loadPage(
       filter: _filter,
+      cancellation: _pageCancellation,
       startIndex: current.nextIndex,
       excludedIds: _excludedIds,
       includedIds: _includedIds,
@@ -187,7 +189,57 @@ final class CatalogCubit extends Cubit<CatalogState> {
     );
   }
 
+  Future<CatalogResult<List<CatalogLibrary>>> _loadLibraries() async {
+    final cached = _libraries;
+    if (cached != null) return CatalogResult.success(cached);
+    final pending = _librariesRequest;
+    if (pending != null) return pending;
+    final request = _librariesRequest = repository.loadLibraries();
+    try {
+      final result = await request;
+      if (result.value case final libraries?) _libraries = libraries;
+      return result;
+    } finally {
+      _librariesRequest = null;
+    }
+  }
+
+  Future<CatalogResult<CatalogFacets>> _loadFacets(String? parentId) async {
+    final cached = _facetCache[parentId];
+    if (cached != null) return CatalogResult.success(cached);
+    final pending = _facetRequests[parentId];
+    if (pending != null) return pending;
+    final request = _facetRequests[parentId] = repository.loadFacets(
+      parentId: parentId,
+    );
+    try {
+      final result = await request;
+      if (result.value case final facets?) _facetCache[parentId] = facets;
+      return result;
+    } finally {
+      _facetRequests.remove(parentId);
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _pageCancellation?.cancel();
+    return super.close();
+  }
+
   Future<CatalogResult<CatalogCandidate>> loadDetails(String itemId) async {
+    final id = itemId.trim();
+    final pending = _detailRequests[id];
+    if (pending != null) return pending;
+    final request = _detailRequests[id] = _loadDetails(id);
+    try {
+      return await request;
+    } finally {
+      _detailRequests.remove(id);
+    }
+  }
+
+  Future<CatalogResult<CatalogCandidate>> _loadDetails(String itemId) async {
     final normalizedId = itemId.trim();
     final cached = _detailCache[normalizedId];
     if (cached != null) {

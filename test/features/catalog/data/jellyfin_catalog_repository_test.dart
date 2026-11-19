@@ -10,11 +10,12 @@ import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
 import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dart';
+import 'package:jellyfilter/features/catalog/domain/repositories/catalog_repository.dart';
 import '../../../shared/recording_http_client.dart';
 
 void main() {
   test(
-    'should load one bounded Jellyfin suggestion page for recommended discovery',
+    'should load a bounded default page with supported payload limits',
     () async {
       final client = RecordingHttpClient(
         (request) async => _jsonResponse({
@@ -33,14 +34,82 @@ void main() {
 
       final page = await repository.loadPage();
 
+      final query = client.requests.single.url.queryParameters;
+      expect(query['sortBy'], 'CommunityRating,SortName');
+      expect(
+        query['fields'],
+        'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
+      );
+      expect(query['enableImageTypes'], 'Primary,Backdrop');
+      expect(query['imageTypeLimit'], '1');
+      expect(query['limit'], '50');
       expect(page.candidates.single.name, 'Candy Movie');
       expect(page.hasMore, isTrue);
       expect(client.requests, hasLength(1));
-      expect(client.requests.single.url.path, '/jellyfin/Items/Suggestions');
+      expect(client.requests.single.url.path, '/jellyfin/Items');
       expect(
         client.requests.single.url.queryParameters,
-        containsPair('type', 'Movie'),
+        containsPair('includeItemTypes', 'Movie'),
       );
+    },
+  );
+
+  test(
+    'should stop read-ahead when the catalog generation is cancelled',
+    () async {
+      final cancellation = CatalogRequestCancellation();
+      final client = RecordingHttpClient((request) async {
+        cancellation.cancel();
+        return _jsonResponse({
+          'Items': [
+            _movieJson(genres: ['Horror']),
+          ],
+          'StartIndex': 0,
+          'TotalRecordCount': 1000,
+        });
+      });
+      final repository = JellyfinCatalogRepository(
+        client: client,
+        serverUrl: 'https://example.test',
+        accessToken: 'token',
+        deviceId: 'device',
+        userId: 'user',
+      );
+      await repository.loadPage(
+        filter: const CatalogFilter(excludedGenres: {'horror'}),
+        cancellation: cancellation,
+      );
+      expect(client.requests, hasLength(1));
+    },
+  );
+
+  test(
+    'should abort an in-flight request without closing the shared client',
+    () async {
+      final cancellation = CatalogRequestCancellation();
+      final started = Completer<void>();
+      final client = RecordingHttpClient((request) async {
+        if (request is http.Abortable && request.abortTrigger != null) {
+          started.complete();
+          await request.abortTrigger;
+          throw http.RequestAbortedException(request.url);
+        }
+        fail('Catalog requests must support cancellation');
+      });
+      final repository = JellyfinCatalogRepository(
+        client: client,
+        serverUrl: 'https://example.test',
+        accessToken: 'token',
+        deviceId: 'device',
+        userId: 'user',
+      );
+      final loading = repository.loadPage(cancellation: cancellation);
+      await started.future;
+      cancellation.cancel();
+      await loading;
+      expect(client.requests, hasLength(1));
+      await repository.loadPage(cancellation: cancellation);
+      expect(client.requests, hasLength(1));
     },
   );
 
@@ -145,11 +214,11 @@ void main() {
     );
     expect(
       client.requests.single.url.queryParameters['sortBy'],
-      'CommunityRating',
+      'CommunityRating,SortName',
     );
     expect(
       client.requests.single.url.queryParameters['sortOrder'],
-      'Descending',
+      'Descending,Ascending',
     );
   });
 
@@ -1370,7 +1439,10 @@ void main() {
     'should map every supported sort to its Jellyfin query values',
     () async {
       for (final entry in <CatalogSort, List<String?>>{
-        CatalogSort.defaultOrder: <String?>['CommunityRating', 'Descending'],
+        CatalogSort.defaultOrder: <String?>[
+          'CommunityRating,SortName',
+          'Descending,Ascending',
+        ],
         CatalogSort.recentlyAdded: <String?>['DateCreated', 'Descending'],
         CatalogSort.title: <String?>['SortName', 'Ascending'],
         CatalogSort.releaseYear: <String?>['ProductionYear', 'Descending'],

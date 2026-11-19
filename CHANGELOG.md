@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.31 — 2026-11-19
+
+- Browse highest-rated movies first with smaller downloads and consistent paging.
+- Stop outdated discovery requests when changing filters.
+- Reuse playlist and tag information to make organizing movies faster.
+- Detect existing titles in playlists with more than 5,000 entries.
+
 ## 1.0.30 — 2026-11-19
 
 - Keep the same available title count when switching between Grid, Swipe, and Shuffle.

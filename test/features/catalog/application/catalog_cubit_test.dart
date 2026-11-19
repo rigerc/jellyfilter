@@ -9,6 +9,7 @@ import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dar
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_page.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_result.dart';
 import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dart';
+import 'package:jellyfilter/features/catalog/domain/repositories/catalog_repository.dart';
 import '../../../shared/fake_catalog_repository.dart';
 
 void main() {
@@ -278,6 +279,57 @@ void main() {
     },
   );
 
+  test('should share pending metadata across overlapping loads', () async {
+    final repository = _DelayedMetadataCatalogRepository(_page('movie'));
+    final cubit = CatalogCubit(repository);
+    final first = cubit.load();
+    final second = cubit.load();
+    expect(repository.libraryCalls, 1);
+    expect(repository.facetCalls, 1);
+    repository.libraries.complete(
+      const CatalogResult.success(<CatalogLibrary>[]),
+    );
+    repository.facets.complete(const CatalogResult.success(CatalogFacets()));
+    await Future.wait([first, second]);
+    await cubit.load();
+    expect(repository.libraryCalls, 1);
+    expect(repository.facetCalls, 1);
+    await cubit.close();
+  });
+
+  test(
+    'should cancel old generations and cancel the current one on close',
+    () async {
+      final repository = ControlledCatalogRepository();
+      final cubit = CatalogCubit(repository);
+      final first = cubit.load();
+      final second = cubit.load();
+      expect(repository.cancellations.first?.isCancelled, isTrue);
+      expect(repository.cancellations.last?.isCancelled, isFalse);
+      await cubit.close();
+      expect(repository.cancellations.last?.isCancelled, isTrue);
+      for (final page in repository.pageCompleters) {
+        page.complete(_page('ignored'));
+      }
+      await Future.wait([first, second]);
+    },
+  );
+
+  test('should share concurrent detail requests', () async {
+    final repository = PagingCatalogRepository(
+      pages: {},
+      details: _page('movie').candidates.single,
+    );
+    final cubit = CatalogCubit(repository);
+    final results = await Future.wait([
+      cubit.loadDetails('movie'),
+      cubit.loadDetails(' movie '),
+    ]);
+    expect(repository.detailCalls, 1);
+    expect(results.map((result) => result.value?.id), ['movie', 'movie']);
+    await cubit.close();
+  });
+
   test('should cache lazily loaded item details by id', () async {
     final details = CatalogCandidate(
       id: 'movie-1',
@@ -451,6 +503,8 @@ final class _DelayedMetadataCatalogRepository
   _DelayedMetadataCatalogRepository(this.page);
 
   final CatalogPage page;
+  int libraryCalls = 0;
+  int facetCalls = 0;
   final libraries = Completer<CatalogResult<List<CatalogLibrary>>>();
   final facets = Completer<CatalogResult<CatalogFacets>>();
 
@@ -458,17 +512,22 @@ final class _DelayedMetadataCatalogRepository
   Future<CatalogPage> loadPage({
     CatalogFilter filter = const CatalogFilter(),
     int startIndex = 0,
+    CatalogRequestCancellation? cancellation,
     Set<String> excludedIds = const <String>{},
     Set<String> includedIds = const <String>{},
   }) async => page;
 
   @override
-  Future<CatalogResult<List<CatalogLibrary>>> loadLibraries() =>
-      libraries.future;
+  Future<CatalogResult<List<CatalogLibrary>>> loadLibraries() {
+    libraryCalls++;
+    return libraries.future;
+  }
 
   @override
-  Future<CatalogResult<CatalogFacets>> loadFacets({String? parentId}) =>
-      facets.future;
+  Future<CatalogResult<CatalogFacets>> loadFacets({String? parentId}) {
+    facetCalls++;
+    return facets.future;
+  }
 
   @override
   Stream<CatalogPage> streamPages({

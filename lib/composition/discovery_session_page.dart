@@ -217,6 +217,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
                   context,
                   candidate,
                   repository: _libraryActions,
+                  initialTags: candidate.tags.toList(),
                   knownTags: state is CatalogLoaded
                       ? state.facets.tags
                       : const <String>[],

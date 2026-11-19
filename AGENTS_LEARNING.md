@@ -51,3 +51,10 @@ The formatting command passed `AGENTS_LEARNING.md` to `dart format` alongside Da
 
 ### ✅ Better Approach
 Pass only Dart files or Dart source directories to `dart format`; validate Markdown separately when a Markdown formatter is configured.
+
+
+## 2026-11-19 — Jellyfin request optimization
+
+Check query parameters against each endpoint's OpenAPI definition. Playlist
+contents returns a total but does not accept the `enableTotalRecordCount`
+parameter supported by `/Items`; do not copy request options between endpoints.

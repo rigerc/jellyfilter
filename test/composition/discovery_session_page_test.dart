@@ -78,7 +78,9 @@ void main() {
       if (path == '/Items/Filters' || path == '/Items/Filters2') {
         return _jsonResponse(<String, Object?>{});
       }
-      if (path == '/Items/Suggestions') {
+      if (path == '/Items' &&
+          request.url.queryParameters['genres'] == null &&
+          request.url.queryParameters['isFavorite'] != 'true') {
         return _jsonResponse({
           'Items': [_movie('suggested')],
           'TotalRecordCount': 1,
@@ -119,11 +121,54 @@ void main() {
     expect(find.text('1 title'), findsOneWidget);
   });
 
+  testWidgets(
+    'should organize a loaded title without fetching its tags again',
+    (tester) async {
+      final client = RecordingHttpClient((request) async {
+        final path = request.url.path;
+        if (path == '/UserViews') return _jsonResponse({'Items': <Object?>[]});
+        if (path == '/Items/Filters' || path == '/Items/Filters2') {
+          return _jsonResponse(<String, Object?>{});
+        }
+        if (path == '/Items' &&
+            request.url.queryParameters['includeItemTypes'] == 'Playlist') {
+          return _jsonResponse({'Items': <Object?>[]});
+        }
+        if (path == '/Items') {
+          return _jsonResponse({
+            'Items': [
+              {
+                ..._movie('suggested'),
+                'Tags': ['cozy'],
+              },
+            ],
+            'TotalRecordCount': 1,
+          });
+        }
+        return http.Response('', 404);
+      });
+      await tester.pumpWidget(_app(client));
+      await tester.pumpAndSettle();
+      final before = client.requests.length;
+      await tester.longPress(
+        find.byKey(WidgetKeys.discoveryCandidate('suggested')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(WidgetKeys.discoveryOrganizer), findsOneWidget);
+      final extra = client.requests.skip(before).toList();
+      expect(extra, hasLength(1));
+      expect(extra.single.url.queryParameters['includeItemTypes'], 'Playlist');
+      await tester.tap(find.byKey(WidgetKeys.discoveryOrganizerTab(1)));
+      await tester.pumpAndSettle();
+      expect(find.text('cozy'), findsOneWidget);
+    },
+  );
+
   group('exhausted shuffle', exhaustedShuffleTests);
   group('optimistic favorites', optimisticFavoriteTests);
   group('favorite freshness', favoriteFreshnessTests);
 
-  testWidgets('should keep suggestions when switching to Shuffle', (
+  testWidgets('should keep the default catalog when switching to Shuffle', (
     tester,
   ) async {
     final client = RecordingHttpClient((request) async {
@@ -137,16 +182,9 @@ void main() {
           request.url.path == '/Items/Filters2') {
         return _jsonResponse(<String, Object?>{});
       }
-      if (request.url.path == '/Items/Suggestions') {
-        return _jsonResponse({
-          'Items': <Map<String, Object?>>[_movie('suggested')],
-          'StartIndex': 0,
-          'TotalRecordCount': 1,
-        });
-      }
       if (request.url.path == '/Items') {
         return _jsonResponse({
-          'Items': <Map<String, Object?>>[_movie('random')],
+          'Items': <Map<String, Object?>>[_movie('suggested')],
           'StartIndex': 0,
           'TotalRecordCount': 1,
         });
@@ -161,7 +199,7 @@ void main() {
     robot.expectCandidateVisible('Suggested');
     expect(
       client.requests.map((request) => request.url.path),
-      contains('/Items/Suggestions'),
+      contains('/Items'),
     );
 
     await robot.openShuffle();
@@ -189,7 +227,7 @@ void main() {
         if (path == '/Items/Filters' || path == '/Items/Filters2') {
           return _jsonResponse(<String, Object?>{});
         }
-        if (path == '/Items/Suggestions') {
+        if (path == '/Items') {
           final start = request.url.queryParameters['startIndex'] ?? '0';
           starts.add(start);
           return _jsonResponse({
@@ -239,7 +277,7 @@ void main() {
     expect(request.url.queryParameters, isNot(contains('ids')));
     expect(request.url.queryParameters['genres'], 'Drama');
     expect(request.url.queryParameters['isPlayed'], 'false');
-    expect(request.url.queryParameters['sortBy'], 'CommunityRating');
+    expect(request.url.queryParameters['sortBy'], 'CommunityRating,SortName');
     final cubit = tester
         .widget<DiscoveryPage>(find.byType(DiscoveryPage))
         .cubit;
@@ -309,7 +347,8 @@ void favoriteFreshnessTests() {
       if (path == '/Items/Filters' || path == '/Items/Filters2') {
         return _jsonResponse(<String, Object?>{});
       }
-      if (path == '/Items/Suggestions') {
+      if (path == '/Items' &&
+          request.url.queryParameters['isFavorite'] != 'true') {
         return _jsonResponse({
           'Items': <Map<String, Object?>>[_movie('suggested')],
           'StartIndex': 0,
@@ -365,7 +404,7 @@ RecordingHttpClient _favoriteClient({
   if (path == '/Items/Filters' || path == '/Items/Filters2') {
     return _jsonResponse(<String, Object?>{});
   }
-  if (path == '/Items/Suggestions') {
+  if (path == '/Items') {
     return _jsonResponse({
       'Items': <Map<String, Object?>>[_movie('suggested')],
       'StartIndex': 0,
@@ -465,7 +504,7 @@ RecordingHttpClient _narrowingClient(List<String> library) =>
       if (path == '/Items/Filters' || path == '/Items/Filters2') {
         return _jsonResponse(<String, Object?>{});
       }
-      if (path == '/Items' || path == '/Items/Suggestions') {
+      if (path == '/Items') {
         final query = request.url.queryParameters;
         if (query['isFavorite'] == 'true') {
           return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
@@ -504,7 +543,7 @@ void exhaustedShuffleTests() {
 
       expect(find.text('Your library is unavailable'), findsNothing);
       final request = client.requests.singleWhere(
-        (request) => request.url.path == '/Items/Suggestions',
+        (request) => request.url.path == '/Items',
       );
       expect(request.url.queryParameters['ids'], isNull);
       expect(request.url.queryParameters['excludeItemIds'], isNull);
@@ -530,7 +569,7 @@ void exhaustedShuffleTests() {
 
     expect(find.text('Your library is unavailable'), findsNothing);
     final batches = client.requests
-        .where((request) => request.url.path == '/Items/Suggestions')
+        .where((request) => request.url.path == '/Items')
         .toList();
     expect(batches, hasLength(1));
     expect(batches.single.url.queryParameters['excludeItemIds'], isNull);

@@ -140,14 +140,15 @@ final class JellyfinFavoriteRepository implements FavoriteRepository {
 /// administrator account.
 final class JellyfinLibraryActionsRepository
     implements LibraryActionsRepository {
-  const JellyfinLibraryActionsRepository({
+  JellyfinLibraryActionsRepository({
     required this.client,
     required this.serverUrl,
     required this.accessToken,
     required this.deviceId,
     required this.userId,
     this.timeout = const Duration(seconds: 10),
-  });
+    DateTime Function()? now,
+  }) : _clock = now ?? DateTime.now;
 
   final http.Client client;
   final String serverUrl;
@@ -156,10 +157,41 @@ final class JellyfinLibraryActionsRepository
   final String userId;
   final Duration timeout;
 
-  static const _maxPlaylistItems = 5000;
+  static const _cacheLifetime = Duration(seconds: 30);
+  static const _membershipPageSize = 500;
+  final DateTime Function() _clock;
+  ({List<LibraryPlaylist> items, DateTime fetchedAt})? _playlists;
+  Future<LibraryActionResult<List<LibraryPlaylist>>>? _playlistRequest;
+  int _playlistEpoch = 0;
+  final _members = <String, ({Set<String> ids, DateTime fetchedAt})>{};
+  final _playlistWrites = <String, Future<void>>{};
+
+  bool _fresh(DateTime fetchedAt) =>
+      _clock().difference(fetchedAt) < _cacheLifetime;
 
   @override
   Future<LibraryActionResult<List<LibraryPlaylist>>> loadPlaylists() async {
+    final cached = _playlists;
+    if (cached != null && _fresh(cached.fetchedAt)) {
+      return LibraryActionResult.success(cached.items);
+    }
+    final pending = _playlistRequest;
+    if (pending != null) return pending;
+    final epoch = _playlistEpoch;
+    final request = _playlistRequest = _fetchPlaylists();
+    try {
+      final result = await request;
+      final items = result.value;
+      if (items != null && epoch == _playlistEpoch) {
+        _playlists = (items: items, fetchedAt: _clock());
+      }
+      return result;
+    } finally {
+      if (identical(_playlistRequest, request)) _playlistRequest = null;
+    }
+  }
+
+  Future<LibraryActionResult<List<LibraryPlaylist>>> _fetchPlaylists() async {
     final response = await _send(
       'GET',
       <String>['Items'],
@@ -171,7 +203,8 @@ final class JellyfinLibraryActionsRepository
         'sortOrder': 'Ascending',
         'enableImages': 'false',
         'enableUserData': 'false',
-        'fields': 'MediaType',
+        'fields': '',
+        'enableTotalRecordCount': 'false',
       },
     );
     return _decode(response, (json) {
@@ -201,22 +234,27 @@ final class JellyfinLibraryActionsRepository
     required String playlistId,
     required String itemId,
   }) async {
-    final existing = await _send(
-      'GET',
-      <String>['Playlists', playlistId, 'Items'],
-      <String, String>{
-        'userId': userId,
-        'enableImages': 'false',
-        'enableUserData': 'false',
-        'limit': '$_maxPlaylistItems',
-      },
-    );
-    final members = _decode(existing, (json) {
-      final items = json is Map ? json['Items'] : null;
-      return items is List
-          ? items.whereType<Map>().map((item) => item['Id']).toSet()
-          : null;
-    });
+    // Serialize writes to a playlist so concurrent additions share the latest
+    // membership and cannot both add the same title.
+    final previous = _playlistWrites[playlistId];
+    final done = Completer<void>();
+    _playlistWrites[playlistId] = done.future;
+    try {
+      await previous;
+      return await _addToPlaylist(playlistId: playlistId, itemId: itemId);
+    } finally {
+      done.complete();
+      if (identical(_playlistWrites[playlistId], done.future)) {
+        _playlistWrites.remove(playlistId);
+      }
+    }
+  }
+
+  Future<LibraryActionResult<bool>> _addToPlaylist({
+    required String playlistId,
+    required String itemId,
+  }) async {
+    final members = await _loadMembers(playlistId);
     final ids = members.value;
     if (ids == null) {
       return LibraryActionResult<bool>.failure(
@@ -231,7 +269,92 @@ final class JellyfinLibraryActionsRepository
       <String>['Playlists', playlistId, 'Items'],
       <String, String>{'ids': itemId, 'userId': userId},
     );
-    return _decode(added, (_) => true, allowEmpty: true);
+    final result = _decode(added, (_) => true, allowEmpty: true);
+    if (result.value == true) {
+      ids.add(itemId);
+    } else {
+      // A failed response may still have committed on the server.
+      _members.remove(playlistId);
+    }
+    return result;
+  }
+
+  Future<LibraryActionResult<Set<String>>> _loadMembers(
+    String playlistId,
+  ) async {
+    final cached = _members[playlistId];
+    if (cached != null && _fresh(cached.fetchedAt)) {
+      return LibraryActionResult.success(cached.ids);
+    }
+    final result = await _fetchMembers(playlistId);
+    if (result.value case final ids?) {
+      _members[playlistId] = (ids: ids, fetchedAt: _clock());
+    }
+    return result;
+  }
+
+  Future<LibraryActionResult<Set<String>>> _fetchMembers(
+    String playlistId,
+  ) async {
+    final ids = <String>{};
+    var start = 0;
+    String? previousFingerprint;
+    while (true) {
+      final response = await _send(
+        'GET',
+        <String>['Playlists', playlistId, 'Items'],
+        <String, String>{
+          'userId': userId,
+          'enableImages': 'false',
+          'enableUserData': 'false',
+          'fields': '',
+          'startIndex': '$start',
+          'limit': '$_membershipPageSize',
+        },
+      );
+      final decoded = _decode(response, (json) => json is Map ? json : null);
+      final json = decoded.value;
+      if (json == null) {
+        return LibraryActionResult.failure(
+          decoded.failure ?? LibraryActionFailure.incompatible,
+        );
+      }
+      final items = json['Items'];
+      if (items is! List) {
+        return const LibraryActionResult.failure(
+          LibraryActionFailure.incompatible,
+        );
+      }
+      final pageIds = items
+          .whereType<Map>()
+          .map((item) => item['Id'])
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toList();
+      if (pageIds.length != items.length) {
+        return const LibraryActionResult.failure(
+          LibraryActionFailure.incompatible,
+        );
+      }
+      final fingerprint = pageIds.join('|');
+      if (items.isNotEmpty && fingerprint == previousFingerprint) {
+        return const LibraryActionResult.failure(
+          LibraryActionFailure.incompatible,
+        );
+      }
+      previousFingerprint = fingerprint;
+      ids.addAll(pageIds);
+      start += items.length;
+      final total = json['TotalRecordCount'];
+      if (total is int ? start >= total : items.length < _membershipPageSize) {
+        return LibraryActionResult.success(ids);
+      }
+      if (items.isEmpty) {
+        return const LibraryActionResult.failure(
+          LibraryActionFailure.incompatible,
+        );
+      }
+    }
   }
 
   @override
@@ -251,23 +374,47 @@ final class JellyfinLibraryActionsRepository
         'MediaType': 'Video',
       },
     );
-    return _decode(response, (json) {
+    final result = _decode(response, (json) {
       final id = json is Map ? json['Id'] : null;
       return id is String && id.isNotEmpty
           ? LibraryPlaylist(id: id, name: trimmed)
           : null;
     });
+    if (result.value case final playlist?) {
+      _playlistEpoch++;
+      _playlistRequest = null;
+      _playlists = null;
+      _members[playlist.id] = (ids: <String>{itemId}, fetchedAt: _clock());
+    }
+    return result;
   }
 
   @override
   Future<LibraryActionResult<List<String>>> loadTags(String itemId) async {
-    final item = await _loadItem(itemId);
-    final json = item.value;
-    return json == null
-        ? LibraryActionResult<List<String>>.failure(
-            item.failure ?? LibraryActionFailure.incompatible,
-          )
-        : LibraryActionResult<List<String>>.success(_tagsOf(json));
+    final response = await _send(
+      'GET',
+      <String>['Items'],
+      <String, String>{
+        'userId': userId,
+        'ids': itemId,
+        'fields': 'Tags',
+        'enableImages': 'false',
+        'enableUserData': 'false',
+        'enableTotalRecordCount': 'false',
+        'limit': '1',
+      },
+    );
+    return _decode(response, (json) {
+      final items = json is Map ? json['Items'] : null;
+      final item = items is List ? items.whereType<Map>().firstOrNull : null;
+      return item == null
+          ? null
+          : _tagsOf(
+              item.map<String, Object?>(
+                (key, value) => MapEntry('$key', value),
+              ),
+            );
+    });
   }
 
   @override
