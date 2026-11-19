@@ -1,5 +1,6 @@
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/features/discovery/domain/serialization/catalog_filter_codec.dart';
 
 final class DiscoverySnapshot {
@@ -17,6 +18,7 @@ final class DiscoverySnapshot {
     this.currentPickId,
     this.favoriteBias = 0,
     this.fadeWatched = false,
+    this.shuffleDuration = ShuffleDuration.standard,
   });
 
   final CatalogFilter filter;
@@ -30,6 +32,7 @@ final class DiscoverySnapshot {
   final String? currentPickId;
   final double favoriteBias;
   final bool fadeWatched;
+  final ShuffleDuration shuffleDuration;
 
   Map<String, Object?> toJson() {
     final persistedRejectedIds = _boundedIds(rejectedIds, maxDecisionIdCount);
@@ -59,6 +62,7 @@ final class DiscoverySnapshot {
           : currentPickId,
       'favoriteBias': _normalizedBias(favoriteBias),
       'fadeWatched': fadeWatched,
+      'shuffleDuration': shuffleDuration.name,
     };
   }
 
@@ -109,6 +113,11 @@ final class DiscoverySnapshot {
         _ => 0,
       },
       fadeWatched: value['fadeWatched'] == true,
+      shuffleDuration:
+          ShuffleDuration.values
+              .where((duration) => duration.name == value['shuffleDuration'])
+              .firstOrNull ??
+          ShuffleDuration.standard,
     );
   }
 
@@ -128,7 +137,8 @@ final class DiscoverySnapshot {
       other.currentRevealId == currentRevealId &&
       other.currentPickId == currentPickId &&
       other.favoriteBias == favoriteBias &&
-      other.fadeWatched == fadeWatched;
+      other.fadeWatched == fadeWatched &&
+      other.shuffleDuration == shuffleDuration;
 
   @override
   int get hashCode => Object.hash(
@@ -150,6 +160,7 @@ final class DiscoverySnapshot {
     currentPickId,
     favoriteBias,
     fadeWatched,
+    shuffleDuration,
   );
 
   static Map<String, CatalogFilter>? _decodePresets(Object? value) {

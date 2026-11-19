@@ -9,7 +9,6 @@ import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/catalog/application/catalog_cubit.dart';
 import 'package:jellyfilter/features/catalog/data/jellyfin_catalog_repository.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
-import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dart';
 import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
@@ -56,8 +55,6 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   late final LibraryActionsRepository _libraryActions;
   StreamSubscription<DiscoveryState>? _discoverySubscription;
   String? _loadedFilterFingerprint;
-  String? _loadingShuffleFingerprint;
-  int _catalogLoadGeneration = 0;
   DiscoveryMode? _lastMode;
   DateTime? _lastFavoriteSync;
   bool _syncingFavorites = false;
@@ -148,73 +145,18 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     if (modeChanged) {
       unawaited(_syncFavorites());
     }
-    if (state.mode == DiscoveryMode.shuffle &&
-        state.noEligibleCandidates &&
-        _loadingShuffleFingerprint != fingerprint) {
-      unawaited(_loadCatalog(state));
+    if (state.mode == DiscoveryMode.shuffle && state.noEligibleCandidates) {
+      unawaited(_catalogCubit.loadMore());
     }
   }
 
   Future<void> _loadCatalog(DiscoveryState state) async {
-    final filter = _effectiveFilter(state);
-    final fingerprint = CatalogFilterCodec.encode(filter).toString();
-    if (state.mode == DiscoveryMode.shuffle &&
-        _loadingShuffleFingerprint == fingerprint) {
-      return;
-    }
-    final generation = ++_catalogLoadGeneration;
-    _loadedFilterFingerprint = fingerprint;
-    // A Grid/Swipe load supersedes any pending Shuffle request too.
-    _loadingShuffleFingerprint = state.mode == DiscoveryMode.shuffle
-        ? fingerprint
-        : null;
-    if (state.mode != DiscoveryMode.shuffle) {
-      await _catalogCubit.load(filter: filter);
-      return;
-    }
-    try {
-      // Shuffle narrows the request; each fallback widens it until something
-      // comes back, so an exhausted cycle never looks like a broken library.
-      final rejected = Set<String>.unmodifiable(state.rejectedIds.take(100));
-      final attempts = <Set<String>>[
-        // A random batch of titles not shown recently.
-        _shuffleExclusions(state),
-        // Everything was shown recently: start a fresh cycle.
-        if (state.recentPickIds.isNotEmpty) rejected,
-      ];
-      for (final attempt in attempts) {
-        await _catalogCubit.load(filter: filter, excludedIds: attempt);
-        if (!mounted || generation != _catalogLoadGeneration) {
-          return;
-        }
-        final discovery = _discoveryCubit.state;
-        final usable =
-            discovery.currentRevealId != null ||
-            discovery.eligibleCandidates.isNotEmpty;
-        if (usable) {
-          return;
-        }
-      }
-    } finally {
-      if (generation == _catalogLoadGeneration) {
-        _loadingShuffleFingerprint = null;
-      }
-    }
+    _loadedFilterFingerprint = _fingerprint(state);
+    await _catalogCubit.load(filter: state.filter);
   }
-
-  CatalogFilter _effectiveFilter(DiscoveryState state) =>
-      state.mode == DiscoveryMode.shuffle
-      ? state.filter.copyWith(sort: CatalogSort.random)
-      : state.filter;
 
   String _fingerprint(DiscoveryState state) =>
-      CatalogFilterCodec.encode(_effectiveFilter(state)).toString();
-
-  Set<String> _shuffleExclusions(DiscoveryState state) {
-    final exclusions = <String>{...state.recentPickIds.reversed};
-    exclusions.addAll(state.rejectedIds);
-    return Set<String>.unmodifiable(exclusions.take(100));
-  }
+      CatalogFilterCodec.encode(state.filter).toString();
 
   @override
   void dispose() {

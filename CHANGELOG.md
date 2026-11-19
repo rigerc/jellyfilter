@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.30 — 2026-11-19
+
+- Keep the same available title count when switching between Grid, Swipe, and Shuffle.
+- Choose how long Shuffle spins, from an instant pick to six seconds. Your choice is saved for next time.
+
 ## 1.0.29 — 2026-11-19
 
 - Reduce suggested presets to a smaller, more useful set.

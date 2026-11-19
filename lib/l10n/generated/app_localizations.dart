@@ -604,6 +604,24 @@ abstract class AppLocalizations {
   /// **'Spin again'**
   String get discoverySpinAgainLabel;
 
+  /// No description provided for @discoveryShuffleDurationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Spin duration'**
+  String get discoveryShuffleDurationLabel;
+
+  /// No description provided for @discoveryShuffleInstantLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant'**
+  String get discoveryShuffleInstantLabel;
+
+  /// No description provided for @discoveryShuffleDurationSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} s'**
+  String discoveryShuffleDurationSeconds(double seconds);
+
   /// No description provided for @discoveryFavorFavoritesLabel.
   ///
   /// In en, this message translates to:

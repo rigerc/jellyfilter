@@ -132,6 +132,9 @@ abstract final class WidgetKeys {
   static const discoverySwipeReject = Key('discovery-swipe-reject');
   static const discoverySwipeInfo = Key('discovery-swipe-info');
   static const discoveryFavoriteBias = Key('discovery-favorite-bias');
+  static const discoveryShuffleDuration = Key('discovery-shuffle-duration');
+  static Key discoveryShuffleDurationChoice(String name) =>
+      Key('discovery-shuffle-duration-$name');
   static const discoveryActiveFiltersClear = Key(
     'discovery-active-filters-clear',
   );

@@ -20,11 +20,56 @@ import '../shared/fake_discovery_store.dart';
 import '../shared/recording_http_client.dart';
 
 void main() {
-  testWidgets('should reload Shuffle after a Grid load supersedes it', (
+  testWidgets(
+    'should retain the same filtered catalog and count across modes',
+    (tester) async {
+      final client = _narrowingClient(<String>['liked', 'fresh', 'rejected']);
+      final store = ImmediateDiscoveryStore()
+        ..snapshot = const DiscoverySnapshot(
+          filter: CatalogFilter(genres: {'Drama'}, sort: CatalogSort.title),
+          likedIds: {'liked'},
+          rejectedIds: {'rejected'},
+          recentPickIds: ['liked'],
+        );
+      await tester.pumpWidget(_app(client, discoveryStore: store));
+      await tester.pumpAndSettle();
+      final cubit = tester
+          .widget<DiscoveryPage>(find.byType(DiscoveryPage))
+          .cubit;
+      for (final mode in [
+        DiscoveryMode.shuffle,
+        DiscoveryMode.swipe,
+        DiscoveryMode.grid,
+        DiscoveryMode.shuffle,
+      ]) {
+        await cubit.setMode(mode);
+        await tester.pumpAndSettle();
+        expect(find.text('3 titles'), findsOneWidget);
+        expect(cubit.state.filteredCandidates.map((c) => c.id), [
+          'liked',
+          'fresh',
+          'rejected',
+        ]);
+      }
+      final batches = client.requests
+          .where(
+            (r) =>
+                r.url.path == '/Items' &&
+                r.url.queryParameters['isFavorite'] != 'true',
+          )
+          .toList();
+      expect(batches, hasLength(1));
+      expect(batches.single.url.queryParameters['sortBy'], 'SortName');
+      expect(batches.single.url.queryParameters['excludeItemIds'], isNull);
+      expect(batches.single.url.queryParameters['ids'], isNull);
+    },
+  );
+
+  testWidgets('should finish a filter reload while switching modes', (
     tester,
   ) async {
-    final pendingShuffle = Completer<http.Response>();
-    var randomRequests = 0;
+    final pending = Completer<http.Response>();
+    var loads = 0;
     final client = RecordingHttpClient((request) async {
       final path = request.url.path;
       if (path == '/UserViews') {
@@ -33,19 +78,18 @@ void main() {
       if (path == '/Items/Filters' || path == '/Items/Filters2') {
         return _jsonResponse(<String, Object?>{});
       }
-      if (path == '/Items') {
-        randomRequests++;
-        if (randomRequests == 1) return pendingShuffle.future;
-        return _jsonResponse({
-          'Items': [_movie('fresh')],
-          'TotalRecordCount': 1,
-        });
-      }
       if (path == '/Items/Suggestions') {
         return _jsonResponse({
           'Items': [_movie('suggested')],
           'TotalRecordCount': 1,
         });
+      }
+      if (path == '/Items') {
+        if (request.url.queryParameters['isFavorite'] == 'true') {
+          return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+        }
+        loads++;
+        return pending.future;
       }
       return http.Response('', 404);
     });
@@ -54,87 +98,34 @@ void main() {
     final cubit = tester
         .widget<DiscoveryPage>(find.byType(DiscoveryPage))
         .cubit;
-    await cubit.setMode(DiscoveryMode.shuffle);
-    await tester.pump();
-    expect(randomRequests, 1);
-    await cubit.setMode(DiscoveryMode.grid);
-    await tester.pumpAndSettle();
-    await cubit.setMode(DiscoveryMode.shuffle);
-    await tester.pump();
-    pendingShuffle.complete(
+    await cubit.updateFilter(const CatalogFilter(genres: {'Drama'}));
+    for (final mode in [
+      DiscoveryMode.shuffle,
+      DiscoveryMode.grid,
+      DiscoveryMode.shuffle,
+    ]) {
+      await cubit.setMode(mode);
+      await tester.pump();
+    }
+    pending.complete(
       _jsonResponse({
-        'Items': [_movie('stale')],
+        'Items': [_movie('fresh')],
         'TotalRecordCount': 1,
       }),
     );
     await tester.pumpAndSettle();
-    expect(randomRequests, 2);
+    expect(loads, 1);
     expect(cubit.state.candidates.single.id, 'fresh');
+    expect(find.text('1 title'), findsOneWidget);
   });
 
   group('exhausted shuffle', exhaustedShuffleTests);
   group('optimistic favorites', optimisticFavoriteTests);
   group('favorite freshness', favoriteFreshnessTests);
 
-  testWidgets(
-    'should use suggestions initially and a random Jellyfin batch in shuffle',
-    (tester) async {
-      final client = RecordingHttpClient((request) async {
-        if (request.url.path == '/UserViews') {
-          return _jsonResponse({
-            'Items': <Map<String, Object?>>[],
-            'TotalRecordCount': 0,
-          });
-        }
-        if (request.url.path == '/Items/Filters' ||
-            request.url.path == '/Items/Filters2') {
-          return _jsonResponse(<String, Object?>{});
-        }
-        if (request.url.path == '/Items/Suggestions') {
-          return _jsonResponse({
-            'Items': <Map<String, Object?>>[_movie('suggested')],
-            'StartIndex': 0,
-            'TotalRecordCount': 1,
-          });
-        }
-        if (request.url.path == '/Items') {
-          return _jsonResponse({
-            'Items': <Map<String, Object?>>[_movie('random')],
-            'StartIndex': 0,
-            'TotalRecordCount': 1,
-          });
-        }
-        return http.Response('', 404);
-      });
-      final robot = DiscoveryRobot(tester);
-
-      await tester.pumpWidget(_app(client));
-      await tester.pumpAndSettle();
-
-      robot.expectCandidateVisible('Suggested');
-      expect(
-        client.requests.map((request) => request.url.path),
-        contains('/Items/Suggestions'),
-      );
-
-      await robot.openShuffle();
-      await tester.pumpAndSettle();
-
-      expect(
-        client.requests.any(
-          (request) =>
-              request.url.path == '/Items' &&
-              request.url.queryParameters['sortBy'] == 'Random',
-        ),
-        isTrue,
-      );
-    },
-  );
-
-  testWidgets('should refill an exhausted random batch with exclusions', (
+  testWidgets('should keep suggestions when switching to Shuffle', (
     tester,
   ) async {
-    var randomRequests = 0;
     final client = RecordingHttpClient((request) async {
       if (request.url.path == '/UserViews') {
         return _jsonResponse({
@@ -146,42 +137,83 @@ void main() {
           request.url.path == '/Items/Filters2') {
         return _jsonResponse(<String, Object?>{});
       }
-      if (request.url.path == '/Items') {
-        randomRequests++;
-        final id = randomRequests == 1 ? 'rejected' : 'fresh';
+      if (request.url.path == '/Items/Suggestions') {
         return _jsonResponse({
-          'Items': <Map<String, Object?>>[_movie(id)],
+          'Items': <Map<String, Object?>>[_movie('suggested')],
+          'StartIndex': 0,
+          'TotalRecordCount': 1,
+        });
+      }
+      if (request.url.path == '/Items') {
+        return _jsonResponse({
+          'Items': <Map<String, Object?>>[_movie('random')],
           'StartIndex': 0,
           'TotalRecordCount': 1,
         });
       }
       return http.Response('', 404);
     });
-    final store = ImmediateDiscoveryStore()
-      ..snapshot = const DiscoverySnapshot(
-        mode: DiscoveryMode.shuffle,
-        rejectedIds: <String>{'rejected'},
-      );
     final robot = DiscoveryRobot(tester);
 
-    await tester.pumpWidget(_app(client, discoveryStore: store));
-    await tester.pumpAndSettle();
-    await robot.reveal();
+    await tester.pumpWidget(_app(client));
     await tester.pumpAndSettle();
 
-    final randomCalls = client.requests
-        .where((request) => request.url.path == '/Items')
-        .toList(growable: false);
-    expect(randomCalls, hasLength(2));
+    robot.expectCandidateVisible('Suggested');
     expect(
-      randomCalls.last.url.queryParameters['excludeItemIds'],
-      contains('rejected'),
+      client.requests.map((request) => request.url.path),
+      contains('/Items/Suggestions'),
     );
 
-    await robot.reveal();
+    await robot.openShuffle();
     await tester.pumpAndSettle();
-    robot.expectCandidateVisible('Fresh');
+
+    expect(
+      client.requests.any(
+        (request) =>
+            request.url.path == '/Items' &&
+            request.url.queryParameters['sortBy'] == 'Random',
+      ),
+      isFalse,
+    );
   });
+
+  testWidgets(
+    'should append the next shared page when Shuffle has no eligible titles',
+    (tester) async {
+      final starts = <String>[];
+      final client = RecordingHttpClient((request) async {
+        final path = request.url.path;
+        if (path == '/UserViews') {
+          return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+        }
+        if (path == '/Items/Filters' || path == '/Items/Filters2') {
+          return _jsonResponse(<String, Object?>{});
+        }
+        if (path == '/Items/Suggestions') {
+          final start = request.url.queryParameters['startIndex'] ?? '0';
+          starts.add(start);
+          return _jsonResponse({
+            'Items': [_movie(start == '0' ? 'rejected' : 'fresh')],
+            'StartIndex': int.parse(start),
+            'TotalRecordCount': 2,
+          });
+        }
+        return http.Response('', 404);
+      });
+      final store = ImmediateDiscoveryStore()
+        ..snapshot = const DiscoverySnapshot(
+          mode: DiscoveryMode.shuffle,
+          rejectedIds: {'rejected'},
+        );
+      await tester.pumpWidget(_app(client, discoveryStore: store));
+      await tester.pumpAndSettle();
+      expect(starts, ['0', '1']);
+      expect(find.text('2 titles'), findsOneWidget);
+      await DiscoveryRobot(tester).reveal();
+      await tester.pumpAndSettle();
+      DiscoveryRobot(tester).expectCandidateVisible('Fresh');
+    },
+  );
 
   testWidgets('should shuffle all filter matches despite two saved likes', (
     tester,
@@ -207,7 +239,7 @@ void main() {
     expect(request.url.queryParameters, isNot(contains('ids')));
     expect(request.url.queryParameters['genres'], 'Drama');
     expect(request.url.queryParameters['isPlayed'], 'false');
-    expect(request.url.queryParameters['sortBy'], 'Random');
+    expect(request.url.queryParameters['sortBy'], 'CommunityRating');
     final cubit = tester
         .widget<DiscoveryPage>(find.byType(DiscoveryPage))
         .cubit;
@@ -433,7 +465,7 @@ RecordingHttpClient _narrowingClient(List<String> library) =>
       if (path == '/Items/Filters' || path == '/Items/Filters2') {
         return _jsonResponse(<String, Object?>{});
       }
-      if (path == '/Items') {
+      if (path == '/Items' || path == '/Items/Suggestions') {
         final query = request.url.queryParameters;
         if (query['isFavorite'] == 'true') {
           return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
@@ -472,10 +504,10 @@ void exhaustedShuffleTests() {
 
       expect(find.text('Your library is unavailable'), findsNothing);
       final request = client.requests.singleWhere(
-        (request) => request.url.path == '/Items',
+        (request) => request.url.path == '/Items/Suggestions',
       );
       expect(request.url.queryParameters['ids'], isNull);
-      expect(request.url.queryParameters['excludeItemIds'], 'liked');
+      expect(request.url.queryParameters['excludeItemIds'], isNull);
       await DiscoveryRobot(tester).reveal();
       await tester.pumpAndSettle();
       DiscoveryRobot(tester).expectCandidateVisible('Fresh');
@@ -498,14 +530,10 @@ void exhaustedShuffleTests() {
 
     expect(find.text('Your library is unavailable'), findsNothing);
     final batches = client.requests
-        .where(
-          (request) =>
-              request.url.path == '/Items' &&
-              request.url.queryParameters['sortBy'] == 'Random',
-        )
+        .where((request) => request.url.path == '/Items/Suggestions')
         .toList();
-    expect(batches, hasLength(2));
-    expect(batches.last.url.queryParameters['excludeItemIds'], 'rejected');
+    expect(batches, hasLength(1));
+    expect(batches.single.url.queryParameters['excludeItemIds'], isNull);
     await DiscoveryRobot(tester).reveal();
     await tester.pumpAndSettle();
     DiscoveryRobot(tester).expectCandidateVisible('Fresh');

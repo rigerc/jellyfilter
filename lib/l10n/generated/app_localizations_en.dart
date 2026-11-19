@@ -309,6 +309,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverySpinAgainLabel => 'Spin again';
 
   @override
+  String get discoveryShuffleDurationLabel => 'Spin duration';
+
+  @override
+  String get discoveryShuffleInstantLabel => 'Instant';
+
+  @override
+  String discoveryShuffleDurationSeconds(double seconds) {
+    final intl.NumberFormat secondsNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String secondsString = secondsNumberFormat.format(seconds);
+
+    return '$secondsString s';
+  }
+
+  @override
   String get discoveryFavorFavoritesLabel => 'Favor favorites';
 
   @override

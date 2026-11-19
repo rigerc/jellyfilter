@@ -4,6 +4,7 @@ import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
 
 final class DiscoveryCubit extends Cubit<DiscoveryState> {
@@ -58,6 +59,7 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
         currentPickId: restored.currentPickId,
         favoriteBias: restored.favoriteBias,
         fadeWatched: restored.fadeWatched,
+        shuffleDuration: restored.shuffleDuration,
         isHydrated: true,
         persistenceError: failed,
       ),
@@ -98,6 +100,11 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
   Future<void> setFadeWatched(bool fade) => fade == state.fadeWatched
       ? Future<void>.value()
       : _commit(state.copyWith(fadeWatched: fade));
+
+  Future<void> setShuffleDuration(ShuffleDuration duration) =>
+      duration == state.shuffleDuration
+      ? Future<void>.value()
+      : _commit(state.copyWith(shuffleDuration: duration));
 
   /// Sets how strongly Shuffle favors Jellyfin favorites, snapped to 5% steps.
   Future<void> setFavoriteBias(double bias) {
@@ -372,6 +379,7 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
         currentPickId: value.currentPickId,
         favoriteBias: value.favoriteBias,
         fadeWatched: value.fadeWatched,
+        shuffleDuration: value.shuffleDuration,
       );
 
   CatalogFilter _withFreshDateWindowAnchor(CatalogFilter filter) {

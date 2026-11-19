@@ -11,6 +11,7 @@ import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/core/widgets/candy_bounce.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
@@ -44,7 +45,10 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
   /// ticker, and `dispose` must never create one on a dead element.
   AnimationController? _controllerOrNull;
   AnimationController get _controller => _controllerOrNull ??=
-      AnimationController(vsync: this, duration: CandyMotion.reelSpin)
+      AnimationController(
+          vsync: this,
+          duration: widget.state.shuffleDuration.duration,
+        )
         ..addListener(_onTick)
         ..addStatusListener(_onStatus);
   final math.Random _random = math.Random();
@@ -89,11 +93,13 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
     if (target == null) {
       return;
     }
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (MediaQuery.disableAnimationsOf(context) ||
+        next.shuffleDuration == ShuffleDuration.instant) {
       unawaited(HapticFeedback.mediumImpact());
       setState(() => _landings++);
       return;
     }
+    _controller.duration = next.shuffleDuration.duration;
     _startSpin(target, previous: previous, pool: next.eligibleCandidates);
   }
 
@@ -371,22 +377,72 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
           ),
           enabled: !spinning,
         ),
-        FilledButton.icon(
-          key: WidgetKeys.discoveryRevealButton,
-          onPressed: spinning ? null : _spin,
-          icon: const Icon(Icons.casino_rounded),
-          label: Text(
-            spinning
-                ? localization.discoverySpinningLabel
-                : candidate == null
-                ? localization.discoveryRevealLabel
-                : localization.discoverySpinAgainLabel,
-          ),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: FilledButton.icon(
+                key: WidgetKeys.discoveryRevealButton,
+                onPressed: spinning ? null : _spin,
+                icon: const Icon(Icons.casino_rounded),
+                label: Text(
+                  spinning
+                      ? localization.discoverySpinningLabel
+                      : candidate == null
+                      ? localization.discoveryRevealLabel
+                      : localization.discoverySpinAgainLabel,
+                ),
+              ),
+            ),
+            const SizedBox(width: CandySpacing.compact),
+            PopupMenuButton<ShuffleDuration>(
+              key: WidgetKeys.discoveryShuffleDuration,
+              tooltip: localization.discoveryShuffleDurationLabel,
+              enabled: !spinning,
+              initialValue: widget.state.shuffleDuration,
+              popUpAnimationStyle: reduceMotion
+                  ? AnimationStyle.noAnimation
+                  : null,
+              onSelected: context.read<DiscoveryCubit>().setShuffleDuration,
+              itemBuilder: (context) => <PopupMenuEntry<ShuffleDuration>>[
+                for (final choice in ShuffleDuration.values)
+                  CheckedPopupMenuItem<ShuffleDuration>(
+                    key: WidgetKeys.discoveryShuffleDurationChoice(choice.name),
+                    value: choice,
+                    checked: choice == widget.state.shuffleDuration,
+                    child: Text(_durationLabel(localization, choice)),
+                  ),
+              ],
+              child: SizedBox(
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(Icons.timer_outlined),
+                    const SizedBox(width: CandySpacing.compact / 2),
+                    Text(
+                      _durationLabel(
+                        localization,
+                        widget.state.shuffleDuration,
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
+
+String _durationLabel(AppLocalizations l10n, ShuffleDuration choice) =>
+    choice == ShuffleDuration.instant
+    ? l10n.discoveryShuffleInstantLabel
+    : l10n.discoveryShuffleDurationSeconds(
+        choice.duration.inMilliseconds / 1000,
+      );
 
 /// How strongly the reel leans toward Jellyfin favorites.
 final class _FavoriteBiasControl extends StatelessWidget {

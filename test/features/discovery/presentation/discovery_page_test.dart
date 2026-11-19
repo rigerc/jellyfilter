@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
@@ -1577,6 +1578,74 @@ void main() {
     await cubit.close();
   });
 
+  testWidgets(
+    'should configure spin duration and apply it to subsequent spins',
+    (tester) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+      final robot = DiscoveryRobot(tester);
+      await _pumpPage(tester, cubit);
+      await robot.openShuffle();
+      await tester.pumpAndSettle();
+      for (final duration in [
+        ShuffleDuration.oneSecond,
+        ShuffleDuration.sixSeconds,
+      ]) {
+        await tester.tap(find.byKey(WidgetKeys.discoveryShuffleDuration));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(WidgetKeys.discoveryShuffleDurationChoice(duration.name)),
+        );
+        await tester.pumpAndSettle();
+        expect(cubit.state.shuffleDuration, duration);
+        await robot.startSpin();
+        expect(
+          tester
+              .widget<PopupMenuButton<ShuffleDuration>>(
+                find.byKey(WidgetKeys.discoveryShuffleDuration),
+              )
+              .enabled,
+          isFalse,
+        );
+        await tester.pump(duration.duration ~/ 2);
+        robot.expectRevealButtonEnabled(enabled: false);
+        await tester.pump(duration.duration ~/ 2);
+        await tester.pump(const Duration(milliseconds: 20));
+        robot.expectRevealButtonEnabled(enabled: true);
+        expect(
+          find.byKey(WidgetKeys.discoveryShuffleCandidate('movie-1')),
+          findsOneWidget,
+        );
+      }
+      await cubit.close();
+    },
+  );
+
+  testWidgets('should reveal instantly when Instant is selected', (
+    tester,
+  ) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+    final robot = DiscoveryRobot(tester);
+    await _pumpPage(tester, cubit);
+    await robot.openShuffle();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(WidgetKeys.discoveryShuffleDuration));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(WidgetKeys.discoveryShuffleDurationChoice('instant')),
+    );
+    await tester.pumpAndSettle();
+    await robot.startSpin();
+    await tester.pump();
+    robot.expectRevealButtonEnabled(enabled: true);
+    expect(
+      find.byKey(WidgetKeys.discoveryShuffleCandidate('movie-1')),
+      findsOneWidget,
+    );
+    await cubit.close();
+  });
+
   testWidgets('should spin the reel before landing on the selected pick', (
     tester,
   ) async {
@@ -1619,6 +1688,7 @@ void main() {
   ) async {
     final cubit = _cubit();
     await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+    await cubit.setShuffleDuration(ShuffleDuration.sixSeconds);
     final robot = DiscoveryRobot(tester);
 
     await _pumpPage(tester, cubit, disableAnimations: true);

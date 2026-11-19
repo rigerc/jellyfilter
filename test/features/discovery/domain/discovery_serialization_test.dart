@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
@@ -7,6 +8,44 @@ import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.da
 import 'package:jellyfilter/features/discovery/domain/serialization/catalog_filter_codec.dart';
 
 void main() {
+  test(
+    'should round-trip each shuffle duration and include it in snapshot equality',
+    () {
+      for (final duration in ShuffleDuration.values) {
+        final snapshot = DiscoverySnapshot(shuffleDuration: duration);
+        final decoded = DiscoverySnapshot.fromJson(snapshot.toJson());
+        expect(decoded?.shuffleDuration, duration);
+        expect(decoded, snapshot);
+        expect(decoded.hashCode, snapshot.hashCode);
+        if (duration != ShuffleDuration.standard) {
+          expect(snapshot, isNot(const DiscoverySnapshot()));
+        }
+      }
+    },
+  );
+
+  test(
+    'should restore the standard spin duration for missing or invalid saved settings',
+    () {
+      final json = const DiscoverySnapshot().toJson();
+      expect(
+        DiscoverySnapshot.fromJson(
+          {...json}..remove('shuffleDuration'),
+        )?.shuffleDuration,
+        ShuffleDuration.standard,
+      );
+      for (final value in [null, 'unknown', 123, <String>[]]) {
+        expect(
+          DiscoverySnapshot.fromJson({
+            ...json,
+            'shuffleDuration': value,
+          })?.shuffleDuration,
+          ShuffleDuration.standard,
+        );
+      }
+    },
+  );
+
   group('tags, exclusions, and reversed sort', () {
     CatalogCandidate movie({
       Set<String> genres = const <String>{},

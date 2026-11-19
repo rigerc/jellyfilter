@@ -1,6 +1,7 @@
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 
 final class DiscoveryState {
   DiscoveryState({
@@ -19,6 +20,7 @@ final class DiscoveryState {
     this.noEligibleCandidates = false,
     double favoriteBias = 0,
     this.fadeWatched = false,
+    this.shuffleDuration = ShuffleDuration.standard,
   }) : favoriteBias = favoriteBias.isNaN ? 0 : favoriteBias.clamp(0, 1),
        candidates = List<CatalogCandidate>.unmodifiable(candidates),
        presets = Map<String, CatalogFilter>.unmodifiable(presets),
@@ -47,6 +49,7 @@ final class DiscoveryState {
 
   /// Whether watched titles are shown dimmed.
   final bool fadeWatched;
+  final ShuffleDuration shuffleDuration;
 
   // Derived lists are computed once per state; every view reads them.
   late final List<CatalogCandidate> filteredCandidates = List.unmodifiable(
@@ -82,6 +85,7 @@ final class DiscoveryState {
     bool? noEligibleCandidates,
     double? favoriteBias,
     bool? fadeWatched,
+    ShuffleDuration? shuffleDuration,
   }) => DiscoveryState(
     candidates: candidates ?? this.candidates,
     filter: filter ?? this.filter,
@@ -102,6 +106,7 @@ final class DiscoveryState {
     noEligibleCandidates: noEligibleCandidates ?? this.noEligibleCandidates,
     favoriteBias: favoriteBias ?? this.favoriteBias,
     fadeWatched: fadeWatched ?? this.fadeWatched,
+    shuffleDuration: shuffleDuration ?? this.shuffleDuration,
   );
 }
 
