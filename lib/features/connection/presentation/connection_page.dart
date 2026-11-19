@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:jellyfin_picker/core/assets/app_assets.dart';
 import 'package:jellyfin_picker/core/keys/widget_keys.dart';
 import 'package:jellyfin_picker/core/theme/candy_theme.dart';
 import 'package:jellyfin_picker/features/connection/domain/entities/connection_request.dart';
@@ -108,6 +109,20 @@ final class _ConnectionFormState extends State<_ConnectionForm> {
                   child: Column(
                     spacing: CandySpacing.compact,
                     children: <Widget>[
+                      const SizedBox(height: CandySpacing.section),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(CandyShapes.card),
+                        child: ExcludeSemantics(
+                          child: Image.asset(
+                            AppAssets.appIcon,
+                            width: CandyIconSize.hero,
+                            height: CandyIconSize.hero,
+                            cacheWidth: CandyImages.artworkCacheWidth,
+                            fit: BoxFit.cover,
+                            filterQuality: FilterQuality.high,
+                          ),
+                        ),
+                      ),
                       Text(
                         localization.connectionTitle,
                         style: theme.textTheme.headlineMedium,

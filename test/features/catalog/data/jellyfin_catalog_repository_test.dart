@@ -256,6 +256,183 @@ void main() {
     );
   });
 
+  test('should reverse the natural sort direction on request', () async {
+    final client = RecordingHttpClient(
+      (request) async => _jsonResponse(<String, Object?>{
+        'Items': <Object?>[_movieJson()],
+        'StartIndex': 0,
+        'TotalRecordCount': 1,
+      }),
+    );
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    await repository.loadPage(
+      filter: const CatalogFilter(sort: CatalogSort.title),
+    );
+    await repository.loadPage(
+      filter: const CatalogFilter(sort: CatalogSort.title, sortReversed: true),
+    );
+
+    expect(
+      client.requests.map(
+        (request) => request.url.queryParameters['sortOrder'],
+      ),
+      <String>['Ascending', 'Descending'],
+    );
+  });
+
+  test('should read tags and apply tag and exclusion rules locally', () async {
+    final client = RecordingHttpClient(
+      (request) async => _jsonResponse(<String, Object?>{
+        'Items': <Object?>[
+          _movieJson(id: 'both', tags: <String>['Cozy', 'Rainy']),
+          _movieJson(id: 'one', tags: <String>['Cozy']),
+          _movieJson(
+            id: 'scary',
+            genres: <String>['Horror'],
+            tags: <String>['Cozy', 'Rainy'],
+          ),
+        ],
+        'StartIndex': 0,
+        'TotalRecordCount': 3,
+      }),
+    );
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    final page = await repository.loadPage(
+      filter: const CatalogFilter(
+        tags: <String>{'cozy', 'rainy'},
+        excludedGenres: <String>{'horror'},
+      ),
+    );
+
+    expect(page.candidates.map((candidate) => candidate.id), <String>['both']);
+    expect(page.candidates.single.tags, <String>{'Cozy', 'Rainy'});
+    final query = client.requests.single.url.queryParameters;
+    expect(query['tags'], 'cozy');
+    expect(query['fields'], contains('Tags'));
+  });
+
+  test('should read ahead a bounded number of pages for exclusions', () async {
+    final client = RecordingHttpClient((request) async {
+      final start = int.parse(request.url.queryParameters['startIndex']!);
+      return _jsonResponse(<String, Object?>{
+        'Items': <Object?>[
+          _movieJson(id: 'm$start', genres: <String>['Horror']),
+        ],
+        'StartIndex': start,
+        'TotalRecordCount': 10000,
+      });
+    });
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    final page = await repository.loadPage(
+      filter: const CatalogFilter(excludedGenres: <String>{'horror'}),
+    );
+
+    expect(page.candidates, isEmpty);
+    expect(page.hasMore, isTrue);
+    expect(client.requests, hasLength(11));
+  });
+
+  test('should report no matches when named titles leave nothing', () async {
+    final repository = JellyfinCatalogRepository(
+      client: RecordingHttpClient(
+        (request) async => _jsonResponse(<String, Object?>{
+          'Items': <Object?>[],
+          'StartIndex': 0,
+          'TotalRecordCount': 0,
+        }),
+      ),
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    final narrowed = await repository.loadPage(
+      filter: const CatalogFilter(sort: CatalogSort.random),
+      includedIds: <String>{'liked'},
+      excludedIds: <String>{'liked'},
+    );
+    final plain = await repository.loadPage(
+      filter: const CatalogFilter(sort: CatalogSort.random),
+    );
+
+    expect(narrowed.failure, isA<NoCatalogMatchFailure>());
+    expect(plain.failure, isA<NoAccessibleLibraryFailure>());
+  });
+
+  test('should page through favorite movie ids with a lean request', () async {
+    final client = RecordingHttpClient((request) async {
+      final start = int.parse(request.url.queryParameters['startIndex']!);
+      final ids = start == 0
+          ? List<String>.generate(500, (index) => 'fav-$index')
+          : <String>['fav-500', 'fav-501'];
+      return _jsonResponse(<String, Object?>{
+        'Items': <Map<String, Object?>>[
+          for (final id in ids) <String, Object?>{'Id': id},
+          <String, Object?>{'Id': ''},
+        ],
+        'TotalRecordCount': 502,
+      });
+    });
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test/jellyfin',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    final result = await repository.loadFavoriteIds();
+
+    expect(result.value, hasLength(502));
+    expect(result.value, containsAll(<String>['fav-0', 'fav-501']));
+    expect(client.requests, hasLength(2));
+    final query = client.requests.first.url.queryParameters;
+    expect(client.requests.first.url.path, '/jellyfin/Items');
+    expect(query['isFavorite'], 'true');
+    expect(query['includeItemTypes'], 'Movie');
+    expect(query['userId'], 'user-id');
+    expect(query['enableImages'], 'false');
+    expect(query['enableUserData'], 'false');
+    expect(client.requests.first.headers['Authorization'], contains('token'));
+  });
+
+  test('should type a failed favorites request', () async {
+    final repository = JellyfinCatalogRepository(
+      client: RecordingHttpClient((request) async => http.Response('', 401)),
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    final result = await repository.loadFavoriteIds();
+
+    expect(result.value, isNull);
+    expect(result.failure, isA<ExpiredCatalogFailure>());
+  });
+
   test('should lazily load full details for one Jellyfin item', () async {
     final client = RecordingHttpClient(
       (request) async => _jsonResponse(<String, Object?>{
@@ -460,7 +637,7 @@ void main() {
       expect(request.url.queryParameters['filters'], 'IsNotFolder');
       expect(
         request.url.queryParameters['fields'],
-        'Genres,PrimaryImageAspectRatio,DateCreated',
+        'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
       );
       expect(request.url.queryParameters['imageTypeLimit'], '1');
       expect(request.followRedirects, isFalse);
@@ -1279,8 +1456,10 @@ void main() {
 Map<String, Object?> _movieJson({
   String id = 'movie-1',
   List<String> genres = const <String>['Drama'],
+  List<String> tags = const <String>[],
 }) => <String, Object?>{
   'Id': id,
+  'Tags': tags,
   'Name': 'Candy Movie',
   'Type': 'Movie',
   'ProductionYear': 2024,

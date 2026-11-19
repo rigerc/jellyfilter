@@ -18,8 +18,11 @@ final class FakeDiscoveryStore implements DiscoveryStore {
     return snapshot;
   }
 
+  int writeCount = 0;
+
   @override
   Future<void> write(String scope, DiscoverySnapshot value) async {
+    writeCount++;
     lastScope = scope;
     await Future<void>.delayed(writeDelay);
     snapshot = value;
@@ -81,4 +84,10 @@ final class FakeDiscoverySelector implements DiscoverySelector {
     receivedCalls.add(List<String>.of(candidateIds));
     return choices.isEmpty ? selectedId : choices.removeAt(0);
   }
+
+  /// The roll returned to weighted choices; 0.5 unless a test sets it.
+  double chance = 0.5;
+
+  @override
+  double nextChance() => chance;
 }

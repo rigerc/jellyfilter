@@ -10,4 +10,7 @@ abstract interface class DiscoveryStore {
 
 abstract interface class DiscoverySelector {
   String? select(List<String> candidateIds);
+
+  /// A uniform roll in [0, 1), used to decide weighted choices.
+  double nextChance();
 }

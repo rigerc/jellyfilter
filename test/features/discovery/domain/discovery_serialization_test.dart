@@ -7,6 +7,118 @@ import 'package:jellyfin_picker/features/discovery/domain/entities/discovery_mod
 import 'package:jellyfin_picker/features/discovery/domain/serialization/catalog_filter_codec.dart';
 
 void main() {
+  group('tags, exclusions, and reversed sort', () {
+    CatalogCandidate movie({
+      Set<String> genres = const <String>{},
+      Set<String> tags = const <String>{},
+      int? year,
+      String? rating,
+    }) => CatalogCandidate(
+      id: 'movie',
+      name: 'Movie',
+      mediaType: CatalogMediaType.movie,
+      genres: genres,
+      tags: tags,
+      year: year,
+      officialRating: rating,
+      poster: const CatalogImage.fallback(),
+      backdrop: const CatalogImage.fallback(),
+    );
+
+    test('should require every selected tag, ignoring case', () {
+      const filter = CatalogFilter(tags: <String>{'Cozy', 'rainy day'});
+
+      expect(filter.isActive, isTrue);
+      expect(filter.matches(movie(tags: {'cozy', 'Rainy Day', 'x'})), isTrue);
+      expect(filter.matches(movie(tags: {'cozy'})), isFalse);
+    });
+
+    test('should reject titles carrying any excluded value', () {
+      const filter = CatalogFilter(
+        excludedGenres: <String>{'horror'},
+        excludedTags: <String>{'Seen it'},
+        excludedDecades: <int>{1980},
+        excludedOfficialRatings: <String>{'R'},
+      );
+
+      expect(filter.isActive, isTrue);
+      expect(filter.needsLocalRefinement, isTrue);
+      expect(filter.matches(movie(genres: {'Drama'}, year: 1995)), isTrue);
+      expect(filter.matches(movie(genres: {'Horror'})), isFalse);
+      expect(filter.matches(movie(tags: {'seen it'})), isFalse);
+      expect(filter.matches(movie(year: 1987)), isFalse);
+      expect(filter.matches(movie(rating: 'r')), isFalse);
+    });
+
+    test('should match identically when filters and titles are reused', () {
+      final filter = CatalogFilter(
+        tags: const <String>{'Cozy'},
+        excludedTags: const <String>{'seen it'},
+      );
+      final yes = movie(tags: const {'cozy'});
+      final no = movie(tags: const {'cozy', 'Seen  It'});
+
+      for (var pass = 0; pass < 3; pass++) {
+        expect(filter.matches(yes), isTrue);
+        expect(filter.matches(no), isFalse);
+      }
+      expect(
+        filter.copyWith(excludedTags: const <String>{}).matches(no),
+        isTrue,
+      );
+    });
+
+    test('should only reverse sorts that have a direction', () {
+      expect(
+        const CatalogFilter(sort: CatalogSort.title).canReverseSort,
+        isTrue,
+      );
+      expect(const CatalogFilter().canReverseSort, isFalse);
+      expect(
+        const CatalogFilter(sort: CatalogSort.random).canReverseSort,
+        isFalse,
+      );
+    });
+
+    test('should round trip new fields and default them in older saves', () {
+      const filter = CatalogFilter(
+        sort: CatalogSort.title,
+        sortReversed: true,
+        tags: <String>{'cozy'},
+        excludedGenres: <String>{'horror'},
+        excludedTags: <String>{'seen it'},
+        excludedDecades: <int>{1980},
+        excludedOfficialRatings: <String>{'R'},
+      );
+      final encoded = CatalogFilterCodec.encode(filter);
+
+      expect(
+        CatalogFilterCodec.encode(CatalogFilterCodec.decode(encoded)!),
+        encoded,
+      );
+
+      final legacy = <String, Object?>{...encoded}
+        ..remove('sortReversed')
+        ..remove('tags')
+        ..remove('excludedGenres')
+        ..remove('excludedTags')
+        ..remove('excludedDecades')
+        ..remove('excludedOfficialRatings');
+      final restored = CatalogFilterCodec.decode(legacy)!;
+      expect(restored.sortReversed, isFalse);
+      expect(restored.tags, isEmpty);
+      expect(restored.hasExclusions, isFalse);
+
+      expect(
+        CatalogFilterCodec.decode(<String, Object?>{
+          ...encoded,
+          'tags': <Object?>[''],
+        }),
+        isNull,
+      );
+    });
+  });
+
   test('should round trip every catalog filter field', () {
     const filter = CatalogFilter(
       mediaTypes: <CatalogMediaType>{CatalogMediaType.movie},

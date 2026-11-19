@@ -15,6 +15,8 @@ final class DiscoverySnapshot {
     this.position = 0,
     this.currentRevealId,
     this.currentPickId,
+    this.favoriteBias = 0,
+    this.fadeWatched = false,
   });
 
   final CatalogFilter filter;
@@ -26,6 +28,8 @@ final class DiscoverySnapshot {
   final int position;
   final String? currentRevealId;
   final String? currentPickId;
+  final double favoriteBias;
+  final bool fadeWatched;
 
   Map<String, Object?> toJson() {
     final persistedRejectedIds = _boundedIds(rejectedIds, maxDecisionIdCount);
@@ -53,6 +57,8 @@ final class DiscoverySnapshot {
       'currentPickId': rejectedIds.contains(currentPickId)
           ? null
           : currentPickId,
+      'favoriteBias': _normalizedBias(favoriteBias),
+      'fadeWatched': fadeWatched,
     };
   }
 
@@ -97,8 +103,17 @@ final class DiscoverySnapshot {
           ? null
           : currentRevealId,
       currentPickId: rejectedIds.contains(currentPickId) ? null : currentPickId,
+      // Optional and forgiving: older snapshots simply have no bias.
+      favoriteBias: switch (value['favoriteBias']) {
+        final num bias => _normalizedBias(bias.toDouble()),
+        _ => 0,
+      },
+      fadeWatched: value['fadeWatched'] == true,
     );
   }
+
+  static double _normalizedBias(double value) =>
+      value.isFinite ? value.clamp(0, 1).toDouble() : 0;
 
   @override
   bool operator ==(Object other) =>
@@ -111,7 +126,9 @@ final class DiscoverySnapshot {
       other.mode == mode &&
       other.position == position &&
       other.currentRevealId == currentRevealId &&
-      other.currentPickId == currentPickId;
+      other.currentPickId == currentPickId &&
+      other.favoriteBias == favoriteBias &&
+      other.fadeWatched == fadeWatched;
 
   @override
   int get hashCode => Object.hash(
@@ -131,6 +148,8 @@ final class DiscoverySnapshot {
     position,
     currentRevealId,
     currentPickId,
+    favoriteBias,
+    fadeWatched,
   );
 
   static Map<String, CatalogFilter>? _decodePresets(Object? value) {

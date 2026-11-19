@@ -1,56 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:jellyfin_picker/core/keys/widget_keys.dart';
-import 'package:jellyfin_picker/core/theme/candy_theme.dart';
 import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_models.dart';
 import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sections.dart';
 import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
 
-final class DiscoveryRatingFilterSection extends StatelessWidget {
-  const DiscoveryRatingFilterSection({required this.data, super.key});
+/// Ratings tab: runtime window and minimum scores.
+final class DiscoveryRatingFilterTab extends StatelessWidget {
+  const DiscoveryRatingFilterTab({required this.data, super.key});
+
+  static const maxRuntime = 300.0;
 
   final DiscoveryRatingFilterData data;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return DiscoveryFilterSection(
-      title: l10n.discoveryFineTuneFiltersLabel,
-      icon: Icons.tune_rounded,
-      child: Column(
-        spacing: CandySpacing.compact,
-        children: <Widget>[
-          Text(
-            l10n.discoveryRuntimeFilterLabel(
-              data.runtime.start.round(),
-              data.runtime.end.round(),
-            ),
-          ),
-          RangeSlider(
+    final runtimeActive =
+        data.runtime.start > 0 || data.runtime.end < maxRuntime;
+    final runtimeEnd = data.runtime.end >= maxRuntime
+        ? '${maxRuntime.round()}+'
+        : '${data.runtime.end.round()}';
+    return DiscoveryFilterTabList(
+      children: <Widget>[
+        DiscoveryFilterGroup(
+          title: l10n.discoveryRuntimeTitle,
+          value: runtimeActive
+              ? l10n.discoveryRuntimeRangeValue(
+                  data.runtime.start.round(),
+                  runtimeEnd,
+                )
+              : l10n.discoveryAnyLabel,
+          highlightValue: runtimeActive,
+          child: RangeSlider(
             key: WidgetKeys.discoveryRuntimeField,
             values: data.runtime,
-            max: 300,
+            max: maxRuntime,
+            divisions: 30,
+            labels: RangeLabels('${data.runtime.start.round()}', runtimeEnd),
+            semanticFormatterCallback: (value) =>
+                l10n.discoveryRuntimeMinutes(value.round()),
             onChanged: data.onRuntimeChanged,
           ),
-          Text(
-            l10n.discoveryCommunityFilterLabel(
-              data.community.toStringAsFixed(1),
-            ),
-          ),
-          Slider(
+        ),
+        DiscoveryFilterGroup(
+          title: l10n.discoveryCommunityTitle,
+          value: data.community > 0
+              ? l10n.discoveryMinimumValue(data.community.toStringAsFixed(1))
+              : l10n.discoveryAnyLabel,
+          highlightValue: data.community > 0,
+          child: Slider(
             key: WidgetKeys.discoveryCommunityRatingField,
             value: data.community,
             max: 10,
+            divisions: 20,
+            label: data.community.toStringAsFixed(1),
             onChanged: data.onCommunityChanged,
           ),
-          Text(l10n.discoveryCriticFilterLabel(data.critic.toStringAsFixed(0))),
-          Slider(
+        ),
+        DiscoveryFilterGroup(
+          title: l10n.discoveryCriticTitle,
+          value: data.critic > 0
+              ? l10n.discoveryMinimumValue(data.critic.toStringAsFixed(0))
+              : l10n.discoveryAnyLabel,
+          highlightValue: data.critic > 0,
+          child: Slider(
             key: WidgetKeys.discoveryCriticRatingField,
             value: data.critic,
             max: 100,
+            divisions: 20,
+            label: data.critic.toStringAsFixed(0),
             onChanged: data.onCriticChanged,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

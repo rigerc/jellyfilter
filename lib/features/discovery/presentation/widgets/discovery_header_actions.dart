@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jellyfin_picker/core/keys/widget_keys.dart';
+import 'package:jellyfin_picker/core/media/entities/catalog_filter.dart';
 import 'package:jellyfin_picker/core/theme/candy_theme.dart';
+import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
 import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
 
 final class DiscoveryHeaderActions extends StatelessWidget {
@@ -8,30 +10,89 @@ final class DiscoveryHeaderActions extends StatelessWidget {
     required this.filterActive,
     required this.onOpenFilters,
     required this.onClear,
+    this.sort = CatalogSort.defaultOrder,
+    this.sortReversed = false,
+    this.onSortChanged,
+    this.onSortReversedChanged,
+    this.fadeWatched = false,
+    this.onFadeWatchedChanged,
     super.key,
   });
 
   final bool filterActive;
   final VoidCallback onOpenFilters;
   final VoidCallback onClear;
+  final CatalogSort sort;
+  final bool sortReversed;
+  final ValueChanged<bool>? onSortReversedChanged;
+
+  /// Null hides the sort menu (Shuffle always draws at random).
+  final ValueChanged<CatalogSort>? onSortChanged;
+  final bool fadeWatched;
+  final ValueChanged<bool>? onFadeWatchedChanged;
+
+  /// Orders offered in the header; Random lives in Shuffle.
+  static const sortChoices = <CatalogSort>[
+    CatalogSort.defaultOrder,
+    CatalogSort.recentlyAdded,
+    CatalogSort.title,
+    CatalogSort.releaseYear,
+    CatalogSort.communityRating,
+    CatalogSort.runtime,
+  ];
 
   @override
   Widget build(BuildContext context) {
     final localization = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     const filterIcon = Icon(Icons.filter_list_rounded);
+    final onSort = onSortChanged;
+    final canReverse = CatalogFilter(sort: sort).canReverseSort;
+    final sorted = sort != CatalogSort.defaultOrder || sortReversed;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        IconButton(
+        if (onSort != null)
+          PopupMenuButton<CatalogSort>(
+            key: WidgetKeys.discoverySortButton,
+            tooltip: localization.discoverySortLabel,
+            initialValue: sort,
+            onSelected: onSort,
+            icon: Icon(
+              Icons.swap_vert_rounded,
+              color: sorted ? scheme.primary : null,
+            ),
+            itemBuilder: (context) => <PopupMenuEntry<CatalogSort>>[
+              for (final choice in sortChoices)
+                CheckedPopupMenuItem<CatalogSort>(
+                  key: WidgetKeys.discoverySortChoice(choice.name),
+                  value: choice,
+                  checked: choice == sort,
+                  child: Text(
+                    DiscoveryBasicsFilterTab.sortLabel(localization, choice),
+                  ),
+                ),
+              if (onSortReversedChanged case final onReverse?) ...[
+                const PopupMenuDivider(),
+                CheckedPopupMenuItem<CatalogSort>(
+                  key: WidgetKeys.discoveryReverseSortToggle,
+                  enabled: canReverse,
+                  checked: canReverse && sortReversed,
+                  onTap: () => onReverse(!sortReversed),
+                  child: Text(localization.discoveryReverseSortLabel),
+                ),
+              ],
+            ],
+          ),
+        IconButton.filledTonal(
           key: WidgetKeys.discoveryFilterButton,
           tooltip: filterActive
               ? localization.discoveryActiveFilterLabel
               : localization.discoveryFiltersLabel,
           onPressed: onOpenFilters,
           icon: filterActive
-              ? Badge(
+              ? const Badge(
                   key: WidgetKeys.discoveryActiveFilterIndicator,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
                   child: filterIcon,
                 )
               : filterIcon,
@@ -41,6 +102,13 @@ final class DiscoveryHeaderActions extends StatelessWidget {
           tooltip: localization.discoveryMoreActionsLabel,
           icon: const Icon(Icons.more_horiz_rounded),
           itemBuilder: (context) => <PopupMenuEntry<void>>[
+            if (onFadeWatchedChanged case final onFade?)
+              CheckedPopupMenuItem<void>(
+                key: WidgetKeys.discoveryFadeWatchedToggle,
+                checked: fadeWatched,
+                onTap: () => onFade(!fadeWatched),
+                child: Text(localization.discoveryFadeWatchedLabel),
+              ),
             PopupMenuItem<void>(
               key: WidgetKeys.discoveryClearButton,
               onTap: onClear,

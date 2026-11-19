@@ -20,6 +20,10 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
   final DiscoverySelector selector;
   final DateTime Function() _clock;
   int _generation = 0;
+
+  /// The snapshot storage will hold once queued writes finish, so unchanged
+  /// state is not rewritten.
+  DiscoverySnapshot? _lastWritten;
   Future<void> _writeQueue = Future<void>.value();
 
   Future<void> hydrate() async {
@@ -40,6 +44,7 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
       emit(state.copyWith(isHydrated: true, persistenceError: failed));
       return;
     }
+    _lastWritten = restored;
     emit(
       state.copyWith(
         filter: _withFreshDateWindowAnchor(restored.filter),
@@ -51,6 +56,8 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
         position: restored.position,
         currentRevealId: restored.currentRevealId,
         currentPickId: restored.currentPickId,
+        favoriteBias: restored.favoriteBias,
+        fadeWatched: restored.fadeWatched,
         isHydrated: true,
         persistenceError: failed,
       ),
@@ -87,6 +94,21 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
 
   Future<void> setMode(DiscoveryMode mode) =>
       _commit(state.copyWith(mode: mode));
+
+  Future<void> setFadeWatched(bool fade) => fade == state.fadeWatched
+      ? Future<void>.value()
+      : _commit(state.copyWith(fadeWatched: fade));
+
+  /// Sets how strongly Shuffle favors Jellyfin favorites, snapped to 5% steps.
+  Future<void> setFavoriteBias(double bias) {
+    final normalized = bias.isFinite
+        ? ((bias.clamp(0, 1) * 20).round() / 20).toDouble()
+        : 0.0;
+    if (normalized == state.favoriteBias) {
+      return Future<void>.value();
+    }
+    return _commit(state.copyWith(favoriteBias: normalized));
+  }
 
   Future<void> like(String id) {
     if (!_isUndecided(id)) {
@@ -131,7 +153,10 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     final alternatives = eligible
         .where((candidate) => !state.recentPickIds.contains(candidate.id))
         .toList(growable: false);
-    final pool = alternatives.isEmpty ? eligible : alternatives;
+    final pool = _favoredPool(
+      alternatives.isEmpty ? eligible : alternatives,
+      eligible,
+    );
     final selectedId = selector.select(
       pool.map((candidate) => candidate.id).toList(growable: false),
     );
@@ -152,14 +177,37 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     );
   }
 
-  Future<void> savePreset(String name) {
+  /// Saves [filter] (the applied filter by default) under [name].
+  /// Narrows [pool] to favorites on a roll under the favorite bias. When every
+  /// favorite was picked recently, recent favorites are allowed again so a
+  /// strong bias still lands on one.
+  List<CatalogCandidate> _favoredPool(
+    List<CatalogCandidate> pool,
+    List<CatalogCandidate> eligible,
+  ) {
+    final bias = state.favoriteBias;
+    if (bias <= 0) {
+      return pool;
+    }
+    bool isFavorite(CatalogCandidate candidate) => candidate.favorite == true;
+    var favorites = pool.where(isFavorite).toList(growable: false);
+    if (favorites.isEmpty) {
+      favorites = eligible.where(isFavorite).toList(growable: false);
+    }
+    if (favorites.isEmpty || selector.nextChance() >= bias) {
+      return pool;
+    }
+    return favorites;
+  }
+
+  Future<void> savePreset(String name, {CatalogFilter? filter}) {
     final normalized = name.trim();
     if (normalized.isEmpty || normalized.length > 50) {
       throw ArgumentError.value(name, 'name', 'must be 1–50 characters');
     }
     final presets = <String, CatalogFilter>{
       ...state.presets,
-      normalized: state.filter,
+      normalized: filter ?? state.filter,
     };
     final boundedPresets = presets.length > 20
         ? Map<String, CatalogFilter>.fromEntries(
@@ -176,6 +224,7 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
 
   Future<void> clearDiscovery() async {
     final generation = ++_generation;
+    _lastWritten = null;
     emit(
       state.copyWith(
         filter: const CatalogFilter(),
@@ -205,12 +254,23 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     if (isClosed) {
       return;
     }
+    final snapshot = _snapshotFromState(next);
+    if (snapshot == _lastWritten) {
+      // Only unsaved fields (such as candidates) changed: skip the write.
+      emit(next);
+      return;
+    }
     final generation = ++_generation;
+    // Writes run in order, so the last one queued is what storage will hold.
+    _lastWritten = snapshot;
     emit(next);
     await _enqueue(() async {
       try {
-        await store.write(scopeKey, _snapshotFromState(next));
+        await store.write(scopeKey, snapshot);
       } on Object catch (_) {
+        if (identical(_lastWritten, snapshot)) {
+          _lastWritten = null;
+        }
         if (!isClosed && generation == _generation) {
           emit(state.copyWith(persistenceError: true));
         }
@@ -230,7 +290,16 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
       unique.putIfAbsent(candidate.id, () => candidate);
     }
     final values = unique.values.toList(growable: false);
-    final reveal = _validReveal(values, state.filter, state.currentRevealId);
+    // A refreshed list (say, a favorite toggled on the current pick) keeps the
+    // pick on screen until the next spin, even if it no longer fits a filter.
+    final current = state.currentRevealId;
+    final stillListed =
+        current != null &&
+        !state.rejectedIds.contains(current) &&
+        values.any((item) => item.id == current);
+    final reveal = stillListed
+        ? current
+        : _validReveal(values, state.filter, current);
     return state.copyWith(
       candidates: values,
       currentRevealId: reveal,
@@ -273,7 +342,12 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     if (state.rejectedIds.contains(reveal)) {
       return null;
     }
-    if (state.likedIds.isNotEmpty && !state.likedIds.contains(reveal)) {
+    // Same rule as eligibility: the liked shortlist only applies when some
+    // liked title fits the filter.
+    final shortlistApplies = candidates.any(
+      (item) => state.likedIds.contains(item.id) && filter.matches(item),
+    );
+    if (shortlistApplies && !state.likedIds.contains(reveal)) {
       return null;
     }
     return reveal;
@@ -290,6 +364,8 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
         position: value.position,
         currentRevealId: value.currentRevealId,
         currentPickId: value.currentPickId,
+        favoriteBias: value.favoriteBias,
+        fadeWatched: value.fadeWatched,
       );
 
   CatalogFilter _withFreshDateWindowAnchor(CatalogFilter filter) {

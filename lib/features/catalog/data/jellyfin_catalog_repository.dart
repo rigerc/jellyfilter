@@ -62,6 +62,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
     }
     final capturedUtcNow = (filter.dateWindowAnchor ?? _clock()).toUtc();
     var requestedStartIndex = startIndex;
+    var readAhead = 0;
     while (true) {
       final uri =
           filter.sort == CatalogSort.defaultOrder &&
@@ -100,13 +101,17 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         decoded,
         filter,
         capturedUtcNow: capturedUtcNow,
+        narrowed: excludedIds.isNotEmpty || includedIds.isNotEmpty,
       );
-      final shouldContinueConjunctiveGenres =
-          filter.genres.length > 1 &&
+      // Local refinement (all genres/tags, exclusions) can empty a page; keep
+      // reading ahead, but only so far, so a strict filter stays responsive.
+      final shouldReadAhead =
+          filter.needsLocalRefinement &&
           page.candidates.isEmpty &&
           page.failure == null &&
-          page.hasMore;
-      if (!shouldContinueConjunctiveGenres) {
+          page.hasMore &&
+          ++readAhead <= _maxReadAhead;
+      if (!shouldReadAhead) {
         return page;
       }
       requestedStartIndex = page.nextIndex;
@@ -154,6 +159,79 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         IncompatibleCatalogFailure(),
       );
     }
+  }
+
+  /// Extra pages read when local refinement leaves a page empty.
+  static const _maxReadAhead = 10;
+
+  /// Upper bound on favorites fetched in one sync (pages of [_favoritePage]).
+  static const _maxFavorites = 5000;
+  static const _favoritePage = 500;
+
+  @override
+  Future<CatalogResult<Set<String>>> loadFavoriteIds() async {
+    final baseUrl = Uri.tryParse(serverUrl);
+    if (baseUrl == null || baseUrl.host.isEmpty) {
+      return const CatalogResult<Set<String>>.failure(
+        IncompatibleCatalogFailure(),
+      );
+    }
+    final ids = <String>{};
+    var startIndex = 0;
+    while (startIndex < _maxFavorites) {
+      // Ids only: no images, user data, or extra fields, so this stays cheap.
+      final uri = _endpoint(baseUrl, <String>['Items']).replace(
+        queryParameters: <String, String>{
+          'userId': userId,
+          'includeItemTypes': 'Movie',
+          'recursive': 'true',
+          'isFavorite': 'true',
+          'filters': 'IsNotFolder',
+          'enableImages': 'false',
+          'enableUserData': 'false',
+          'enableTotalRecordCount': 'true',
+          'fields': '',
+          'startIndex': '$startIndex',
+          'limit': '$_favoritePage',
+        },
+      );
+      final request = await _get(uri);
+      final response = request.response;
+      if (response == null) {
+        return CatalogResult<Set<String>>.failure(request.failure);
+      }
+      final failure = _responseFailure(response);
+      if (failure != null) {
+        return CatalogResult<Set<String>>.failure(failure);
+      }
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } on FormatException {
+        return const CatalogResult<Set<String>>.failure(
+          IncompatibleCatalogFailure(),
+        );
+      }
+      if (decoded is! Map || decoded['Items'] is! List) {
+        return const CatalogResult<Set<String>>.failure(
+          IncompatibleCatalogFailure(),
+        );
+      }
+      final items = decoded['Items'] as List;
+      ids.addAll(
+        items
+            .whereType<Map>()
+            .map((item) => item['Id'])
+            .whereType<String>()
+            .where((id) => id.isNotEmpty),
+      );
+      final total = decoded['TotalRecordCount'];
+      startIndex += items.length;
+      if (items.isEmpty || total is! int || startIndex >= total) {
+        break;
+      }
+    }
+    return CatalogResult<Set<String>>.success(Set<String>.unmodifiable(ids));
   }
 
   @override
@@ -437,10 +515,13 @@ final class JellyfinCatalogRepository implements CatalogRepository {
     }
   }
 
+  /// [narrowed] means the request named titles to include or exclude, so an
+  /// empty answer says nothing about whether the library is accessible.
   CatalogPage _catalogPage(
     _DecodedPage decoded,
     CatalogFilter filter, {
     required DateTime capturedUtcNow,
+    bool narrowed = false,
   }) {
     final mediaItems = decoded.rawItems.where(
       (item) => item['Type'] == 'Movie',
@@ -466,7 +547,8 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       malformed,
       missingImages,
     )) {
-      (0, _, _, _) when filter.isActive => const NoCatalogMatchFailure(),
+      (0, _, _, _) when filter.isActive || narrowed =>
+        const NoCatalogMatchFailure(),
       (0, _, _, _) => const NoAccessibleLibraryFailure(),
       (_, true, _, _) when !hasMore && filter.isActive =>
         const NoCatalogMatchFailure(),
@@ -538,7 +620,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         'parentId': ?filter.libraryId,
         'includeItemTypes': 'Movie',
         'recursive': 'true',
-        'fields': 'Genres,PrimaryImageAspectRatio,DateCreated',
+        'fields': 'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
         'enableUserData': 'true',
         'enableImages': 'true',
         'enableImageTypes': 'Primary,Backdrop',
@@ -552,6 +634,9 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         if (minimumCommunity != null) 'minCommunityRating': '$minimumCommunity',
         if (minimumCritic != null) 'minCriticRating': '$minimumCritic',
         if (genres.isNotEmpty) 'genres': genres.first,
+        // Jellyfin matches any listed tag; every tag is enforced locally.
+        if (filter.tags.isNotEmpty)
+          'tags': (filter.tags.toList()..sort()).first,
         if (years.isNotEmpty) 'years': years.join(','),
         if (filter.officialRatings.isNotEmpty)
           'officialRatings': (filter.officialRatings.toList()..sort()).join(
@@ -565,6 +650,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
           filter.sort == CatalogSort.defaultOrder
               ? CatalogSort.communityRating
               : filter.sort,
+          reversed: filter.canReverseSort && filter.sortReversed,
         ),
         'startIndex': '$startIndex',
         'limit': '$pageSize',
@@ -579,7 +665,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         'type': 'Movie',
         'startIndex': '$startIndex',
         'limit': '$pageSize',
-        'fields': 'Genres,PrimaryImageAspectRatio,DateCreated',
+        'fields': 'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
         'enableUserData': 'true',
         'enableImages': 'true',
         'imageTypeLimit': '1',
@@ -685,6 +771,13 @@ final class JellyfinCatalogRepository implements CatalogRepository {
           : null,
       runtimeMinutes: _runtimeMinutes(item['RunTimeTicks']),
       genres: genres,
+      tags: item['Tags'] is List
+          ? (item['Tags'] as List)
+                .whereType<String>()
+                .map((tag) => tag.trim())
+                .where((tag) => tag.isNotEmpty)
+                .toSet()
+          : const <String>{},
       communityRating: _number(item['CommunityRating']),
       criticRating: _number(item['CriticRating']),
       officialRating: _string(item['OfficialRating']),
@@ -905,30 +998,48 @@ final class JellyfinCatalogRepository implements CatalogRepository {
                 _dateTime(item['DateCreated']) == null));
   }
 
-  Map<String, String> _sortParameters(CatalogSort sort) => switch (sort) {
-    CatalogSort.defaultOrder => const <String, String>{},
-    CatalogSort.random => const <String, String>{'sortBy': 'Random'},
-    CatalogSort.recentlyAdded => const <String, String>{
-      'sortBy': 'DateCreated',
-      'sortOrder': 'Descending',
-    },
-    CatalogSort.title => const <String, String>{
-      'sortBy': 'SortName',
-      'sortOrder': 'Ascending',
-    },
-    CatalogSort.releaseYear => const <String, String>{
-      'sortBy': 'ProductionYear',
-      'sortOrder': 'Descending',
-    },
-    CatalogSort.communityRating => const <String, String>{
-      'sortBy': 'CommunityRating',
-      'sortOrder': 'Descending',
-    },
-    CatalogSort.runtime => const <String, String>{
-      'sortBy': 'Runtime',
-      'sortOrder': 'Ascending',
-    },
-  };
+  /// Jellyfin sort parameters, with the natural direction flipped when
+  /// [reversed].
+  Map<String, String> _sortParameters(
+    CatalogSort sort, {
+    bool reversed = false,
+  }) {
+    final parameters = _naturalSortParameters(sort);
+    final order = parameters['sortOrder'];
+    if (!reversed || order == null) {
+      return parameters;
+    }
+    return <String, String>{
+      ...parameters,
+      'sortOrder': order == 'Ascending' ? 'Descending' : 'Ascending',
+    };
+  }
+
+  Map<String, String> _naturalSortParameters(CatalogSort sort) =>
+      switch (sort) {
+        CatalogSort.defaultOrder => const <String, String>{},
+        CatalogSort.random => const <String, String>{'sortBy': 'Random'},
+        CatalogSort.recentlyAdded => const <String, String>{
+          'sortBy': 'DateCreated',
+          'sortOrder': 'Descending',
+        },
+        CatalogSort.title => const <String, String>{
+          'sortBy': 'SortName',
+          'sortOrder': 'Ascending',
+        },
+        CatalogSort.releaseYear => const <String, String>{
+          'sortBy': 'ProductionYear',
+          'sortOrder': 'Descending',
+        },
+        CatalogSort.communityRating => const <String, String>{
+          'sortBy': 'CommunityRating',
+          'sortOrder': 'Descending',
+        },
+        CatalogSort.runtime => const <String, String>{
+          'sortBy': 'Runtime',
+          'sortOrder': 'Ascending',
+        },
+      };
 
   static DateTime _utcNow() => DateTime.now().toUtc();
 }

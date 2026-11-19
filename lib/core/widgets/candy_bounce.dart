@@ -1,12 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jellyfin_picker/core/theme/candy_theme.dart';
 
 /// Adds a small, transform-only press response to an interactive child.
 final class CandyBounce extends StatefulWidget {
-  const CandyBounce({required this.child, this.onPressed, super.key});
+  const CandyBounce({
+    required this.child,
+    this.onPressed,
+    this.onLongPress,
+    super.key,
+  });
 
   final Widget child;
   final VoidCallback? onPressed;
+  final VoidCallback? onLongPress;
 
   @override
   State<CandyBounce> createState() => _CandyBounceState();
@@ -34,6 +43,13 @@ final class _CandyBounceState extends State<CandyBounce> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onPressed,
+        onLongPress: widget.onLongPress == null
+            ? null
+            : () {
+                _setPressed(false);
+                unawaited(HapticFeedback.mediumImpact());
+                widget.onLongPress?.call();
+              },
         onTapDown: enabled ? (_) => _setPressed(true) : null,
         onTapUp: enabled ? (_) => _setPressed(false) : null,
         onTapCancel: enabled ? () => _setPressed(false) : null,

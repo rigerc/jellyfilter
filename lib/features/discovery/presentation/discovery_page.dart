@@ -8,6 +8,7 @@ import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_library
 import 'package:jellyfin_picker/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_clear_dialog.dart';
 import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_controls.dart';
+import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_mode_selector.dart';
 import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_mode_switcher.dart';
 
@@ -26,9 +27,12 @@ final class DiscoveryPage extends StatelessWidget {
     this.libraries = const <CatalogLibrary>[],
     this.facets = const CatalogFacets(),
     this.imageHeaders = const <String, String>{},
+    this.onOrganize,
     super.key,
   });
 
+  /// Opens playlists & tags for a title; null hides those actions.
+  final CandidateOrganizer? onOrganize;
   final DiscoveryCubit cubit;
   final FavoriteToggle? onToggleFavorite;
   final CandidateDetailsLoader? onLoadDetails;
@@ -42,14 +46,17 @@ final class DiscoveryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: cubit,
-      child: _DiscoveryView(
-        onToggleFavorite: onToggleFavorite,
-        onLoadDetails: onLoadDetails,
-        onOpenTrailer: onOpenTrailer,
-        onLoadMore: onLoadMore,
-        libraries: libraries,
-        facets: facets,
-        imageHeaders: imageHeaders,
+      child: DiscoveryOrganizerScope(
+        organize: onOrganize,
+        child: _DiscoveryView(
+          onToggleFavorite: onToggleFavorite,
+          onLoadDetails: onLoadDetails,
+          onOpenTrailer: onOpenTrailer,
+          onLoadMore: onLoadMore,
+          libraries: libraries,
+          facets: facets,
+          imageHeaders: imageHeaders,
+        ),
       ),
     );
   }
@@ -84,9 +91,9 @@ final class _DiscoveryView extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            CandySpacing.page,
-            CandySpacing.page,
-            CandySpacing.page,
+            CandySpacing.gutter,
+            CandySpacing.compact,
+            CandySpacing.gutter,
             CandySpacing.compact,
           ),
           child: Column(

@@ -86,4 +86,55 @@ abstract final class WidgetKeys {
       Key('discovery-series-status-$value');
 
   static Key discoveryPreset(String name) => Key('discovery-preset-$name');
+
+  static const discoveryActiveFilters = Key('discovery-active-filters');
+  static const discoverySwipeLike = Key('discovery-swipe-like');
+  static const discoverySortButton = Key('discovery-sort-button');
+  static const discoveryReverseSort = Key('discovery-reverse-sort');
+  static const discoveryTagSearch = Key('discovery-tag-search');
+  static const discoveryReverseSortToggle = Key(
+    'discovery-reverse-sort-toggle',
+  );
+
+  static Key discoveryTagFilter(String tag) => Key('discovery-tag-filter-$tag');
+  static const discoveryPlayTrailer = Key('discovery-play-trailer');
+  static const discoveryOrganizeButton = Key('discovery-organize-button');
+  static const discoveryOrganizer = Key('discovery-organizer');
+  static const discoveryNewPlaylistField = Key('discovery-new-playlist');
+  static const discoveryCreatePlaylist = Key('discovery-create-playlist');
+  static const discoveryTagField = Key('discovery-tag-field');
+  static const discoveryAddTag = Key('discovery-add-tag');
+  static const discoveryOrganizerMessage = Key('discovery-organizer-message');
+
+  static Key discoveryDetailsTab(int index) =>
+      Key('discovery-details-tab-$index');
+
+  static Key discoveryOrganizerTab(int index) =>
+      Key('discovery-organizer-tab-$index');
+
+  static Key discoveryPlaylist(String id) => Key('discovery-playlist-$id');
+
+  static Key discoveryTag(String tag) => Key('discovery-tag-$tag');
+
+  static Key discoverySuggestedTag(String tag) =>
+      Key('discovery-suggested-tag-$tag');
+  static const discoveryFadeWatchedToggle = Key('discovery-fade-watched');
+
+  static Key discoveryWatchedBadge(String id) =>
+      Key('discovery-watched-badge-$id');
+
+  static Key discoverySortChoice(String name) =>
+      Key('discovery-sort-choice-$name');
+  static const discoverySwipeReject = Key('discovery-swipe-reject');
+  static const discoverySwipeInfo = Key('discovery-swipe-info');
+  static const discoveryFavoriteBias = Key('discovery-favorite-bias');
+  static const discoveryActiveFiltersClear = Key(
+    'discovery-active-filters-clear',
+  );
+
+  static Key discoveryActiveFilterChip(String id) =>
+      Key('discovery-active-filter-$id');
+
+  static Key discoveryFilterTab(int index) =>
+      Key('discovery-filter-tab-$index');
 }

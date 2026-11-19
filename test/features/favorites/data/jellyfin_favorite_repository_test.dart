@@ -11,6 +11,8 @@ import 'package:jellyfin_picker/features/favorites/domain/repositories/favorite_
 import '../../../shared/recording_http_client.dart';
 
 void main() {
+  group('library actions', libraryActionTests);
+
   group('JellyfinFavoriteRepository', () {
     test('should mark only the requested item as favorite', () async {
       final client = RecordingHttpClient(
@@ -278,3 +280,149 @@ http.Response _userData({required bool isFavorite}) => http.Response(
   200,
   headers: <String, String>{'content-type': 'application/json'},
 );
+
+JellyfinLibraryActionsRepository _actions(RecordingHttpClient client) =>
+    JellyfinLibraryActionsRepository(
+      client: client,
+      serverUrl: 'https://example.test/jellyfin',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+http.Response _json(Object value, [int status = 200]) => http.Response(
+  jsonEncode(value),
+  status,
+  headers: <String, String>{'content-type': 'application/json'},
+);
+
+void libraryActionTests() {
+  test('should list video playlists and skip music ones', () async {
+    final client = RecordingHttpClient(
+      (request) async => _json(<String, Object?>{
+        'Items': <Object?>[
+          <String, Object?>{
+            'Id': 'p1',
+            'Name': 'Movie night',
+            'MediaType': 'Video',
+          },
+          <String, Object?>{
+            'Id': 'p2',
+            'Name': 'Road trip',
+            'MediaType': 'Audio',
+          },
+          <String, Object?>{'Id': 'p3', 'Name': 'Untyped'},
+        ],
+      }),
+    );
+
+    final result = await _actions(client).loadPlaylists();
+
+    expect(result.value, const <LibraryPlaylist>[
+      LibraryPlaylist(id: 'p1', name: 'Movie night'),
+      LibraryPlaylist(id: 'p3', name: 'Untyped'),
+    ]);
+    final query = client.requests.single.url.queryParameters;
+    expect(client.requests.single.url.path, '/jellyfin/Items');
+    expect(query['includeItemTypes'], 'Playlist');
+    expect(query['userId'], 'user-id');
+  });
+
+  test('should add a title once and report when it is already there', () async {
+    var members = <String>['other'];
+    final client = RecordingHttpClient((request) async {
+      if (request.method == 'GET') {
+        return _json(<String, Object?>{
+          'Items': <Object?>[
+            for (final id in members) <String, Object?>{'Id': id},
+          ],
+        });
+      }
+      members = <String>[...members, request.url.queryParameters['ids']!];
+      return http.Response('', 204);
+    });
+    final actions = _actions(client);
+
+    final first = await actions.addToPlaylist(
+      playlistId: 'p1',
+      itemId: 'movie',
+    );
+    final second = await actions.addToPlaylist(
+      playlistId: 'p1',
+      itemId: 'movie',
+    );
+
+    expect(first.value, isTrue);
+    expect(second.value, isFalse);
+    final posts = client.requests.where((request) => request.method == 'POST');
+    expect(posts, hasLength(1));
+    expect(posts.single.url.path, '/jellyfin/Playlists/p1/Items');
+    expect(posts.single.url.queryParameters['ids'], 'movie');
+  });
+
+  test('should create a video playlist that starts with the title', () async {
+    final client = RecordingHttpClient(
+      (request) async => _json(<String, Object?>{'Id': 'new-id'}),
+    );
+
+    final result = await _actions(
+      client,
+    ).createPlaylist(name: '  Cozy picks ', itemId: 'movie');
+
+    expect(
+      result.value,
+      const LibraryPlaylist(id: 'new-id', name: 'Cozy picks'),
+    );
+    expect(client.requests.single.url.path, '/jellyfin/Playlists');
+    expect(jsonDecode(client.bodies.single!), <String, Object?>{
+      'Name': 'Cozy picks',
+      'Ids': <String>['movie'],
+      'UserId': 'user-id',
+      'MediaType': 'Video',
+    });
+  });
+
+  test('should change only the tags when saving an item back', () async {
+    final item = <String, Object?>{
+      'Id': 'movie',
+      'Name': 'Harbor Lights',
+      'Overview': 'Keep me.',
+      'ProviderIds': <String, Object?>{'Tmdb': '42'},
+      'LockedFields': <String>['Overview'],
+      'Tags': <String>['old'],
+    };
+    final client = RecordingHttpClient((request) async {
+      return request.method == 'GET' ? _json(item) : http.Response('', 204);
+    });
+
+    final result = await _actions(
+      client,
+    ).setTags(itemId: 'movie', tags: <String>[' cozy ', 'Cozy', 'rainy day']);
+
+    expect(result.value, <String>['cozy', 'rainy day']);
+    final post = client.requests.last;
+    expect(post.method, 'POST');
+    expect(post.url.path, '/jellyfin/Items/movie');
+    expect(post.headers['Content-Type'], contains('application/json'));
+    final sent = jsonDecode(client.bodies.last!) as Map<String, Object?>;
+    expect(sent, <String, Object?>{
+      ...item,
+      'Tags': <String>['cozy', 'rainy day'],
+    });
+  });
+
+  test('should report a non-admin tag edit as not allowed', () async {
+    final client = RecordingHttpClient((request) async {
+      return request.method == 'GET'
+          ? _json(<String, Object?>{'Id': 'movie', 'Tags': <String>[]})
+          : http.Response('', 403);
+    });
+
+    final result = await _actions(
+      client,
+    ).setTags(itemId: 'movie', tags: <String>['cozy']);
+
+    expect(result.value, isNull);
+    expect(result.failure, LibraryActionFailure.notAllowed);
+  });
+}

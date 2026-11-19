@@ -83,11 +83,12 @@ final class DiscoveryRobot {
     expect(find.byKey(WidgetKeys.discoveryLibraryField), findsOneWidget);
   }
 
-  void expectServerFacetsVisible({
+  Future<void> expectServerFacetsVisible({
     required String genre,
     required int decade,
     required String rating,
-  }) {
+  }) async {
+    await openFilterTab(1);
     expect(find.byKey(WidgetKeys.discoveryGenre(genre)), findsOneWidget);
     expect(find.byKey(WidgetKeys.discoveryDecade(decade)), findsOneWidget);
     expect(
@@ -96,7 +97,13 @@ final class DiscoveryRobot {
     );
   }
 
+  Future<void> selectSort(String label) async {
+    await openFilterTab(0);
+    await _selectDropdownValue(WidgetKeys.discoverySortField, label);
+  }
+
   Future<void> selectLibraryAndApply(String label) async {
+    await openFilterTab(0);
     await _selectDropdownValue(WidgetKeys.discoveryLibraryField, label);
     await applyOpenFilters();
   }
@@ -109,7 +116,9 @@ final class DiscoveryRobot {
     expect(find.text(synopsis), findsOneWidget);
   }
 
-  void expectTrailerVisible(int index, String name) {
+  Future<void> expectTrailerVisible(int index, String name) async {
+    expect(find.byKey(WidgetKeys.discoveryPlayTrailer), findsOneWidget);
+    await openDetailsTab(2);
     expect(find.byKey(WidgetKeys.discoveryTrailer(index)), findsOneWidget);
     expect(find.text(name), findsOneWidget);
   }
@@ -146,6 +155,11 @@ final class DiscoveryRobot {
     await tester.pump();
   }
 
+  Future<void> openFilterTab(int index) async {
+    await tester.tap(find.byKey(WidgetKeys.discoveryFilterTab(index)));
+    await tester.pumpAndSettle();
+  }
+
   Future<void> openFilters() async {
     await tester.tap(find.byKey(WidgetKeys.discoveryFilterButton));
     await tester.pumpAndSettle();
@@ -162,13 +176,7 @@ final class DiscoveryRobot {
   }
 
   Future<void> applyOpenFilters() async {
-    final apply = find.byKey(WidgetKeys.discoveryApplyFilters);
-    await tester.scrollUntilVisible(
-      apply,
-      CandySpacing.section,
-      scrollable: _filterScrollable,
-    );
-    await tester.tap(apply);
+    await tester.tap(find.byKey(WidgetKeys.discoveryApplyFilters));
     await tester.pumpAndSettle();
   }
 
@@ -181,6 +189,7 @@ final class DiscoveryRobot {
     );
     await _selectDropdownValue(WidgetKeys.discoverySortField, 'Recently added');
     await _selectDropdownValue(WidgetKeys.discoveryAddedWithinField, '30 days');
+    await openFilterTab(1);
     for (final key in <Key>[
       WidgetKeys.discoveryGenre('mystery'),
       WidgetKeys.discoveryDecade(2020),
@@ -194,18 +203,20 @@ final class DiscoveryRobot {
       await tester.tap(find.byKey(key));
       await tester.pump();
     }
-    await tester.scrollUntilVisible(
-      find.byKey(WidgetKeys.discoveryApplyFilters),
-      CandySpacing.section,
-      scrollable: _filterScrollable,
-    );
     await tester.tap(find.byKey(WidgetKeys.discoveryApplyFilters));
     await tester.pumpAndSettle();
   }
 
   Future<void> _selectDropdownValue(Key key, String label) async {
     final field = find.byKey(key);
-    await tester.ensureVisible(field);
+    // Scroll until the field is tappable rather than tucked under the
+    // pinned apply bar.
+    await tester.scrollUntilVisible(
+      field.hitTestable(),
+      CandySpacing.section,
+      scrollable: _filterScrollable,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(field);
     await tester.pumpAndSettle();
     await tester.tap(find.text(label).last);
@@ -230,9 +241,23 @@ final class DiscoveryRobot {
     await tester.pump();
   }
 
+  /// Pulls the lever and lets the reel run until it locks on a pick.
   Future<void> reveal() async {
+    await startSpin();
+    await tester.pump(CandyMotion.reelSpin);
+    await tester.pump(CandyMotion.reelSettle);
+  }
+
+  Future<void> startSpin() async {
     await tester.tap(find.byKey(WidgetKeys.discoveryRevealButton));
     await tester.pump();
+  }
+
+  void expectRevealButtonEnabled({required bool enabled}) {
+    final button = tester.widget<ButtonStyleButton>(
+      find.byKey(WidgetKeys.discoveryRevealButton),
+    );
+    expect(button.onPressed != null, enabled);
   }
 
   Future<void> openFirstDetails() async {
@@ -273,20 +298,10 @@ final class DiscoveryRobot {
 
   Future<void> savePreset(String name) async {
     await tester.tap(find.byKey(WidgetKeys.discoveryFilterButton));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    await openFilterTab(3);
     final nameField = find.byKey(WidgetKeys.discoveryPresetName);
     final saveButton = find.byKey(WidgetKeys.discoverySavePreset);
-    await tester.scrollUntilVisible(
-      nameField,
-      300,
-      scrollable: find
-          .descendant(
-            of: find.byKey(WidgetKeys.discoveryFilterSheet),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
     await tester.enterText(nameField, name);
     await tester.ensureVisible(saveButton);
     await tester.tap(saveButton);
@@ -307,22 +322,34 @@ final class DiscoveryRobot {
     expect(find.text(name), findsWidgets);
   }
 
-  void expectDetailsVisible() {
+  /// Header and Overview tab first, then the Details tab.
+  Future<void> expectDetailsVisible() async {
     expect(find.byKey(WidgetKeys.discoveryDetails), findsOneWidget);
+    expect(find.text('Synopsis'), findsOneWidget);
     expect(find.text('A warm mystery in space.'), findsOneWidget);
     expect(find.textContaining('2024'), findsWidgets);
     expect(find.textContaining('112'), findsWidgets);
     expect(find.textContaining('8.4'), findsWidgets);
     expect(find.textContaining('91'), findsWidgets);
     expect(find.textContaining('PG-13'), findsWidgets);
-    expect(find.textContaining('Released'), findsWidgets);
     expect(find.textContaining('Ava Actor'), findsWidgets);
+
+    await openDetailsTab(1);
+    expect(find.text('Status'), findsOneWidget);
+    expect(find.textContaining('Released'), findsWidgets);
+    await openDetailsTab(0);
   }
 
+  Future<void> openDetailsTab(int index) async {
+    await tester.tap(find.byKey(WidgetKeys.discoveryDetailsTab(index)));
+    await tester.pumpAndSettle();
+  }
+
+  /// The scrolling tab content runs to the bottom of the sheet.
   void expectNoBlankAreaBelowDetails({double bottomInset = 0}) {
     final sheetBottom = tester.getBottomLeft(find.byType(BottomSheet)).dy;
     final detailsBottom = tester
-        .getBottomLeft(find.textContaining('Ava Actor').last)
+        .getBottomLeft(find.byKey(WidgetKeys.discoveryDetails))
         .dy;
 
     expect(
@@ -370,13 +397,13 @@ final class DiscoveryRobot {
     );
   }
 
-  void expectThemedHeaderVisible() {
+  void expectUnboxedHeader() {
     expect(
       find.ancestor(
         of: find.byKey(WidgetKeys.discoveryFilterButton),
         matching: find.byType(Card),
       ),
-      findsOneWidget,
+      findsNothing,
     );
   }
 
@@ -467,7 +494,17 @@ final class DiscoveryRobot {
     expect(images.map((image) => image.fit), everyElement(fit));
   }
 
-  Finder get _filterScrollable => find.byType(Scrollable).last;
+  /// The vertical list of the filter tab that is currently showing.
+  Finder get _filterScrollable => find
+      .descendant(
+        of: find.byKey(WidgetKeys.discoveryFilterSheet),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        ),
+      )
+      .last;
 
   Finder get _gridScrollable => find.descendant(
     of: find.byKey(WidgetKeys.discoveryGrid),

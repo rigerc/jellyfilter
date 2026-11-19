@@ -5,50 +5,72 @@ import 'package:jellyfin_picker/features/discovery/presentation/widgets/discover
 import 'package:jellyfin_picker/features/discovery/presentation/widgets/discovery_filter_sections.dart';
 import 'package:jellyfin_picker/l10n/generated/app_localizations.dart';
 
-final class DiscoveryPresetFilterSection extends StatelessWidget {
-  const DiscoveryPresetFilterSection({required this.data, super.key});
+/// Presets tab: apply a saved lineup or save the filters set in this sheet.
+final class DiscoveryPresetFilterTab extends StatelessWidget {
+  const DiscoveryPresetFilterTab({required this.data, super.key});
 
   final DiscoveryPresetFilterData data;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return DiscoveryFilterSection(
-      title: l10n.discoveryPresetsLabel,
-      icon: Icons.bookmarks_outlined,
-      child: Column(
-        spacing: CandySpacing.compact,
-        children: <Widget>[
-          if (data.presets.isNotEmpty)
-            Wrap(
-              spacing: CandySpacing.compact,
-              runSpacing: CandySpacing.compact,
-              children: data.presets.keys
-                  .map(
-                    (name) => ActionChip(
-                      key: WidgetKeys.discoveryPreset(name),
-                      label: Text(name),
-                      onPressed: () => data.onApply(name),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-          TextField(
-            key: WidgetKeys.discoveryPresetName,
-            controller: data.nameController,
-            maxLength: 50,
-            decoration: InputDecoration(
-              labelText: l10n.discoveryPresetNameLabel,
-            ),
+    final theme = Theme.of(context);
+    return DiscoveryFilterTabList(
+      children: <Widget>[
+        DiscoveryFilterGroup(
+          title: l10n.discoverySavedPresetsLabel,
+          value: data.presets.isEmpty ? null : '${data.presets.length}',
+          child: data.presets.isEmpty
+              ? Text(
+                  l10n.discoveryPresetsEmpty,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              : Wrap(
+                  spacing: CandySpacing.compact / 1.5,
+                  runSpacing: CandySpacing.compact / 1.5,
+                  children: data.presets.keys
+                      .map(
+                        (name) => ActionChip(
+                          key: WidgetKeys.discoveryPreset(name),
+                          avatar: const Icon(Icons.bookmark_rounded),
+                          label: Text(name),
+                          onPressed: () => data.onApply(name),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+        ),
+        DiscoveryFilterGroup(
+          title: l10n.discoverySavePresetLabel,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: CandySpacing.compact,
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  key: WidgetKeys.discoveryPresetName,
+                  controller: data.nameController,
+                  maxLength: 50,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => data.onSave(),
+                  decoration: InputDecoration(
+                    hintText: l10n.discoveryPresetNameLabel,
+                    counterText: '',
+                  ),
+                ),
+              ),
+              IconButton.filledTonal(
+                key: WidgetKeys.discoverySavePreset,
+                tooltip: l10n.discoverySavePresetLabel,
+                onPressed: data.onSave,
+                icon: const Icon(Icons.bookmark_add_outlined),
+              ),
+            ],
           ),
-          OutlinedButton.icon(
-            key: WidgetKeys.discoverySavePreset,
-            onPressed: data.onSave,
-            icon: const Icon(Icons.bookmark_add_outlined),
-            label: Text(l10n.discoverySavePresetLabel),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

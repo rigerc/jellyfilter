@@ -12,6 +12,180 @@ import 'package:jellyfin_picker/features/catalog/domain/failures/catalog_failure
 import '../../../shared/fake_catalog_repository.dart';
 
 void main() {
+  group('favorite freshness', () {
+    CatalogCandidate movie(String id, {bool? favorite}) => CatalogCandidate(
+      id: id,
+      name: id,
+      mediaType: CatalogMediaType.movie,
+      favorite: favorite,
+      poster: const CatalogImage.fallback(),
+      backdrop: const CatalogImage.fallback(),
+    );
+
+    bool? favoriteOf(CatalogCubit cubit, String id) =>
+        (cubit.state as CatalogLoaded).candidates
+            .firstWhere((candidate) => candidate.id == id)
+            .favorite;
+
+    test(
+      'should keep a confirmed favorite when the next page is merged',
+      () async {
+        final repository = PagingCatalogRepository(
+          pages: <int, CatalogPage>{
+            0: CatalogPage(
+              candidates: <CatalogCandidate>[movie('movie-1', favorite: false)],
+              hasMore: true,
+              nextIndex: 1,
+              total: 3,
+            ),
+            // A page fetched before the change still reports the old value.
+            1: CatalogPage(
+              candidates: <CatalogCandidate>[
+                movie('movie-1', favorite: false),
+                movie('movie-2', favorite: false),
+              ],
+              hasMore: false,
+              nextIndex: 3,
+              total: 3,
+            ),
+          },
+        );
+        final cubit = CatalogCubit(repository);
+        await cubit.load();
+
+        final more = cubit.loadMore();
+        cubit.setFavorite('movie-1', true);
+        await more;
+
+        expect(favoriteOf(cubit, 'movie-1'), isTrue);
+        expect(favoriteOf(cubit, 'movie-2'), isFalse);
+        await cubit.close();
+      },
+    );
+
+    test('should correct every loaded title from a Jellyfin sync', () async {
+      final repository = PagingCatalogRepository(
+        pages: <int, CatalogPage>{
+          0: CatalogPage(
+            candidates: <CatalogCandidate>[
+              movie('movie-1', favorite: true),
+              movie('movie-2', favorite: false),
+              movie('movie-3', favorite: false),
+            ],
+            hasMore: false,
+            nextIndex: 3,
+            total: 3,
+          ),
+        },
+      )..favoriteIds = <String>{'movie-2', 'movie-3'};
+      final cubit = CatalogCubit(repository);
+      await cubit.load();
+
+      expect(await cubit.syncFavorites(), isTrue);
+
+      expect(favoriteOf(cubit, 'movie-1'), isFalse);
+      expect(favoriteOf(cubit, 'movie-2'), isTrue);
+      expect(favoriteOf(cubit, 'movie-3'), isTrue);
+      await cubit.close();
+    });
+
+    test('should leave titles untouched when a sync fails', () async {
+      final repository = PagingCatalogRepository(
+        pages: <int, CatalogPage>{
+          0: CatalogPage(
+            candidates: <CatalogCandidate>[movie('movie-1', favorite: true)],
+            hasMore: false,
+            nextIndex: 1,
+            total: 1,
+          ),
+        },
+      );
+      final cubit = CatalogCubit(repository);
+      await cubit.load();
+      final before = cubit.state;
+
+      expect(await cubit.syncFavorites(), isFalse);
+
+      expect(cubit.state, same(before));
+      await cubit.close();
+    });
+
+    test('should refresh list favorites from freshly loaded details', () async {
+      final repository = PagingCatalogRepository(
+        pages: <int, CatalogPage>{
+          0: CatalogPage(
+            candidates: <CatalogCandidate>[movie('movie-1', favorite: false)],
+            hasMore: false,
+            nextIndex: 1,
+            total: 1,
+          ),
+        },
+        details: movie('movie-1', favorite: true),
+      );
+      final cubit = CatalogCubit(repository);
+      await cubit.load();
+
+      await cubit.loadDetails('movie-1');
+
+      expect(favoriteOf(cubit, 'movie-1'), isTrue);
+      await cubit.close();
+    });
+
+    test('should not let a sync started earlier undo a newer toggle', () async {
+      final repository =
+          PagingCatalogRepository(
+              pages: <int, CatalogPage>{
+                0: CatalogPage(
+                  candidates: <CatalogCandidate>[
+                    movie('movie-1', favorite: false),
+                    movie('movie-2', favorite: false),
+                  ],
+                  hasMore: false,
+                  nextIndex: 2,
+                  total: 2,
+                ),
+              },
+            )
+            // The server has not seen the toggle yet, but knows about movie-2.
+            ..favoriteIds = <String>{'movie-2'}
+            ..favoriteGate = Completer<void>();
+      final cubit = CatalogCubit(repository);
+      await cubit.load();
+
+      final sync = cubit.syncFavorites();
+      cubit.setFavorite('movie-1', true);
+      repository.favoriteGate!.complete();
+      await sync;
+
+      expect(favoriteOf(cubit, 'movie-1'), isTrue);
+      expect(favoriteOf(cubit, 'movie-2'), isTrue);
+      expect(cubit.favoriteOf('movie-1'), isTrue);
+
+      // A sync requested after the toggle is authoritative again.
+      repository
+        ..favoriteGate = null
+        ..favoriteIds = <String>{};
+      await cubit.syncFavorites();
+      expect(favoriteOf(cubit, 'movie-1'), isFalse);
+      await cubit.close();
+    });
+
+    test('should patch cached details when a favorite changes', () async {
+      final repository = PagingCatalogRepository(
+        pages: const <int, CatalogPage>{},
+        details: movie('movie-1', favorite: false),
+      );
+      final cubit = CatalogCubit(repository);
+      await cubit.loadDetails('movie-1');
+
+      cubit.setFavorite('movie-1', true);
+
+      expect((await cubit.loadDetails('movie-1')).value?.favorite, isTrue);
+      expect(repository.detailCalls, 1);
+      await cubit.close();
+    });
+  });
+
   test('should stop after one bounded page until more is requested', () async {
     final repository = PagingCatalogRepository(
       pages: <int, CatalogPage>{

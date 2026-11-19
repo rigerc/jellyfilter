@@ -14,4 +14,7 @@ final class RandomDiscoverySelector implements DiscoverySelector {
     }
     return candidateIds[_random.nextInt(candidateIds.length)];
   }
+
+  @override
+  double nextChance() => _random.nextDouble();
 }

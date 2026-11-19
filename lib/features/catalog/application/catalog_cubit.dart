@@ -111,7 +111,9 @@ final class CatalogCubit extends Cubit<CatalogState> {
     }
     emit(
       CatalogLoaded(
-        candidates: List<CatalogCandidate>.unmodifiable(page.candidates),
+        candidates: List<CatalogCandidate>.unmodifiable(
+          page.candidates.map(_withKnownFavorite),
+        ),
         hasMore: page.hasMore,
         nextIndex: page.nextIndex,
         total: page.total,
@@ -162,15 +164,19 @@ final class CatalogCubit extends Cubit<CatalogState> {
       excludedIds: _excludedIds,
       includedIds: _includedIds,
     );
-    if (isClosed || generation != _generation) {
+    // Merge onto the latest state, not the one captured before the request,
+    // so favorite changes made meanwhile are not overwritten.
+    final latest = state;
+    if (isClosed || generation != _generation || latest is! CatalogLoaded) {
       return;
     }
     final candidates = <String, CatalogCandidate>{
-      for (final candidate in current.candidates) candidate.id: candidate,
-      for (final candidate in page.candidates) candidate.id: candidate,
+      for (final candidate in latest.candidates) candidate.id: candidate,
+      for (final candidate in page.candidates)
+        candidate.id: _withKnownFavorite(candidate),
     }.values.toList(growable: false);
     emit(
-      current.copyWith(
+      latest.copyWith(
         candidates: List<CatalogCandidate>.unmodifiable(candidates),
         hasMore: page.hasMore,
         nextIndex: page.nextIndex,
@@ -187,11 +193,141 @@ final class CatalogCubit extends Cubit<CatalogState> {
     if (cached != null) {
       return cached;
     }
+    final since = _favoriteEpoch;
     final result = await repository.loadDetails(normalizedId);
-    if (result.value != null) {
-      _detailCache[normalizedId] = result;
+    final details = result.value;
+    if (details != null) {
+      // Details are fetched fresh, so they carry Jellyfin's favorite state,
+      // unless the user toggled the title while the request was in flight.
+      final favorite = details.favorite;
+      final override = _favoriteOverrides[normalizedId];
+      final newer = override != null && override.epoch > since;
+      _detailCache[normalizedId] = newer
+          ? CatalogResult<CatalogCandidate>.success(
+              details.copyWith(favorite: override.value),
+            )
+          : result;
+      if (favorite != null && !newer) {
+        _favoriteOverrides.remove(normalizedId);
+        _patchFavorites((id) => id == normalizedId ? favorite : null);
+      }
     }
-    return result;
+    return _detailCache[normalizedId] ?? result;
+  }
+
+  /// The latest known favorite state of [itemId], including local changes
+  /// that Jellyfin has not confirmed yet.
+  bool? favoriteOf(String itemId) {
+    final override = _favoriteOverrides[itemId];
+    if (override != null) {
+      return override.value;
+    }
+    final current = state;
+    if (current is! CatalogLoaded) {
+      return null;
+    }
+    return current.candidates
+        .where((candidate) => candidate.id == itemId)
+        .firstOrNull
+        ?.favorite;
+  }
+
+  /// Records tags just saved to Jellyfin on the loaded title and its details.
+  void setTags(String itemId, Iterable<String> tags) {
+    final updated = Set<String>.unmodifiable(tags);
+    final cached = _detailCache[itemId]?.value;
+    if (cached != null) {
+      _detailCache[itemId] = CatalogResult<CatalogCandidate>.success(
+        cached.copyWith(tags: updated),
+      );
+    }
+    final current = state;
+    if (current is! CatalogLoaded || isClosed) {
+      return;
+    }
+    final index = current.candidates.indexWhere((item) => item.id == itemId);
+    if (index < 0) {
+      return;
+    }
+    final candidates = List<CatalogCandidate>.of(current.candidates);
+    candidates[index] = candidates[index].copyWith(tags: updated);
+    emit(
+      current.copyWith(
+        candidates: List<CatalogCandidate>.unmodifiable(candidates),
+      ),
+    );
+  }
+
+  /// Records a local favorite change (optimistic or confirmed) everywhere
+  /// this cubit holds the item. It outranks any server answer that was
+  /// requested before it.
+  void setFavorite(String itemId, bool favorite) {
+    _favoriteOverrides[itemId] = (value: favorite, epoch: ++_favoriteEpoch);
+    _patchFavorites((id) => id == itemId ? favorite : null);
+  }
+
+  /// Re-reads the user's favorites from Jellyfin and corrects every loaded
+  /// title. Titles toggled locally while the request was in flight keep the
+  /// newer local value. Returns whether the sync succeeded.
+  Future<bool> syncFavorites() async {
+    final since = _favoriteEpoch;
+    final result = await repository.loadFavoriteIds();
+    final ids = result.value;
+    if (ids == null || isClosed) {
+      return false;
+    }
+    _favoriteOverrides.removeWhere((_, override) => override.epoch <= since);
+    _patchFavorites((id) => _favoriteOverrides[id]?.value ?? ids.contains(id));
+    return true;
+  }
+
+  /// Orders local favorite changes against server reads.
+  int _favoriteEpoch = 0;
+
+  /// Local favorite changes not yet superseded by a later server read. A page
+  /// or sync requested before a change landed would otherwise revert it.
+  final Map<String, ({bool value, int epoch})> _favoriteOverrides =
+      <String, ({bool value, int epoch})>{};
+
+  CatalogCandidate _withKnownFavorite(CatalogCandidate candidate) {
+    final favorite = _favoriteOverrides[candidate.id]?.value;
+    return favorite == null || candidate.favorite == favorite
+        ? candidate
+        : candidate.copyWith(favorite: favorite);
+  }
+
+  void _patchFavorites(bool? Function(String id) favoriteFor) {
+    for (final entry in _detailCache.entries.toList()) {
+      final details = entry.value.value;
+      final favorite = favoriteFor(entry.key);
+      if (details != null && favorite != null && details.favorite != favorite) {
+        _detailCache[entry.key] = CatalogResult<CatalogCandidate>.success(
+          details.copyWith(favorite: favorite),
+        );
+      }
+    }
+    final current = state;
+    if (current is! CatalogLoaded || isClosed) {
+      return;
+    }
+    var changed = false;
+    final patched = <CatalogCandidate>[];
+    for (final candidate in current.candidates) {
+      final favorite = favoriteFor(candidate.id);
+      if (favorite != null && candidate.favorite != favorite) {
+        changed = true;
+        patched.add(candidate.copyWith(favorite: favorite));
+      } else {
+        patched.add(candidate);
+      }
+    }
+    if (changed) {
+      emit(
+        current.copyWith(
+          candidates: List<CatalogCandidate>.unmodifiable(patched),
+        ),
+      );
+    }
   }
 }
 

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:jellyfin_picker/composition/discovery_session_page.dart';
+import 'package:jellyfin_picker/core/keys/widget_keys.dart';
 import 'package:jellyfin_picker/core/theme/candy_theme.dart';
 import 'package:jellyfin_picker/features/catalog/domain/entities/catalog_filter.dart';
 import 'package:jellyfin_picker/features/connection/domain/entities/stored_session.dart';
@@ -17,6 +19,10 @@ import '../shared/fake_discovery_store.dart';
 import '../shared/recording_http_client.dart';
 
 void main() {
+  group('exhausted shuffle', exhaustedShuffleTests);
+  group('optimistic favorites', optimisticFavoriteTests);
+  group('favorite freshness', favoriteFreshnessTests);
+
   testWidgets(
     'should use suggestions initially and a random Jellyfin batch in shuffle',
     (tester) async {
@@ -210,6 +216,251 @@ void main() {
     await tester.pumpAndSettle();
 
     robot.expectNoMatchesVisible();
+  });
+}
+
+void favoriteFreshnessTests() {
+  testWidgets('should pick up favorites changed elsewhere when resumed', (
+    tester,
+  ) async {
+    var serverFavorites = <String>[];
+    final client = RecordingHttpClient((request) async {
+      final path = request.url.path;
+      if (path == '/UserViews') {
+        return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+      }
+      if (path == '/Items/Filters' || path == '/Items/Filters2') {
+        return _jsonResponse(<String, Object?>{});
+      }
+      if (path == '/Items/Suggestions') {
+        return _jsonResponse({
+          'Items': <Map<String, Object?>>[_movie('suggested')],
+          'StartIndex': 0,
+          'TotalRecordCount': 1,
+        });
+      }
+      if (path == '/Items' &&
+          request.url.queryParameters['isFavorite'] == 'true') {
+        return _jsonResponse({
+          'Items': <Map<String, Object?>>[
+            for (final id in serverFavorites) <String, Object?>{'Id': id},
+          ],
+          'TotalRecordCount': serverFavorites.length,
+        });
+      }
+      return http.Response('', 404);
+    });
+
+    await tester.pumpWidget(_app(client));
+    await tester.pumpAndSettle();
+    final heart = find.descendant(
+      of: find.byKey(WidgetKeys.discoveryFavorite('suggested')),
+      matching: find.byIcon(Icons.favorite_rounded),
+    );
+    expect(heart, findsNothing);
+
+    // The movie is favorited in another Jellyfin app while we are away.
+    serverFavorites = <String>['suggested'];
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(heart, findsOneWidget);
+    expect(
+      client.requests.where(
+        (request) => request.url.queryParameters['isFavorite'] == 'true',
+      ),
+      hasLength(1),
+    );
+  });
+}
+
+/// Serves one suggested movie; favorite writes wait on [gate] and answer
+/// with [favoriteStatus].
+RecordingHttpClient _favoriteClient({
+  required List<Completer<void>> gates,
+  int Function()? favoriteStatus,
+}) => RecordingHttpClient((request) async {
+  final path = request.url.path;
+  if (path == '/UserViews') {
+    return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+  }
+  if (path == '/Items/Filters' || path == '/Items/Filters2') {
+    return _jsonResponse(<String, Object?>{});
+  }
+  if (path == '/Items/Suggestions') {
+    return _jsonResponse({
+      'Items': <Map<String, Object?>>[_movie('suggested')],
+      'StartIndex': 0,
+      'TotalRecordCount': 1,
+    });
+  }
+  if (path == '/UserFavoriteItems/suggested') {
+    final gate = Completer<void>();
+    gates.add(gate);
+    await gate.future;
+    final status = favoriteStatus?.call() ?? 200;
+    return status == 200
+        ? _jsonResponse({'IsFavorite': request.method == 'POST'})
+        : http.Response('', status);
+  }
+  return http.Response('', 404);
+});
+
+void optimisticFavoriteTests() {
+  Finder filledHeart() => find.descendant(
+    of: find.byKey(WidgetKeys.discoveryFavorite('suggested')),
+    matching: find.byIcon(Icons.favorite_rounded),
+  );
+
+  testWidgets('should fill the heart before Jellyfin answers', (tester) async {
+    final gates = <Completer<void>>[];
+    await tester.pumpWidget(_app(_favoriteClient(gates: gates)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(WidgetKeys.discoveryFavorite('suggested')));
+    await tester.pumpAndSettle();
+    expect(gates, hasLength(1));
+    expect(filledHeart(), findsOneWidget);
+
+    gates.single.complete();
+    await tester.pumpAndSettle();
+    expect(filledHeart(), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('should roll the heart back and explain a failed update', (
+    tester,
+  ) async {
+    final gates = <Completer<void>>[];
+    await tester.pumpWidget(
+      _app(_favoriteClient(gates: gates, favoriteStatus: () => 500)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(WidgetKeys.discoveryFavorite('suggested')));
+    await tester.pumpAndSettle();
+    expect(filledHeart(), findsOneWidget);
+
+    gates.single.complete();
+    await tester.pumpAndSettle();
+    expect(filledHeart(), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  testWidgets('should settle a rapid double tap without a false error', (
+    tester,
+  ) async {
+    final gates = <Completer<void>>[];
+    final client = _favoriteClient(gates: gates);
+    await tester.pumpWidget(_app(client));
+    await tester.pumpAndSettle();
+    final heart = find.byKey(WidgetKeys.discoveryFavorite('suggested'));
+
+    await tester.tap(heart);
+    await tester.pump();
+    await tester.tap(heart);
+    await tester.pumpAndSettle();
+
+    final writes = client.requests
+        .where((request) => request.url.path == '/UserFavoriteItems/suggested')
+        .map((request) => request.method)
+        .toList();
+    expect(writes, <String>['POST', 'DELETE']);
+    expect(filledHeart(), findsNothing);
+
+    for (final gate in gates) {
+      gate.complete();
+    }
+    await tester.pumpAndSettle();
+    expect(filledHeart(), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+}
+
+/// A server that honours `ids` and `excludeItemIds` like Jellyfin does.
+RecordingHttpClient _narrowingClient(List<String> library) =>
+    RecordingHttpClient((request) async {
+      final path = request.url.path;
+      if (path == '/UserViews') {
+        return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+      }
+      if (path == '/Items/Filters' || path == '/Items/Filters2') {
+        return _jsonResponse(<String, Object?>{});
+      }
+      if (path == '/Items') {
+        final query = request.url.queryParameters;
+        if (query['isFavorite'] == 'true') {
+          return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+        }
+        final included = query['ids']?.split(',').toSet();
+        final excluded = query['excludeItemIds']?.split(',').toSet() ?? {};
+        final items = library
+            .where((id) => included == null || included.contains(id))
+            .where((id) => !excluded.contains(id))
+            .map(_movie)
+            .toList();
+        return _jsonResponse({
+          'Items': items,
+          'StartIndex': 0,
+          'TotalRecordCount': items.length,
+        });
+      }
+      return http.Response('', 404);
+    });
+
+void exhaustedShuffleTests() {
+  testWidgets(
+    'should open Shuffle after every liked title was shown recently',
+    (tester) async {
+      final client = _narrowingClient(<String>['liked', 'fresh']);
+      final store = ImmediateDiscoveryStore()
+        ..snapshot = const DiscoverySnapshot(
+          mode: DiscoveryMode.shuffle,
+          likedIds: <String>{'liked'},
+          recentPickIds: <String>['liked'],
+          currentRevealId: 'liked',
+        );
+
+      await tester.pumpWidget(_app(client, discoveryStore: store));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Your library is unavailable'), findsNothing);
+      DiscoveryRobot(tester).expectCandidateVisible('Liked');
+      final shortlistRequest = client.requests.firstWhere(
+        (request) => request.url.queryParameters['ids'] != null,
+      );
+      expect(shortlistRequest.url.queryParameters['excludeItemIds'], isNull);
+    },
+  );
+
+  testWidgets('should start a fresh cycle when every title was shown', (
+    tester,
+  ) async {
+    final client = _narrowingClient(<String>['fresh']);
+    final store = ImmediateDiscoveryStore()
+      ..snapshot = const DiscoverySnapshot(
+        mode: DiscoveryMode.shuffle,
+        recentPickIds: <String>['fresh'],
+        rejectedIds: <String>{'rejected'},
+      );
+
+    await tester.pumpWidget(_app(client, discoveryStore: store));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your library is unavailable'), findsNothing);
+    final batches = client.requests
+        .where(
+          (request) =>
+              request.url.path == '/Items' &&
+              request.url.queryParameters['sortBy'] == 'Random',
+        )
+        .toList();
+    expect(batches, hasLength(2));
+    expect(batches.last.url.queryParameters['excludeItemIds'], 'rejected');
+    await DiscoveryRobot(tester).reveal();
+    await tester.pumpAndSettle();
+    DiscoveryRobot(tester).expectCandidateVisible('Fresh');
   });
 }
 

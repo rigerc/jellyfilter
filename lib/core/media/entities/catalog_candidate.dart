@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 enum CatalogMediaType { movie, series }
 
 final class CatalogTrailer {
@@ -61,6 +63,7 @@ final class CatalogCandidate {
     this.dateCreated,
     this.runtimeMinutes,
     Set<String> genres = const <String>{},
+    Set<String> tags = const <String>{},
     this.communityRating,
     this.criticRating,
     this.officialRating,
@@ -73,6 +76,8 @@ final class CatalogCandidate {
   }) : // Public constructor names intentionally differ from backing fields.
        // ignore: prefer_initializing_formals
        _genres = genres,
+       // ignore: prefer_initializing_formals
+       _tags = tags,
        // Public constructor names intentionally differ from backing fields.
        // ignore: prefer_initializing_formals
        _cast = cast,
@@ -87,6 +92,7 @@ final class CatalogCandidate {
   final DateTime? dateCreated;
   final int? runtimeMinutes;
   final Set<String> _genres;
+  final Set<String> _tags;
   final double? communityRating;
   final double? criticRating;
   final String? officialRating;
@@ -99,34 +105,41 @@ final class CatalogCandidate {
   final CatalogImage poster;
   final CatalogImage backdrop;
 
-  Set<String> get genres => Set<String>.unmodifiable(_genres);
+  Set<String> get genres => UnmodifiableSetView<String>(_genres);
 
-  List<String> get cast => List<String>.unmodifiable(_cast);
+  /// Jellyfin tags on the title, as written on the server.
+  Set<String> get tags => UnmodifiableSetView<String>(_tags);
+
+  List<String> get cast => UnmodifiableListView<String>(_cast);
 
   List<CatalogTrailer> get trailers =>
-      List<CatalogTrailer>.unmodifiable(_trailers);
+      UnmodifiableListView<CatalogTrailer>(_trailers);
 
-  CatalogCandidate copyWith({Object? dateCreated = _unset, bool? favorite}) =>
-      CatalogCandidate(
-        id: id,
-        name: name,
-        mediaType: mediaType,
-        year: year,
-        dateCreated: _copyDate(dateCreated, this.dateCreated),
-        runtimeMinutes: runtimeMinutes,
-        genres: _genres,
-        communityRating: communityRating,
-        criticRating: criticRating,
-        officialRating: officialRating,
-        status: status,
-        overview: overview,
-        cast: _cast,
-        trailers: _trailers,
-        watched: watched,
-        favorite: favorite ?? this.favorite,
-        poster: poster,
-        backdrop: backdrop,
-      );
+  CatalogCandidate copyWith({
+    Object? dateCreated = _unset,
+    bool? favorite,
+    Set<String>? tags,
+  }) => CatalogCandidate(
+    id: id,
+    name: name,
+    mediaType: mediaType,
+    year: year,
+    dateCreated: _copyDate(dateCreated, this.dateCreated),
+    runtimeMinutes: runtimeMinutes,
+    genres: _genres,
+    tags: tags ?? _tags,
+    communityRating: communityRating,
+    criticRating: criticRating,
+    officialRating: officialRating,
+    status: status,
+    overview: overview,
+    cast: _cast,
+    trailers: _trailers,
+    watched: watched,
+    favorite: favorite ?? this.favorite,
+    poster: poster,
+    backdrop: backdrop,
+  );
 
   static DateTime? _copyDate(Object? value, DateTime? current) =>
       identical(value, _unset)

@@ -41,12 +41,11 @@ final class DiscoveryQuickFilters extends StatelessWidget {
             onSelected: data.onFavoritesChanged,
           ),
         ];
-    return DiscoveryFilterSection(
+    return DiscoveryFilterGroup(
       title: localization.discoveryQuickFiltersLabel,
-      icon: Icons.bolt_rounded,
       child: Wrap(
-        spacing: CandySpacing.compact,
-        runSpacing: CandySpacing.compact,
+        spacing: CandySpacing.compact / 1.5,
+        runSpacing: CandySpacing.compact / 1.5,
         children: filters
             .map(
               (filter) => FilterChip(

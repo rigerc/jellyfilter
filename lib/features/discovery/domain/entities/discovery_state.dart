@@ -17,7 +17,10 @@ final class DiscoveryState {
     this.isHydrated = false,
     this.persistenceError = false,
     this.noEligibleCandidates = false,
-  }) : candidates = List<CatalogCandidate>.unmodifiable(candidates),
+    double favoriteBias = 0,
+    this.fadeWatched = false,
+  }) : favoriteBias = favoriteBias.isNaN ? 0 : favoriteBias.clamp(0, 1),
+       candidates = List<CatalogCandidate>.unmodifiable(candidates),
        presets = Map<String, CatalogFilter>.unmodifiable(presets),
        rejectedIds = Set<String>.unmodifiable(rejectedIds),
        likedIds = Set<String>.unmodifiable(
@@ -39,10 +42,18 @@ final class DiscoveryState {
   final bool persistenceError;
   final bool noEligibleCandidates;
 
-  List<CatalogCandidate> get filteredCandidates =>
-      candidates.where(filter.matches).toList(growable: false);
+  /// Minimum share of shuffle picks drawn from Jellyfin favorites, 0–1.
+  final double favoriteBias;
 
-  List<CatalogCandidate> get undecidedCandidates => filteredCandidates
+  /// Whether watched titles are shown dimmed.
+  final bool fadeWatched;
+
+  // Derived lists are computed once per state; every view reads them.
+  late final List<CatalogCandidate> filteredCandidates = List.unmodifiable(
+    candidates.where(filter.matches),
+  );
+
+  late final List<CatalogCandidate> undecidedCandidates = filteredCandidates
       .where(
         (candidate) =>
             !likedIds.contains(candidate.id) &&
@@ -50,12 +61,18 @@ final class DiscoveryState {
       )
       .toList(growable: false);
 
-  List<CatalogCandidate> get eligibleCandidates {
+  /// Titles Shuffle may pick. Liked titles form a shortlist, but only when
+  /// some of them fit the current filters; otherwise (for example with a
+  /// favorites filter and no liked favorites) every unrejected match counts.
+  late final List<CatalogCandidate> eligibleCandidates = _eligible();
+
+  List<CatalogCandidate> _eligible() {
     final filtered = filteredCandidates;
-    if (likedIds.isNotEmpty) {
-      return filtered
-          .where((candidate) => likedIds.contains(candidate.id))
-          .toList(growable: false);
+    final shortlist = filtered
+        .where((candidate) => likedIds.contains(candidate.id))
+        .toList(growable: false);
+    if (shortlist.isNotEmpty) {
+      return shortlist;
     }
     return filtered
         .where((candidate) => !rejectedIds.contains(candidate.id))
@@ -76,6 +93,8 @@ final class DiscoveryState {
     bool? isHydrated,
     bool? persistenceError,
     bool? noEligibleCandidates,
+    double? favoriteBias,
+    bool? fadeWatched,
   }) => DiscoveryState(
     candidates: candidates ?? this.candidates,
     filter: filter ?? this.filter,
@@ -94,6 +113,8 @@ final class DiscoveryState {
     isHydrated: isHydrated ?? this.isHydrated,
     persistenceError: persistenceError ?? this.persistenceError,
     noEligibleCandidates: noEligibleCandidates ?? this.noEligibleCandidates,
+    favoriteBias: favoriteBias ?? this.favoriteBias,
+    fadeWatched: fadeWatched ?? this.fadeWatched,
   );
 }
 

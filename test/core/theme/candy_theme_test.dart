@@ -3,24 +3,49 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_picker/core/theme/candy_theme.dart';
 
 void main() {
-  test(
-    'should expose violet and blue brand colors when palette is requested',
-    () {
-      final brandColors = (
-        primary: CandyColors.primary,
-        darkPrimary: CandyColors.darkPrimary,
-        secondary: CandyColors.secondaryBrand,
-      );
+  test('should expose the marquee amber palette without violet hues', () {
+    final palette = (
+      primary: CandyColors.primary,
+      darkPrimary: CandyColors.darkPrimary,
+      accent: CandyColors.accent,
+      surface: CandyColors.surface,
+      background: CandyColors.background,
+      onDark: CandyColors.onDark,
+    );
 
-      expect(brandColors, (
-        primary: const Color(0xFF8B5CF6),
-        darkPrimary: const Color(0xFF6D3DCC),
-        secondary: const Color(0xFF4257CE),
-      ));
-    },
-  );
+    expect(palette, (
+      primary: const Color(0xFFF5B83D),
+      darkPrimary: const Color(0xFFF5B83D),
+      accent: const Color(0xFFFFD98A),
+      surface: const Color(0xFF1B1916),
+      background: const Color(0xFF110F0D),
+      onDark: const Color(0xFFF5EFE6),
+    ));
+    for (final theme in [buildCandyLightTheme(), buildCandyDarkTheme()]) {
+      final scheme = theme.colorScheme;
+      for (final color in <Color>[
+        scheme.primary,
+        scheme.secondary,
+        scheme.tertiary,
+        scheme.surface,
+        scheme.surfaceContainerHighest,
+        scheme.secondaryContainer,
+        scheme.tertiaryContainer,
+        scheme.outlineVariant,
+        theme.scaffoldBackgroundColor,
+      ]) {
+        final hue = HSVColor.fromColor(color).hue;
+        final saturation = HSVColor.fromColor(color).saturation;
+        expect(
+          saturation < 0.15 || hue < 60 || hue > 340,
+          isTrue,
+          reason: '$color must stay out of the violet/blue range',
+        );
+      }
+    }
+  });
 
-  test('should use violet and blue brand colors in both brightness modes', () {
+  test('should use the amber accent in both brightness modes', () {
     final themes = [buildCandyLightTheme(), buildCandyDarkTheme()];
 
     final brandRoles = [
@@ -28,7 +53,7 @@ void main() {
         (
           brightness: theme.brightness,
           primary: theme.colorScheme.primary,
-          secondary: theme.colorScheme.secondary,
+          onPrimary: theme.colorScheme.onPrimary,
         ),
     ];
 
@@ -36,122 +61,36 @@ void main() {
       (
         brightness: Brightness.light,
         primary: CandyColors.primary,
-        secondary: CandyColors.secondaryBrand,
+        onPrimary: CandyColors.contrastInk,
       ),
       (
         brightness: Brightness.dark,
-        primary: CandyColors.darkPrimary,
-        secondary: CandyColors.secondaryBrand,
+        primary: CandyColors.primary,
+        onPrimary: CandyColors.contrastInk,
       ),
     ]);
   });
 
-  test(
-    'should expose the semantic signature palette when colors are requested',
-    () {
-      final palette = (
-        primary: CandyColors.primary,
-        darkPrimary: CandyColors.darkPrimary,
-        secondaryBrand: CandyColors.secondaryBrand,
-        accent: CandyColors.accent,
-        softAccent: CandyColors.softAccent,
-        warmAccent: CandyColors.warmAccent,
-        surface: CandyColors.surface,
-        background: CandyColors.background,
-        onDark: CandyColors.onDark,
-        contrastInk: CandyColors.contrastInk,
-      );
-
-      expect(palette, (
-        primary: const Color(0xFF8B5CF6),
-        darkPrimary: const Color(0xFF6D3DCC),
-        secondaryBrand: const Color(0xFF4257CE),
-        accent: const Color(0xFF7FE6D2),
-        softAccent: const Color(0xFFC9AEEE),
-        warmAccent: const Color(0xFFF2A6C2),
-        surface: const Color(0xFF211A48),
-        background: const Color(0xFF141033),
-        onDark: const Color(0xFFF0EAFB),
-        contrastInk: const Color(0xFF000000),
-      ));
-    },
-  );
-
-  test('should map semantic palette roles in both brightness modes', () {
-    final themes = [buildCandyLightTheme(), buildCandyDarkTheme()];
-
-    final semanticRoles = [
-      for (final theme in themes)
-        (
-          onPrimary: theme.colorScheme.onPrimary,
-          onSecondary: theme.colorScheme.onSecondary,
-          tertiary: theme.colorScheme.tertiary,
-          onTertiary: theme.colorScheme.onTertiary,
-          tertiaryContainer: theme.colorScheme.tertiaryContainer,
-          onTertiaryContainer: theme.colorScheme.onTertiaryContainer,
-          error: theme.colorScheme.error,
-          onError: theme.colorScheme.onError,
-          errorContainer: theme.colorScheme.errorContainer,
-          onErrorContainer: theme.colorScheme.onErrorContainer,
-          secondaryContainer: theme.colorScheme.secondaryContainer,
-          onSecondaryContainer: theme.colorScheme.onSecondaryContainer,
-          surface: theme.colorScheme.surface,
-          onSurface: theme.colorScheme.onSurface,
-          onSurfaceVariant: theme.colorScheme.onSurfaceVariant,
-          outlineVariant: theme.colorScheme.outlineVariant,
-          inverseSurface: theme.colorScheme.inverseSurface,
-          onInverseSurface: theme.colorScheme.onInverseSurface,
-          surfaceContainerHighest: theme.colorScheme.surfaceContainerHighest,
-          bodyColor: theme.textTheme.bodyLarge?.color,
-        ),
+  test('should keep readable contrast on every key pairing', () {
+    final scheme = buildCandyDarkTheme().colorScheme;
+    final pairs = <(Color, Color)>[
+      (scheme.primary, scheme.onPrimary),
+      (scheme.surface, scheme.onSurface),
+      (scheme.surface, scheme.onSurfaceVariant),
+      (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
+      (scheme.secondaryContainer, scheme.onSecondaryContainer),
+      (scheme.errorContainer, scheme.onErrorContainer),
+      (scheme.inverseSurface, scheme.onInverseSurface),
+      (CandyColors.background, scheme.primary),
     ];
 
-    expect(semanticRoles, [
-      (
-        onPrimary: CandyColors.contrastInk,
-        onSecondary: CandyColors.onDark,
-        tertiary: CandyColors.accent,
-        onTertiary: CandyColors.background,
-        tertiaryContainer: CandyColors.softAccent,
-        onTertiaryContainer: CandyColors.background,
-        error: CandyColors.warmAccent,
-        onError: CandyColors.background,
-        errorContainer: CandyColors.warmAccent,
-        onErrorContainer: CandyColors.background,
-        secondaryContainer: CandyColors.secondaryBrand,
-        onSecondaryContainer: CandyColors.onDark,
-        surface: CandyColors.surface,
-        onSurface: CandyColors.onDark,
-        onSurfaceVariant: CandyColors.softAccent,
-        outlineVariant: CandyColors.softAccent,
-        inverseSurface: CandyColors.surface,
-        onInverseSurface: CandyColors.onDark,
-        surfaceContainerHighest: CandyColors.surface,
-        bodyColor: CandyColors.onDark,
-      ),
-      (
-        onPrimary: CandyColors.onDark,
-        onSecondary: CandyColors.onDark,
-        tertiary: CandyColors.accent,
-        onTertiary: CandyColors.background,
-        tertiaryContainer: CandyColors.softAccent,
-        onTertiaryContainer: CandyColors.background,
-        error: CandyColors.warmAccent,
-        onError: CandyColors.background,
-        errorContainer: CandyColors.warmAccent,
-        onErrorContainer: CandyColors.background,
-        secondaryContainer: CandyColors.secondaryBrand,
-        onSecondaryContainer: CandyColors.onDark,
-        surface: CandyColors.surface,
-        onSurface: CandyColors.onDark,
-        onSurfaceVariant: CandyColors.softAccent,
-        outlineVariant: CandyColors.softAccent,
-        inverseSurface: CandyColors.surface,
-        onInverseSurface: CandyColors.onDark,
-        surfaceContainerHighest: CandyColors.surface,
-        bodyColor: CandyColors.onDark,
-      ),
-    ]);
+    for (final (background, foreground) in pairs) {
+      expect(
+        _contrastRatio(background, foreground),
+        greaterThanOrEqualTo(4.5),
+        reason: '$foreground on $background',
+      );
+    }
   });
 
   test('should style selected filter controls in both brightness modes', () {
@@ -159,87 +98,63 @@ void main() {
     final selectedStates = <WidgetState>{WidgetState.selected};
     final unselectedStates = <WidgetState>{};
 
-    final selectedStyles = [
-      for (final theme in themes)
-        (
-          filterBackground: theme.chipTheme.color?.resolve(selectedStates),
-          filterForeground: WidgetStateProperty.resolveAs<Color?>(
-            theme.chipTheme.labelStyle?.color,
-            selectedStates,
-          ),
-          filterUnselectedForeground: WidgetStateProperty.resolveAs<Color?>(
-            theme.chipTheme.labelStyle?.color,
-            unselectedStates,
-          ),
-          filterCheckmark: theme.chipTheme.checkmarkColor,
-          segmentedBackground: theme.segmentedButtonTheme.style?.backgroundColor
-              ?.resolve(selectedStates),
-          segmentedForeground: theme.segmentedButtonTheme.style?.foregroundColor
-              ?.resolve(selectedStates),
-          segmentedUnselectedForeground: theme
-              .segmentedButtonTheme
-              .style
-              ?.foregroundColor
-              ?.resolve(unselectedStates),
-          minimumSize: theme.segmentedButtonTheme.style?.minimumSize?.resolve(
-            selectedStates,
-          ),
-          usesStadiumShape:
-              theme.segmentedButtonTheme.style?.shape?.resolve(selectedStates)
-                  is StadiumBorder,
+    for (final theme in themes) {
+      expect(
+        theme.chipTheme.color?.resolve(selectedStates),
+        CandyColors.primary,
+      );
+      expect(
+        WidgetStateProperty.resolveAs<Color?>(
+          theme.chipTheme.labelStyle?.color,
+          selectedStates,
         ),
-    ];
-
-    expect(selectedStyles, [
-      (
-        filterBackground: CandyColors.primary,
-        filterForeground: CandyColors.contrastInk,
-        filterUnselectedForeground: CandyColors.onDark,
-        filterCheckmark: CandyColors.contrastInk,
-        segmentedBackground: CandyColors.primary,
-        segmentedForeground: CandyColors.contrastInk,
-        segmentedUnselectedForeground: CandyColors.onDark,
-        minimumSize: const Size(0, CandySpacing.minimumTouchTarget),
-        usesStadiumShape: true,
-      ),
-      (
-        filterBackground: CandyColors.darkPrimary,
-        filterForeground: CandyColors.onDark,
-        filterUnselectedForeground: CandyColors.onDark,
-        filterCheckmark: CandyColors.onDark,
-        segmentedBackground: CandyColors.darkPrimary,
-        segmentedForeground: CandyColors.onDark,
-        segmentedUnselectedForeground: CandyColors.onDark,
-        minimumSize: const Size(0, CandySpacing.minimumTouchTarget),
-        usesStadiumShape: true,
-      ),
-    ]);
+        CandyColors.contrastInk,
+      );
+      expect(
+        WidgetStateProperty.resolveAs<Color?>(
+          theme.chipTheme.labelStyle?.color,
+          unselectedStates,
+        ),
+        CandyColors.onDark,
+      );
+      expect(theme.chipTheme.checkmarkColor, CandyColors.contrastInk);
+      expect(
+        theme.segmentedButtonTheme.style?.backgroundColor?.resolve(
+          selectedStates,
+        ),
+        CandyColors.primary,
+      );
+      expect(
+        theme.segmentedButtonTheme.style?.minimumSize?.resolve(selectedStates),
+        const Size(0, CandySpacing.minimumTouchTarget),
+      );
+      expect(
+        theme.segmentedButtonTheme.style?.shape?.resolve(selectedStates),
+        isA<StadiumBorder>(),
+      );
+    }
   });
 
   test('should style persistent mode navigation in both brightness modes', () {
-    final themes = [buildCandyLightTheme(), buildCandyDarkTheme()];
-
-    final navigationStyles = [
-      for (final theme in themes)
-        (
-          background: theme.navigationBarTheme.backgroundColor,
-          indicator: theme.navigationBarTheme.indicatorColor,
-          height: theme.navigationBarTheme.height,
-        ),
-    ];
-
-    expect(navigationStyles, [
-      (
-        background: CandyColors.surface,
-        indicator: CandyColors.primary,
-        height: CandySpacing.minimumTouchTarget + CandySpacing.compact * 2,
-      ),
-      (
-        background: CandyColors.surface,
-        indicator: CandyColors.darkPrimary,
-        height: CandySpacing.minimumTouchTarget + CandySpacing.compact * 2,
-      ),
-    ]);
+    final selected = <WidgetState>{WidgetState.selected};
+    for (final theme in [buildCandyLightTheme(), buildCandyDarkTheme()]) {
+      final navigation = theme.navigationBarTheme;
+      expect(navigation.backgroundColor, CandyColors.background);
+      expect(navigation.indicatorColor, CandyColors.primary);
+      expect(
+        navigation.height,
+        CandySpacing.minimumTouchTarget + CandySpacing.compact * 2,
+      );
+      // The selected label sits beside the indicator, on the bar itself.
+      expect(
+        navigation.labelTextStyle?.resolve(selected)?.color,
+        CandyColors.primary,
+      );
+      expect(
+        navigation.iconTheme?.resolve(selected)?.color,
+        CandyColors.contrastInk,
+      );
+    }
   });
 
   test('should use background canvas and raised surface in both modes', () {

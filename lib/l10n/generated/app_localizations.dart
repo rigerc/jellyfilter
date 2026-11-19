@@ -310,11 +310,353 @@ abstract class AppLocalizations {
   /// **'Not this one'**
   String get discoveryRejectLabel;
 
+  /// No description provided for @discoveryFadeWatchedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade watched'**
+  String get discoveryFadeWatchedLabel;
+
+  /// No description provided for @discoveryReverseSortLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverse order'**
+  String get discoveryReverseSortLabel;
+
+  /// No description provided for @discoveryFindTagHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Find a tag'**
+  String get discoveryFindTagHint;
+
+  /// No description provided for @discoveryTagsShownLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} most used of {total} tags. Search to find others.'**
+  String discoveryTagsShownLabel(int shown, int total);
+
+  /// No description provided for @discoveryChipLegend.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap once to require, twice to exclude, again to clear.'**
+  String get discoveryChipLegend;
+
+  /// No description provided for @discoveryChipRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get discoveryChipRequired;
+
+  /// No description provided for @discoveryChipExcluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Excluded'**
+  String get discoveryChipExcluded;
+
+  /// No description provided for @discoveryRequiredCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} required'**
+  String discoveryRequiredCount(int count);
+
+  /// No description provided for @discoveryExcludedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} excluded'**
+  String discoveryExcludedCount(int count);
+
+  /// No description provided for @discoveryActiveSortReversed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorted by {label}, reversed'**
+  String discoveryActiveSortReversed(String label);
+
+  /// No description provided for @discoveryActiveExcluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not {value}'**
+  String discoveryActiveExcluded(String value);
+
+  /// No description provided for @discoveryActiveTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag: {value}'**
+  String discoveryActiveTag(String value);
+
+  /// No description provided for @discoveryTabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get discoveryTabOverview;
+
+  /// No description provided for @discoveryTabDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get discoveryTabDetails;
+
+  /// No description provided for @discoveryCastTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast'**
+  String get discoveryCastTitle;
+
+  /// No description provided for @discoverySynopsisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Synopsis'**
+  String get discoverySynopsisTitle;
+
+  /// No description provided for @discoveryYearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get discoveryYearTitle;
+
+  /// No description provided for @discoveryContentRatingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Content rating'**
+  String get discoveryContentRatingTitle;
+
+  /// No description provided for @discoveryStatusTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get discoveryStatusTitle;
+
+  /// No description provided for @discoveryAddedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to library'**
+  String get discoveryAddedTitle;
+
+  /// No description provided for @discoveryCommunityShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Community'**
+  String get discoveryCommunityShort;
+
+  /// No description provided for @discoveryCriticsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Critics'**
+  String get discoveryCriticsShort;
+
+  /// No description provided for @discoveryOrganizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlists & tags'**
+  String get discoveryOrganizeLabel;
+
+  /// No description provided for @discoveryOrganizeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save “{title}”'**
+  String discoveryOrganizeTitle(String title);
+
+  /// No description provided for @discoveryPlaylistsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlists'**
+  String get discoveryPlaylistsTab;
+
+  /// No description provided for @discoveryTagsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get discoveryTagsTab;
+
+  /// No description provided for @discoveryNewPlaylistHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New playlist name'**
+  String get discoveryNewPlaylistHint;
+
+  /// No description provided for @discoveryCreatePlaylistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Create playlist with this title'**
+  String get discoveryCreatePlaylistLabel;
+
+  /// No description provided for @discoveryAddedToPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get discoveryAddedToPlaylist;
+
+  /// No description provided for @discoveryAlreadyInPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Already there'**
+  String get discoveryAlreadyInPlaylist;
+
+  /// No description provided for @discoveryAddToPlaylistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to {playlist}'**
+  String discoveryAddToPlaylistLabel(String playlist);
+
+  /// No description provided for @discoveryNoPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'No playlists yet. Name one below to create it with this title.'**
+  String get discoveryNoPlaylists;
+
+  /// No description provided for @discoveryAddTagHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a tag'**
+  String get discoveryAddTagHint;
+
+  /// No description provided for @discoveryAddTagLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tag'**
+  String get discoveryAddTagLabel;
+
+  /// No description provided for @discoveryCurrentTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On this title'**
+  String get discoveryCurrentTagsTitle;
+
+  /// No description provided for @discoverySuggestedTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions'**
+  String get discoverySuggestedTagsTitle;
+
+  /// No description provided for @discoveryNoTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet.'**
+  String get discoveryNoTags;
+
+  /// No description provided for @discoveryRemoveTagLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove tag {tag}'**
+  String discoveryRemoveTagLabel(String tag);
+
+  /// No description provided for @discoveryTagsAdminOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only Jellyfin administrators can change tags.'**
+  String get discoveryTagsAdminOnly;
+
+  /// No description provided for @discoveryActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn\'t save. Check the connection and try again.'**
+  String get discoveryActionFailed;
+
+  /// No description provided for @discoveryActionExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Jellyfin session expired. Sign in again.'**
+  String get discoveryActionExpired;
+
+  /// No description provided for @discoveryLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load this from Jellyfin.'**
+  String get discoveryLoadFailed;
+
+  /// No description provided for @discoveryRetryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get discoveryRetryLabel;
+
+  /// No description provided for @discoveryWatchedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched'**
+  String get discoveryWatchedBadge;
+
+  /// No description provided for @discoverySwipeLikeStamp.
+  ///
+  /// In en, this message translates to:
+  /// **'LIKE'**
+  String get discoverySwipeLikeStamp;
+
+  /// No description provided for @discoverySwipeNopeStamp.
+  ///
+  /// In en, this message translates to:
+  /// **'NOPE'**
+  String get discoverySwipeNopeStamp;
+
+  /// No description provided for @discoverySwipeInfoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show details'**
+  String get discoverySwipeInfoLabel;
+
   /// No description provided for @discoveryRevealLabel.
   ///
   /// In en, this message translates to:
   /// **'Reveal a pick'**
   String get discoveryRevealLabel;
+
+  /// No description provided for @discoverySpinAgainLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Spin again'**
+  String get discoverySpinAgainLabel;
+
+  /// No description provided for @discoveryFavorFavoritesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Favor favorites'**
+  String get discoveryFavorFavoritesLabel;
+
+  /// No description provided for @discoveryFavorOffLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get discoveryFavorOffLabel;
+
+  /// No description provided for @discoveryFavorPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String discoveryFavorPercent(int percent);
+
+  /// No description provided for @discoveryFavorNoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites here'**
+  String get discoveryFavorNoneLabel;
+
+  /// No description provided for @discoveryFavorSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'At least {percent}% of picks come from your favorites'**
+  String discoveryFavorSemantic(int percent);
+
+  /// No description provided for @discoverySpinningLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Spinning…'**
+  String get discoverySpinningLabel;
+
+  /// No description provided for @discoveryShuffleIdleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t decide?'**
+  String get discoveryShuffleIdleTitle;
+
+  /// No description provided for @discoveryShuffleIdleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Spin the reel for a random pick from your current filters.'**
+  String get discoveryShuffleIdleDescription;
+
+  /// No description provided for @discoveryShuffleLandedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tonight\'s pick: {title}'**
+  String discoveryShuffleLandedLabel(String title);
 
   /// No description provided for @discoveryFavoriteAddLabel.
   ///
@@ -579,6 +921,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show matches'**
   String get discoveryApplyFiltersLabel;
+
+  /// No description provided for @discoveryResetAllLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all'**
+  String get discoveryResetAllLabel;
+
+  /// No description provided for @discoveryFilterTabBasics.
+  ///
+  /// In en, this message translates to:
+  /// **'Basics'**
+  String get discoveryFilterTabBasics;
+
+  /// No description provided for @discoveryFilterTabContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get discoveryFilterTabContent;
+
+  /// No description provided for @discoveryFilterTabRatings.
+  ///
+  /// In en, this message translates to:
+  /// **'Ratings'**
+  String get discoveryFilterTabRatings;
+
+  /// No description provided for @discoveryFilterTabPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Presets'**
+  String get discoveryFilterTabPresets;
+
+  /// No description provided for @discoveryActiveCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 active} other{{count} active}}'**
+  String discoveryActiveCountLabel(int count);
+
+  /// No description provided for @discoverySelectedCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String discoverySelectedCountLabel(int count);
+
+  /// No description provided for @discoveryActiveFiltersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Active filters'**
+  String get discoveryActiveFiltersLabel;
+
+  /// No description provided for @discoveryClearAllLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get discoveryClearAllLabel;
+
+  /// No description provided for @discoveryRemoveFilterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {filter}'**
+  String discoveryRemoveFilterLabel(String filter);
+
+  /// No description provided for @discoveryActiveSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'“{term}”'**
+  String discoveryActiveSearch(String term);
+
+  /// No description provided for @discoveryActiveAddedWithin.
+  ///
+  /// In en, this message translates to:
+  /// **'Added in last {days} days'**
+  String discoveryActiveAddedWithin(int days);
+
+  /// No description provided for @discoveryActiveRuntimeRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{minimum}–{maximum} min'**
+  String discoveryActiveRuntimeRange(int minimum, int maximum);
+
+  /// No description provided for @discoveryActiveRuntimeMinimum.
+  ///
+  /// In en, this message translates to:
+  /// **'{minimum}+ min'**
+  String discoveryActiveRuntimeMinimum(int minimum);
+
+  /// No description provided for @discoveryActiveRuntimeMaximum.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {maximum} min'**
+  String discoveryActiveRuntimeMaximum(int maximum);
+
+  /// No description provided for @discoveryActiveCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Community {value}'**
+  String discoveryActiveCommunity(String value);
+
+  /// No description provided for @discoveryActiveCritic.
+  ///
+  /// In en, this message translates to:
+  /// **'Critics {value}'**
+  String discoveryActiveCritic(String value);
+
+  /// No description provided for @discoveryActiveWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched'**
+  String get discoveryActiveWatched;
+
+  /// No description provided for @discoveryActiveUnwatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Unwatched'**
+  String get discoveryActiveUnwatched;
+
+  /// No description provided for @discoveryActiveFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get discoveryActiveFavorites;
+
+  /// No description provided for @discoveryActiveNotFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in favorites'**
+  String get discoveryActiveNotFavorites;
+
+  /// No description provided for @discoveryActiveSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorted by {label}'**
+  String discoveryActiveSort(String label);
+
+  /// No description provided for @discoveryRuntimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime'**
+  String get discoveryRuntimeTitle;
+
+  /// No description provided for @discoveryGenresTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get discoveryGenresTitle;
+
+  /// No description provided for @discoveryRuntimeRangeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{minimum}–{maximum} min'**
+  String discoveryRuntimeRangeValue(int minimum, String maximum);
+
+  /// No description provided for @discoveryCommunityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Community rating'**
+  String get discoveryCommunityTitle;
+
+  /// No description provided for @discoveryCriticTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Critic rating'**
+  String get discoveryCriticTitle;
+
+  /// No description provided for @discoveryMinimumValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} or higher'**
+  String discoveryMinimumValue(String value);
+
+  /// No description provided for @discoveryWatchedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched'**
+  String get discoveryWatchedTitle;
+
+  /// No description provided for @discoveryFavoriteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'In favorites'**
+  String get discoveryFavoriteTitle;
+
+  /// No description provided for @discoveryOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library & order'**
+  String get discoveryOrderTitle;
+
+  /// No description provided for @discoveryPresetsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No presets yet. Save the filters you use most and bring them back with one tap.'**
+  String get discoveryPresetsEmpty;
+
+  /// No description provided for @discoverySavedPresetsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved presets'**
+  String get discoverySavedPresetsLabel;
 
   /// No description provided for @discoveryRuntimeFilterLabel.
   ///

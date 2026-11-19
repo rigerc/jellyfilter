@@ -21,6 +21,12 @@ abstract final class CatalogFilterCodec {
         filter.seriesStatuses.map((status) => status.name).toList()..sort(),
     'watched': filter.watched,
     'favorite': filter.favorite,
+    'sortReversed': filter.sortReversed,
+    'tags': filter.tags.toList()..sort(),
+    'excludedGenres': filter.excludedGenres.toList()..sort(),
+    'excludedTags': filter.excludedTags.toList()..sort(),
+    'excludedDecades': filter.excludedDecades.toList()..sort(),
+    'excludedOfficialRatings': filter.excludedOfficialRatings.toList()..sort(),
   };
 
   static CatalogFilter? decode(Object? value) {
@@ -41,6 +47,32 @@ abstract final class CatalogFilterCodec {
     final officialRatings = value.containsKey('officialRatings')
         ? _strings(value['officialRatings'])
         : <String>{};
+    // Added later: absent in older saves, so missing means empty.
+    Set<String>? optionalStrings(String key) =>
+        value.containsKey(key) ? _strings(value[key]) : <String>{};
+    final tags = optionalStrings('tags');
+    final excludedGenres = optionalStrings('excludedGenres');
+    final excludedTags = optionalStrings('excludedTags');
+    final excludedOfficialRatings = optionalStrings('excludedOfficialRatings');
+    final excludedDecades = value.containsKey('excludedDecades')
+        ? _integers(value['excludedDecades'])
+        : <int>{};
+    final sortReversed = value['sortReversed'];
+    if (tags == null ||
+        excludedGenres == null ||
+        excludedTags == null ||
+        excludedOfficialRatings == null ||
+        excludedDecades == null ||
+        (sortReversed != null && sortReversed is! bool) ||
+        <String>[
+          ...tags,
+          ...excludedGenres,
+          ...excludedTags,
+          ...excludedOfficialRatings,
+        ].any((item) => item.trim().isEmpty) ||
+        excludedDecades.any((decade) => decade < 0 || decade % 10 != 0)) {
+      return null;
+    }
     final seriesStatuses = value.containsKey('seriesStatuses')
         ? _seriesStatuses(value['seriesStatuses'])
         : <CatalogSeriesStatus>{};
@@ -101,6 +133,12 @@ abstract final class CatalogFilterCodec {
       seriesStatuses: seriesStatuses,
       watched: value['watched'] as bool?,
       favorite: value['favorite'] as bool?,
+      sortReversed: sortReversed == true,
+      tags: tags,
+      excludedGenres: excludedGenres,
+      excludedTags: excludedTags,
+      excludedDecades: excludedDecades,
+      excludedOfficialRatings: excludedOfficialRatings,
     );
   }
 

@@ -32,9 +32,11 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
   final _genresText = TextEditingController();
   final _presetText = TextEditingController();
   late String? _libraryId;
-  late Set<String> _genres;
-  late Set<int> _decades;
-  late Set<String> _ratings;
+  late DiscoveryFacetSelection<String> _genres;
+  late DiscoveryFacetSelection<String> _tags;
+  late DiscoveryFacetSelection<int> _decades;
+  late DiscoveryFacetSelection<String> _ratings;
+  late bool _sortReversed;
   late RangeValues _runtime;
   late double _community;
   late double _critic;
@@ -44,20 +46,50 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
   late CatalogAddedWindow? _addedWithin;
   late final List<CatalogCandidate> _candidateList;
 
+  /// Every known tag, most used first. Libraries can hold thousands of tags
+  /// (Jellyfin stores TMDb keywords as tags), so this is built once.
+  late final List<String> _tagUniverse;
+
   @override
   void initState() {
     super.initState();
     final filter = widget.filter;
     _candidateList = List<CatalogCandidate>.unmodifiable(widget.candidates);
+    final usage = <String, int>{};
+    for (final candidate in _candidateList) {
+      for (final tag in candidate.tags) {
+        usage[tag] = (usage[tag] ?? 0) + 1;
+      }
+    }
+    _tagUniverse = List<String>.unmodifiable(
+      <String>{...usage.keys, ...widget.facets.tags}.toList()..sort((a, b) {
+        final byUse = (usage[b] ?? 0).compareTo(usage[a] ?? 0);
+        return byUse != 0 ? byUse : a.toLowerCase().compareTo(b.toLowerCase());
+      }),
+    );
     _search.text = filter.searchTerm;
     _genresText.text = filter.genres.join(', ');
     _libraryId =
         widget.libraries.any((library) => library.id == filter.libraryId)
         ? filter.libraryId
         : null;
-    _genres = filter.genres.toSet();
-    _decades = filter.decades.toSet();
-    _ratings = filter.officialRatings.toSet();
+    _genres = DiscoveryFacetSelection<String>(
+      included: filter.genres,
+      excluded: filter.excludedGenres,
+    );
+    _tags = DiscoveryFacetSelection<String>(
+      included: filter.tags,
+      excluded: filter.excludedTags,
+    );
+    _decades = DiscoveryFacetSelection<int>(
+      included: filter.decades,
+      excluded: filter.excludedDecades,
+    );
+    _ratings = DiscoveryFacetSelection<String>(
+      included: filter.officialRatings,
+      excluded: filter.excludedOfficialRatings,
+    );
+    _sortReversed = filter.sortReversed;
     _runtime = RangeValues(
       (filter.minimumRuntimeMinutes ?? 0).toDouble(),
       (filter.maximumRuntimeMinutes ?? _maxRuntime).toDouble(),
@@ -68,6 +100,13 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
     _favorite = _triState(filter.favorite);
     _sort = filter.sort;
     _addedWithin = filter.addedWithin;
+    // Keep the tab badges in step with typed search and genre text.
+    _search.addListener(_refresh);
+    _genresText.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -105,8 +144,14 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
         libraries: widget.libraries,
         libraryId: _libraryId,
         sort: _sort,
+        sortReversed: _sortReversed,
         addedWithin: _addedWithin,
-        onSortChanged: (value) => setState(() => _sort = value),
+        onSortChanged: (value) => setState(() {
+          // A new order starts in its natural direction.
+          if (value != _sort) _sortReversed = false;
+          _sort = value;
+        }),
+        onSortReversedChanged: (value) => setState(() => _sortReversed = value),
         onLibraryChanged: (value) => setState(() => _libraryId = value),
         onAddedWithinChanged: (value) => setState(() => _addedWithin = value),
       ),
@@ -121,16 +166,16 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
       metadata: (
         genresController: _genresText,
         genres: _genres,
+        tags: _tags,
         decades: _decades,
         officialRatings: _ratings,
         watched: _watched,
         favorite: _favorite,
         availableGenres: _genresFromCandidates,
+        availableTags: _tagsFromCandidates,
         availableDecades: _decadesFromCandidates,
         availableRatings: _ratingsFromCandidates,
-        onGenreChanged: _toggleGenre,
-        onDecadeChanged: _toggleDecade,
-        onOfficialRatingChanged: _toggleRating,
+        onSelectionChanged: _refresh,
         onWatchedChanged: (value) => setState(() => _watched = value),
         onFavoriteChanged: (value) => setState(() => _favorite = value),
       ),
@@ -149,7 +194,8 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
       (widget.facets.genres.isEmpty
               ? _candidateList.expand((candidate) => candidate.genres)
               : widget.facets.genres)
-          .followedBy(_genres)
+          .followedBy(_genres.included)
+          .followedBy(_genres.excluded)
           .toSet()
           .toList()
         ..sort();
@@ -161,7 +207,8 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
                     .whereType<int>()
               : widget.facets.years)
           .map((year) => (year ~/ 10) * 10)
-          .followedBy(_decades)
+          .followedBy(_decades.included)
+          .followedBy(_decades.excluded)
           .toSet()
           .toList()
         ..sort();
@@ -172,51 +219,54 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
                     .map((candidate) => candidate.officialRating)
                     .whereType<String>()
               : widget.facets.officialRatings)
-          .followedBy(_ratings)
+          .followedBy(_ratings.included)
+          .followedBy(_ratings.excluded)
           .toSet()
           .toList()
         ..sort();
 
-  void _toggleGenre(String genre, bool selected) =>
-      setState(() => selected ? _genres.add(genre) : _genres.remove(genre));
+  List<String> get _tagsFromCandidates => _tagUniverse;
 
-  void _toggleDecade(int decade, bool selected) =>
-      setState(() => selected ? _decades.add(decade) : _decades.remove(decade));
-
-  void _toggleRating(String rating, bool selected) =>
-      setState(() => selected ? _ratings.add(rating) : _ratings.remove(rating));
-
-  Future<void> _apply() async {
-    final genres = _genres.isNotEmpty
-        ? _genres
+  /// The filter currently described by the sheet, before it is applied.
+  CatalogFilter _draftFilter() {
+    final genres = _genres.included.isNotEmpty || _genres.excluded.isNotEmpty
+        ? _genres.included
         : _genresText.text
               .split(',')
               .map((value) => value.trim().toLowerCase())
               .where((value) => value.isNotEmpty)
               .toSet();
-    await context.read<DiscoveryCubit>().updateFilter(
-      CatalogFilter(
-        libraryId: _libraryId,
-        searchTerm: _search.text.trim(),
-        addedWithin: _addedWithin,
-        sort: _sort,
-        minimumRuntimeMinutes: _runtime.start == 0
-            ? null
-            : _runtime.start.round(),
-        maximumRuntimeMinutes: _runtime.end == _maxRuntime
-            ? null
-            : _runtime.end.round(),
-        minimumCommunityRating: _community == 0 ? null : _community,
-        maximumCommunityRating: widget.filter.maximumCommunityRating,
-        minimumCriticRating: _critic == 0 ? null : _critic,
-        maximumCriticRating: widget.filter.maximumCriticRating,
-        genres: genres,
-        decades: _decades,
-        officialRatings: _ratings,
-        watched: _bool(_watched),
-        favorite: _bool(_favorite),
-      ),
+    return CatalogFilter(
+      libraryId: _libraryId,
+      searchTerm: _search.text.trim(),
+      addedWithin: _addedWithin,
+      sort: _sort,
+      sortReversed: _sortReversed,
+      minimumRuntimeMinutes: _runtime.start == 0
+          ? null
+          : _runtime.start.round(),
+      maximumRuntimeMinutes: _runtime.end == _maxRuntime
+          ? null
+          : _runtime.end.round(),
+      minimumCommunityRating: _community == 0 ? null : _community,
+      maximumCommunityRating: widget.filter.maximumCommunityRating,
+      minimumCriticRating: _critic == 0 ? null : _critic,
+      maximumCriticRating: widget.filter.maximumCriticRating,
+      genres: genres,
+      excludedGenres: _genres.excluded,
+      tags: _tags.included,
+      excludedTags: _tags.excluded,
+      decades: _decades.included,
+      excludedDecades: _decades.excluded,
+      officialRatings: _ratings.included,
+      excludedOfficialRatings: _ratings.excluded,
+      watched: _bool(_watched),
+      favorite: _bool(_favorite),
     );
+  }
+
+  Future<void> _apply() async {
+    await context.read<DiscoveryCubit>().updateFilter(_draftFilter());
     if (mounted) Navigator.pop(context);
   }
 
@@ -228,7 +278,10 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
   Future<void> _savePreset() async {
     final name = _presetText.text.trim();
     if (name.isEmpty) return;
-    await context.read<DiscoveryCubit>().savePreset(name);
+    await context.read<DiscoveryCubit>().savePreset(
+      name,
+      filter: _draftFilter(),
+    );
     _presetText.clear();
   }
 

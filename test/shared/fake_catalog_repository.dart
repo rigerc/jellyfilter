@@ -10,6 +10,23 @@ import 'package:jellyfin_picker/features/catalog/domain/failures/catalog_failure
 import 'package:jellyfin_picker/features/catalog/domain/repositories/catalog_repository.dart';
 
 abstract base class CatalogRepositoryFakeBase implements CatalogRepository {
+  /// Favorites reported by [loadFavoriteIds]; null reports a failure.
+  Set<String>? favoriteIds;
+  int favoriteIdRequests = 0;
+
+  /// When set, favorite reads wait for it before answering.
+  Completer<void>? favoriteGate;
+
+  @override
+  Future<CatalogResult<Set<String>>> loadFavoriteIds() async {
+    favoriteIdRequests++;
+    await favoriteGate?.future;
+    final ids = favoriteIds;
+    return ids == null
+        ? const CatalogResult<Set<String>>.failure(UnreachableCatalogFailure())
+        : CatalogResult<Set<String>>.success(ids);
+  }
+
   @override
   Future<CatalogResult<List<CatalogLibrary>>> loadLibraries() async =>
       const CatalogResult<List<CatalogLibrary>>.success(<CatalogLibrary>[]);

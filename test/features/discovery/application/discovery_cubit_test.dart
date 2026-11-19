@@ -8,6 +8,74 @@ import 'package:jellyfin_picker/features/discovery/domain/repositories/discovery
 import '../../../shared/fake_discovery_store.dart';
 
 void main() {
+  group('favorite bias', favoriteBiasTests);
+
+  test('should persist and restore the fade watched option', () async {
+    final store = FakeDiscoveryStore();
+    final cubit = DiscoveryCubit(
+      store: store,
+      scopeKey: 'scope',
+      selector: FakeDiscoverySelector(null),
+    );
+    await cubit.setFadeWatched(true);
+    await cubit.close();
+
+    final restored = DiscoveryCubit(
+      store: store,
+      scopeKey: 'scope',
+      selector: FakeDiscoverySelector(null),
+    );
+    await restored.hydrate();
+    expect(restored.state.fadeWatched, isTrue);
+    expect(
+      DiscoverySnapshot.fromJson(
+        <String, Object?>{...store.snapshot!.toJson()}..remove('fadeWatched'),
+      )?.fadeWatched,
+      isFalse,
+    );
+    await restored.close();
+  });
+
+  test(
+    'should shuffle filtered titles when no liked title fits the filter',
+    () async {
+      final selector = FakeDiscoverySelector('fav');
+      final cubit = _cubit(selector);
+      await cubit.replaceCandidates(<CatalogCandidate>[
+        _candidate('liked', favorite: false),
+        _candidate('fav', favorite: true),
+      ]);
+      await cubit.like('liked');
+      await cubit.updateFilter(const CatalogFilter(favorite: true));
+
+      await cubit.revealNext();
+
+      expect(selector.receivedIds, <String>['fav']);
+      expect(cubit.state.currentRevealId, 'fav');
+      expect(cubit.state.noEligibleCandidates, isFalse);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'should keep the current pick when its favorite is toggled off',
+    () async {
+      final cubit = _cubit(FakeDiscoverySelector('fav'));
+      await cubit.replaceCandidates(<CatalogCandidate>[
+        _candidate('fav', favorite: true),
+      ]);
+      await cubit.updateFilter(const CatalogFilter(favorite: true));
+      await cubit.revealNext();
+
+      await cubit.updateCandidate(
+        cubit.state.candidates.single.copyWith(favorite: false),
+      );
+
+      expect(cubit.state.currentRevealId, 'fav');
+      await cubit.close();
+    },
+  );
+
   test('should preserve discovery state when the mode changes', () async {
     final store = FakeDiscoveryStore();
     final cubit = DiscoveryCubit(
@@ -257,6 +325,32 @@ void main() {
       await cubit.close();
     },
   );
+
+  test('should not rewrite storage when only candidates change', () async {
+    final store = FakeDiscoveryStore();
+    final cubit = DiscoveryCubit(
+      store: store,
+      scopeKey: 'server/user',
+      selector: FakeDiscoverySelector(null),
+    );
+    await cubit.setMode(DiscoveryMode.swipe);
+    final writes = store.writeCount;
+
+    await cubit.replaceCandidates(<CatalogCandidate>[
+      _candidate('movie', favorite: false),
+    ]);
+    await cubit.updateCandidate(
+      cubit.state.candidates.single.copyWith(favorite: true),
+    );
+
+    expect(store.writeCount, writes);
+    expect(cubit.state.candidates.single.favorite, isTrue);
+
+    await cubit.setMode(DiscoveryMode.grid);
+    expect(store.writeCount, writes + 1);
+    expect(store.snapshot?.mode, DiscoveryMode.grid);
+    await cubit.close();
+  });
 
   test(
     'should keep the latest same-ID favorite update when writes overlap',
@@ -589,6 +683,144 @@ final class FailingDiscoveryStore implements DiscoveryStore {
     clearCalls++;
     throw StateError('clear failed');
   }
+}
+
+void favoriteBiasTests() {
+  List<CatalogCandidate> mixed() => <CatalogCandidate>[
+    _candidate('movie-1'),
+    _candidate('movie-2', favorite: true),
+    _candidate('movie-3'),
+    _candidate('movie-4', favorite: true),
+  ];
+
+  test(
+    'should draw from the whole pool when favorites are not favored',
+    () async {
+      final selector = FakeDiscoverySelector('movie-1')..chance = 0;
+      final cubit = _cubit(selector);
+      await cubit.replaceCandidates(mixed());
+
+      await cubit.revealNext();
+
+      expect(selector.receivedIds, <String>[
+        'movie-1',
+        'movie-2',
+        'movie-3',
+        'movie-4',
+      ]);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'should narrow the draw to favorites when the roll is under the bias',
+    () async {
+      final selector = FakeDiscoverySelector('movie-2')..chance = 0.49;
+      final cubit = _cubit(selector);
+      await cubit.replaceCandidates(mixed());
+      await cubit.setFavoriteBias(0.5);
+
+      await cubit.revealNext();
+
+      expect(selector.receivedIds, <String>['movie-2', 'movie-4']);
+      expect(cubit.state.currentRevealId, 'movie-2');
+      await cubit.close();
+    },
+  );
+
+  test('should keep the whole pool when the roll is above the bias', () async {
+    final selector = FakeDiscoverySelector('movie-3')..chance = 0.5;
+    final cubit = _cubit(selector);
+    await cubit.replaceCandidates(mixed());
+    await cubit.setFavoriteBias(0.5);
+
+    await cubit.revealNext();
+
+    expect(selector.receivedIds, hasLength(4));
+    await cubit.close();
+  });
+
+  test('should allow a recent favorite again at full bias', () async {
+    final selector = FakeDiscoverySelector('movie-2')..chance = 0.99;
+    final cubit = _cubit(selector);
+    await cubit.replaceCandidates(<CatalogCandidate>[
+      _candidate('movie-1'),
+      _candidate('movie-2', favorite: true),
+    ]);
+    await cubit.setFavoriteBias(1);
+    await cubit.revealNext();
+
+    selector.choices = <String?>['movie-2'];
+    await cubit.revealNext();
+
+    expect(selector.receivedIds, <String>['movie-2']);
+    await cubit.close();
+  });
+
+  test('should fall back to the whole pool without favorites', () async {
+    final selector = FakeDiscoverySelector('movie-1')..chance = 0;
+    final cubit = _cubit(selector);
+    await cubit.replaceCandidates(<CatalogCandidate>[
+      _candidate('movie-1'),
+      _candidate('movie-3'),
+    ]);
+    await cubit.setFavoriteBias(1);
+
+    await cubit.revealNext();
+
+    expect(selector.receivedIds, <String>['movie-1', 'movie-3']);
+    await cubit.close();
+  });
+
+  test('should clamp, snap, persist, and restore the favorite bias', () async {
+    final store = FakeDiscoveryStore();
+    final cubit = DiscoveryCubit(
+      store: store,
+      scopeKey: 'scope',
+      selector: FakeDiscoverySelector(null),
+    );
+    await cubit.setFavoriteBias(0.62);
+    expect(cubit.state.favoriteBias, 0.6);
+    await cubit.setFavoriteBias(3);
+    expect(cubit.state.favoriteBias, 1);
+    await cubit.close();
+
+    final restored = DiscoveryCubit(
+      store: store,
+      scopeKey: 'scope',
+      selector: FakeDiscoverySelector(null),
+    );
+    await restored.hydrate();
+    expect(restored.state.favoriteBias, 1);
+    await restored.close();
+  });
+
+  test('should round-trip the bias and accept snapshots without one', () {
+    const snapshot = DiscoverySnapshot(favoriteBias: 0.3);
+    final json = snapshot.toJson();
+
+    expect(DiscoverySnapshot.fromJson(json)?.favoriteBias, 0.3);
+    expect(
+      DiscoverySnapshot.fromJson(
+        <String, Object?>{...json}..remove('favoriteBias'),
+      )?.favoriteBias,
+      0,
+    );
+    expect(
+      DiscoverySnapshot.fromJson(<String, Object?>{
+        ...json,
+        'favoriteBias': 'x',
+      })?.favoriteBias,
+      0,
+    );
+    expect(
+      DiscoverySnapshot.fromJson(<String, Object?>{
+        ...json,
+        'favoriteBias': 7,
+      })?.favoriteBias,
+      1,
+    );
+  });
 }
 
 DiscoveryCubit _cubit(DiscoverySelector selector) => DiscoveryCubit(

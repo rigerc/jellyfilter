@@ -19,6 +19,9 @@ abstract interface class CatalogRepository {
 
   Future<CatalogResult<CatalogCandidate>> loadDetails(String itemId);
 
+  /// The ids of every movie the user has marked as a Jellyfin favorite.
+  Future<CatalogResult<Set<String>>> loadFavoriteIds();
+
   Stream<CatalogPage> streamPages({
     CatalogFilter filter = const CatalogFilter(),
   });

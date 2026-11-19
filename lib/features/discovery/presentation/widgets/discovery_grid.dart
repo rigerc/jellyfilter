@@ -46,8 +46,8 @@ final class DiscoveryGrid extends StatelessWidget {
         key: WidgetKeys.discoveryGrid,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,
-          mainAxisSpacing: CandySpacing.cardGap,
-          crossAxisSpacing: CandySpacing.cardGap,
+          mainAxisSpacing: CandySpacing.page,
+          crossAxisSpacing: CandySpacing.compact,
           childAspectRatio: CandyShapes.gridCardRatio,
         ),
         itemCount: candidates.length,

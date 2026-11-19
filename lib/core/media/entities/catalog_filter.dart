@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:jellyfin_picker/core/media/entities/catalog_candidate.dart';
 
 enum CatalogAddedWindow {
@@ -47,7 +49,24 @@ final class CatalogFilter {
     Set<CatalogSeriesStatus> seriesStatuses = const <CatalogSeriesStatus>{},
     this.watched,
     this.favorite,
+    this.sortReversed = false,
+    Set<String> tags = const <String>{},
+    Set<String> excludedGenres = const <String>{},
+    Set<String> excludedTags = const <String>{},
+    Set<int> excludedDecades = const <int>{},
+    Set<String> excludedOfficialRatings = const <String>{},
   }) : // Public constructor names intentionally differ from backing fields.
+       // ignore: prefer_initializing_formals
+       _tags = tags,
+       // ignore: prefer_initializing_formals
+       _excludedGenres = excludedGenres,
+       // ignore: prefer_initializing_formals
+       _excludedTags = excludedTags,
+       // ignore: prefer_initializing_formals
+       _excludedDecades = excludedDecades,
+       // ignore: prefer_initializing_formals
+       _excludedOfficialRatings = excludedOfficialRatings,
+       // Public constructor names intentionally differ from backing fields.
        // ignore: prefer_initializing_formals
        _mediaTypes = mediaTypes,
        // Public constructor names intentionally differ from backing fields.
@@ -82,17 +101,56 @@ final class CatalogFilter {
   final bool? watched;
   final bool? favorite;
 
+  /// Runs the chosen sort in the opposite direction.
+  final bool sortReversed;
+  final Set<String> _tags;
+  final Set<String> _excludedGenres;
+  final Set<String> _excludedTags;
+  final Set<int> _excludedDecades;
+  final Set<String> _excludedOfficialRatings;
+
+  /// Tags a title must all carry.
+  Set<String> get tags => UnmodifiableSetView<String>(_tags);
+
+  /// Values a title must not have. Jellyfin cannot exclude these on the
+  /// server, so they are applied while results stream in.
+  Set<String> get excludedGenres =>
+      UnmodifiableSetView<String>(_excludedGenres);
+
+  Set<String> get excludedTags => UnmodifiableSetView<String>(_excludedTags);
+
+  Set<int> get excludedDecades => UnmodifiableSetView<int>(_excludedDecades);
+
+  Set<String> get excludedOfficialRatings =>
+      UnmodifiableSetView<String>(_excludedOfficialRatings);
+
+  bool get hasExclusions =>
+      _excludedGenres.isNotEmpty ||
+      _excludedTags.isNotEmpty ||
+      _excludedDecades.isNotEmpty ||
+      _excludedOfficialRatings.isNotEmpty;
+
+  /// Constraints the server only partly applies, so a page can come back
+  /// with nothing left after local refinement.
+  bool get needsLocalRefinement =>
+      genres.length > 1 || _tags.length > 1 || hasExclusions;
+
+  /// Whether this sort has a direction to reverse.
+  bool get canReverseSort =>
+      sort != CatalogSort.defaultOrder && sort != CatalogSort.random;
+
   Set<CatalogMediaType> get mediaTypes =>
-      Set<CatalogMediaType>.unmodifiable(_mediaTypes);
+      UnmodifiableSetView<CatalogMediaType>(_mediaTypes);
 
-  Set<String> get genres => Set<String>.unmodifiable(_genres);
+  Set<String> get genres => UnmodifiableSetView<String>(_genres);
 
-  Set<int> get decades => Set<int>.unmodifiable(_decades);
+  Set<int> get decades => UnmodifiableSetView<int>(_decades);
 
-  Set<String> get officialRatings => Set<String>.unmodifiable(_officialRatings);
+  Set<String> get officialRatings =>
+      UnmodifiableSetView<String>(_officialRatings);
 
   Set<CatalogSeriesStatus> get seriesStatuses =>
-      Set<CatalogSeriesStatus>.unmodifiable(_seriesStatuses);
+      UnmodifiableSetView<CatalogSeriesStatus>(_seriesStatuses);
 
   bool get isActive =>
       libraryId != null ||
@@ -110,7 +168,9 @@ final class CatalogFilter {
       _hasOfficialRatingConstraint ||
       seriesStatuses.isNotEmpty ||
       watched != null ||
-      favorite != null;
+      favorite != null ||
+      _tags.isNotEmpty ||
+      hasExclusions;
 
   bool matches(CatalogCandidate candidate, {DateTime? now}) =>
       _matchesMediaType(candidate) &&
@@ -118,6 +178,8 @@ final class CatalogFilter {
       _matchesAddedWithin(candidate, now) &&
       _matchesNumericRanges(candidate) &&
       _matchesGenres(candidate) &&
+      _matchesTags(candidate) &&
+      _matchesExclusions(candidate) &&
       _matchesDecades(candidate) &&
       _matchesOfficialRating(candidate) &&
       _matchesSeries(candidate) &&
@@ -128,7 +190,7 @@ final class CatalogFilter {
       (mediaTypes.isEmpty || mediaTypes.contains(CatalogMediaType.movie));
 
   bool _matchesSearch(CatalogCandidate candidate) {
-    final normalizedSearchTerm = _normalize(searchTerm);
+    final normalizedSearchTerm = _prepared.search;
     return normalizedSearchTerm.isEmpty ||
         _normalize(candidate.name).contains(normalizedSearchTerm);
   }
@@ -167,15 +229,59 @@ final class CatalogFilter {
       );
 
   bool _matchesGenres(CatalogCandidate candidate) {
-    final selectedGenres = genres.map((genre) => genre.toLowerCase()).toSet();
-    if (selectedGenres.isEmpty) {
+    final selectedGenres = _prepared.genres;
+    return selectedGenres.isEmpty ||
+        _normalizedFacets(candidate).genres.containsAll(selectedGenres);
+  }
+
+  bool _matchesTags(CatalogCandidate candidate) {
+    final required = _prepared.tags;
+    return required.isEmpty ||
+        _normalizedFacets(candidate).tags.containsAll(required);
+  }
+
+  bool _matchesExclusions(CatalogCandidate candidate) {
+    if (!hasExclusions) {
       return true;
     }
-    final candidateGenres = candidate.genres
-        .map((genre) => genre.toLowerCase())
-        .toSet();
-    return candidateGenres.containsAll(selectedGenres);
+    final prepared = _prepared;
+    final facets = _normalizedFacets(candidate);
+    final year = candidate.year;
+    final rating = candidate.officialRating;
+    return !facets.genres.any(prepared.excludedGenres.contains) &&
+        !facets.tags.any(prepared.excludedTags.contains) &&
+        !(year != null && _excludedDecades.contains((year ~/ 10) * 10)) &&
+        !(rating != null &&
+            prepared.excludedRatings.contains(_normalize(rating)));
   }
+
+  /// Normalized forms of this filter's text constraints, computed once per
+  /// filter instead of once per title checked.
+  _PreparedFilter get _prepared => _preparedCache[this] ??= _PreparedFilter(
+    search: _normalize(searchTerm),
+    genres: _genres.map(_normalize).toSet(),
+    tags: _tags.map(_normalize).toSet(),
+    excludedGenres: _excludedGenres.map(_normalize).toSet(),
+    excludedTags: _excludedTags.map(_normalize).toSet(),
+    excludedRatings: _excludedOfficialRatings.map(_normalize).toSet(),
+    ratings: _officialRatings
+        .map(_normalize)
+        .where((rating) => rating.isNotEmpty)
+        .toSet(),
+  );
+
+  static final Expando<_PreparedFilter> _preparedCache =
+      Expando<_PreparedFilter>('CatalogFilter.prepared');
+
+  /// A title's normalized genres and tags, computed once per title.
+  static _NormalizedFacets _normalizedFacets(CatalogCandidate candidate) =>
+      _facetCache[candidate] ??= _NormalizedFacets(
+        genres: candidate.genres.map(_normalize).toSet(),
+        tags: candidate.tags.map(_normalize).toSet(),
+      );
+
+  static final Expando<_NormalizedFacets> _facetCache =
+      Expando<_NormalizedFacets>('CatalogCandidate.normalizedFacets');
 
   bool _matchesDecades(CatalogCandidate candidate) {
     if (decades.isEmpty) {
@@ -226,6 +332,12 @@ final class CatalogFilter {
     Set<CatalogSeriesStatus>? seriesStatuses,
     Object? watched = _unset,
     Object? favorite = _unset,
+    bool? sortReversed,
+    Set<String>? tags,
+    Set<String>? excludedGenres,
+    Set<String>? excludedTags,
+    Set<int>? excludedDecades,
+    Set<String>? excludedOfficialRatings,
   }) => CatalogFilter(
     mediaTypes: mediaTypes ?? this.mediaTypes,
     libraryId: _copyString(libraryId, this.libraryId),
@@ -263,6 +375,13 @@ final class CatalogFilter {
     seriesStatuses: seriesStatuses ?? this.seriesStatuses,
     watched: _copyBool(watched, this.watched),
     favorite: _copyBool(favorite, this.favorite),
+    sortReversed: sortReversed ?? this.sortReversed,
+    tags: tags ?? this.tags,
+    excludedGenres: excludedGenres ?? this.excludedGenres,
+    excludedTags: excludedTags ?? this.excludedTags,
+    excludedDecades: excludedDecades ?? this.excludedDecades,
+    excludedOfficialRatings:
+        excludedOfficialRatings ?? this.excludedOfficialRatings,
   );
 
   static CatalogAddedWindow? _copyWindow(
@@ -311,10 +430,7 @@ final class CatalogFilter {
   bool get _hasOfficialRatingConstraint =>
       _normalizedOfficialRatings.isNotEmpty;
 
-  Set<String> get _normalizedOfficialRatings => _officialRatings
-      .map(_normalize)
-      .where((rating) => rating.isNotEmpty)
-      .toSet();
+  Set<String> get _normalizedOfficialRatings => _prepared.ratings;
 
   bool _matchesSeriesStatus(String status) {
     final normalizedStatus = _normalize(status);
@@ -329,7 +445,9 @@ final class CatalogFilter {
   }
 
   static String _normalize(String value) =>
-      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+      value.trim().toLowerCase().replaceAll(_whitespace, ' ');
+
+  static final RegExp _whitespace = RegExp(r'\s+');
 
   static const _continuingStatuses = <String>{
     'continuing',
@@ -352,3 +470,30 @@ final class CatalogFilter {
 }
 
 const _unset = Object();
+
+final class _PreparedFilter {
+  _PreparedFilter({
+    required this.search,
+    required this.genres,
+    required this.tags,
+    required this.excludedGenres,
+    required this.excludedTags,
+    required this.excludedRatings,
+    required this.ratings,
+  });
+
+  final String search;
+  final Set<String> genres;
+  final Set<String> tags;
+  final Set<String> excludedGenres;
+  final Set<String> excludedTags;
+  final Set<String> excludedRatings;
+  final Set<String> ratings;
+}
+
+final class _NormalizedFacets {
+  _NormalizedFacets({required this.genres, required this.tags});
+
+  final Set<String> genres;
+  final Set<String> tags;
+}
