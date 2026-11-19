@@ -40,14 +40,18 @@ iOS behavior, integration coverage, or release acceptance.
 
 ## Android Release Workflow
 
-`.github/workflows/release.yml` runs when a `v*` tag is pushed. It can also be
-started manually by selecting an existing tag in Actions. Branch runs fail
-before building. Tags must match `version:` in `pubspec.yaml` (for example,
-`1.0.32+33` uses tag `v1.0.32`), and the changelog must contain a nonempty dated
-entry for that version. Before each new release, increase both the version and
-build number and add user-facing release notes to `CHANGELOG.md`.
+`.github/workflows/release.yml` runs when a `v*` tag is pushed. To release
+manually, open Actions → Release Android → Run workflow and select `main` (or
+another release branch or existing tag). Manual branch runs derive the release
+tag from `version:` in `pubspec.yaml` and target the selected commit when creating
+the draft. Existing tags must point to that same commit; the workflow never
+moves a tag. For example, `1.0.32+33` uses tag `v1.0.32`. Tag-triggered runs must
+match that version, and the changelog must contain a nonempty dated entry for
+it. Before each new release, increase both the version and build number and add
+user-facing release notes to `CHANGELOG.md`.
 
-Configure these repository Actions secrets before pushing a release tag:
+Configure these repository Actions secrets before running a release. The
+workflow checks them before installing build tools or running quality gates:
 
 | Secret | Value |
 | --- | --- |
@@ -66,8 +70,9 @@ are unsigned unless all four `ANDROID_KEYSTORE_PATH`,
 environment variables are set; the path must be absolute. The workflow requires
 all signing secrets and removes the temporary keystore after the build.
 
-After committing the version and changelog updates, tag that commit and push
-the tag (replace the example with the new version):
+After committing the version and changelog updates, either run the workflow
+manually on that branch, or tag that commit and push the tag (replace the
+example with the new version):
 
 ```bash
 git tag -a v1.0.32 -m 'Jellyfilter 1.0.32'
@@ -83,7 +88,8 @@ the checksum file into one directory and run `sha256sum --check SHA256SUMS`.
 Install the release APK and complete the device checks below before publishing
 the draft in GitHub. The AAB is provided for a separate Play Console upload;
 this workflow does not upload to an app store or build/sign iOS. The draft uses
-GitHub CLI's [`--draft` and `--verify-tag` options](https://cli.github.com/manual/gh_release_create).
+GitHub CLI's [`--draft` and `--target` options](https://cli.github.com/manual/gh_release_create),
+with `--verify-tag` for runs on existing tags.
 If release creation fails after leaving a partial draft, delete only that draft
 and rerun the workflow on the same tag. Existing releases are never overwritten.
 

@@ -74,3 +74,10 @@ Running the release build alongside the quality gate raced on the generated
 Android plugin registrant: tests included `integration_test` while the release
 Java compilation excluded that plugin. Run Flutter tests and Android builds
 sequentially in the same checkout so generated plugin files stay consistent.
+
+## 2026-11-20 — Manual releases should work from the default branch
+
+Adding `workflow_dispatch` while rejecting all branch refs made the default
+Run workflow action fail immediately. Support branch dispatch by deriving the
+version tag from pubspec and targeting the selected commit. Validate signing
+configuration before spending time on builds.

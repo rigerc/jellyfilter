@@ -25,14 +25,15 @@ jobs:
         shell: bash
 
     steps:
-      - name: Check out release tag
+      - name: Check out release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
-      - name: Validate tag and extract release notes
+      - name: Validate version and extract release notes
+        id: version
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          REF_NAME: ${{ github.ref_name }}
           REF_TYPE: ${{ github.ref_type }}
         run: |
           python3 - <<'PY'
@@ -40,13 +41,14 @@ jobs:
           import pathlib
           import re
 
-          if os.environ['REF_TYPE'] != 'tag':
-              raise SystemExit('Run this workflow on an existing version tag, not a branch.')
           pubspec = pathlib.Path('pubspec.yaml').read_text()
           match = re.search(r'^version: (\d+\.\d+\.\d+)\+([1-9]\d*)\s*$', pubspec, re.M)
-          if not match or os.environ['RELEASE_TAG'] != f'v{match[1]}':
-              raise SystemExit('Tag must be v<pubspec version>, with a positive build number in pubspec.yaml.')
+          if not match:
+              raise SystemExit('pubspec.yaml must contain a version and positive build number.')
           version = match[1]
+          tag = f'v{version}'
+          if os.environ['REF_TYPE'] == 'tag' and os.environ['REF_NAME'] != tag:
+              raise SystemExit('Tag must match v<pubspec version>.')
           changelog = pathlib.Path('CHANGELOG.md').read_text()
           section = re.search(
               rf'^## {re.escape(version)} — \d{{4}}-\d{{2}}-\d{{2}}\n(.*?)(?=^## |\Z)',
@@ -54,9 +56,44 @@ jobs:
           )
           if not section or not section[1].strip():
               raise SystemExit('Add a nonempty dated CHANGELOG.md entry for this version.')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\n')
           pathlib.Path('dist').mkdir()
           pathlib.Path('dist/RELEASE_NOTES.md').write_text(section[1].strip() + '\n')
           PY
+
+      - name: Check existing release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          tag_count=$(gh api "repos/$GH_REPO/git/matching-refs/tags/$RELEASE_TAG" \
+            --jq "map(select(.ref == \"refs/tags/$RELEASE_TAG\")) | length")
+          if [[ "$tag_count" != 0 ]]; then
+            tag_sha=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)
+            if [[ "$tag_sha" != "$RELEASE_SHA" ]]; then
+              echo "::error::Release tag $RELEASE_TAG already points to another commit. Bump the version before releasing."
+              exit 1
+            fi
+          fi
+
+      - name: Check signing configuration
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Configure the $name repository Actions secret before releasing."
+              missing=1
+            fi
+          done
+          exit "$missing"
 
       - name: Set up Java 17
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
@@ -87,13 +124,9 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -euo pipefail
-          : "${ANDROID_KEYSTORE_BASE64:?Missing ANDROID_KEYSTORE_BASE64 secret}"
-          : "${ANDROID_KEYSTORE_PASSWORD:?Missing ANDROID_KEYSTORE_PASSWORD secret}"
-          : "${ANDROID_KEY_ALIAS:?Missing ANDROID_KEY_ALIAS secret}"
-          : "${ANDROID_KEY_PASSWORD:?Missing ANDROID_KEY_PASSWORD secret}"
           trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
           umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
@@ -107,18 +140,24 @@ jobs:
       - name: Upload release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jellyfilter-${{ github.ref_name }}
+          name: jellyfilter-${{ steps.version.outputs.tag }}
           path: dist/
           if-no-files-found: error
           retention-days: 30
 
       - name: Create draft GitHub release
         env:
+          RELEASE_SHA: ${{ github.sha }}
+          REF_TYPE: ${{ github.ref_type }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create "$RELEASE_TAG" \
-            --verify-tag --draft --title "Jellyfilter ${RELEASE_TAG}" \
+          tag_flags=()
+          if [[ "$REF_TYPE" == tag ]]; then
+            tag_flags+=(--verify-tag)
+          fi
+          gh release create "$RELEASE_TAG" "${tag_flags[@]}" \
+            --target "$RELEASE_SHA" --draft --title "Jellyfilter ${RELEASE_TAG}" \
             --notes-file dist/RELEASE_NOTES.md \
             dist/*.apk dist/*.aab dist/SHA256SUMS
