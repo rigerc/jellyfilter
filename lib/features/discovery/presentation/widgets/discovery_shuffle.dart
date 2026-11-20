@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -47,6 +48,8 @@ final class DiscoveryShuffle extends StatefulWidget {
 
 final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
     with SingleTickerProviderStateMixin {
+  static const _spinDragDistance = 48.0;
+
   /// Built on first use: a shuffle screen that never spins must not own a
   /// ticker, and `dispose` must never create one on a dead element.
   AnimationController? _controllerOrNull;
@@ -69,6 +72,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
   double _lastPosition = 0;
   int _lastElapsedUs = 0;
   double _blur = 0;
+  Offset? _dragOrigin;
 
   bool get _spinning => _reel.isNotEmpty;
   bool get _usesShortlist => widget.shortlist?.useShortlist ?? false;
@@ -93,7 +97,20 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
     super.dispose();
   }
 
+  void _onPanUpdate(DragUpdateDetails details) {
+    final origin = _dragOrigin;
+    if (origin == null ||
+        (details.localPosition - origin).distance < _spinDragDistance) {
+      return;
+    }
+    _dragOrigin = null;
+    _spin();
+  }
+
   void _spin() {
+    if (_spinning) {
+      return;
+    }
     final cubit = context.read<DiscoveryCubit>();
     if (_usesShortlist) {
       final shortlist = context.read<ShortlistCubit>();
@@ -168,8 +185,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
         ).chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 7,
       ),
-      // Release: rapid acceleration, then a long mechanical deceleration
-      // that slightly overshoots the payline.
+      // Rapid acceleration, then a long deceleration that overshoots the pick.
       TweenSequenceItem<double>(
         tween: Tween<double>(
           begin: start - 0.16,
@@ -177,7 +193,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
         ).chain(CurveTween(curve: const Cubic(0.33, 0, 0.1, 1))),
         weight: 80,
       ),
-      // Lock: the detent pulls the poster back onto the payline.
+      // Settle the poster back into the center.
       TweenSequenceItem<double>(
         tween: Tween<double>(
           begin: end + 0.12,
@@ -300,6 +316,10 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
         : _candidateIn(widget.state);
     final directReveal = usesShortlist && pool.length == 1;
     final spinning = _spinning;
+    final canSpin =
+        !spinning &&
+        (usesShortlist ? pool.isNotEmpty : widget.onRetryCatalog == null);
+    final canDrag = canSpin && pool.isNotEmpty;
     final Widget windowContent;
     if (spinning) {
       windowContent = _ReelStrip(
@@ -396,7 +416,17 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
             landings: _landings,
             spinning: spinning,
             reduceMotion: reduceMotion,
-            child: windowContent,
+            child: GestureDetector(
+              key: WidgetKeys.discoveryShuffleReel,
+              behavior: HitTestBehavior.opaque,
+              dragStartBehavior: DragStartBehavior.down,
+              excludeFromSemantics: true,
+              onPanStart: canDrag
+                  ? (details) => _dragOrigin = details.localPosition
+                  : null,
+              onPanUpdate: canDrag ? _onPanUpdate : null,
+              child: windowContent,
+            ),
           ),
         ),
         ConstrainedBox(
@@ -498,13 +528,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
             Expanded(
               child: FilledButton.icon(
                 key: WidgetKeys.discoveryRevealButton,
-                onPressed:
-                    spinning ||
-                        (usesShortlist
-                            ? pool.isEmpty
-                            : widget.onRetryCatalog != null)
-                    ? null
-                    : _spin,
+                onPressed: canSpin ? _spin : null,
                 icon: const Icon(Icons.casino_rounded),
                 label: Text(
                   spinning
@@ -708,8 +732,7 @@ final class _FavoriteBiasControl extends StatelessWidget {
   }
 }
 
-/// The framed slot window: a payline on both edges and a glow that flares
-/// when the reel locks onto a pick.
+/// Clips the reel and adds a glow when it lands on a pick.
 final class _ReelWindow extends StatelessWidget {
   const _ReelWindow({
     required this.landings,
@@ -747,24 +770,7 @@ final class _ReelWindow extends StatelessWidget {
             ),
           ],
         ),
-        position: DecorationPosition.background,
-        child: DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(
-              color:
-                  Color.lerp(
-                    spinning ? scheme.primary : CandyColors.outline,
-                    scheme.primary,
-                    glow,
-                  ) ??
-                  scheme.primary,
-              width: 1.5,
-            ),
-          ),
-          child: child,
-        ),
+        child: child,
       ),
       child: ClipRRect(
         borderRadius: radius,
@@ -793,54 +799,11 @@ final class _ReelWindow extends StatelessWidget {
                 ),
               ),
             ),
-            IgnorePointer(
-              child: CustomPaint(
-                painter: _PaylinePainter(
-                  color: spinning
-                      ? scheme.primary
-                      : scheme.primary.withValues(alpha: 0.7),
-                ),
-              ),
-            ),
           ],
         ),
       ),
     );
   }
-}
-
-final class _PaylinePainter extends CustomPainter {
-  const _PaylinePainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const depth = 9.0;
-    const half = 8.0;
-    final y = size.height / 2;
-    final paint = Paint()..color = color;
-    canvas
-      ..drawPath(
-        Path()
-          ..moveTo(0, y - half)
-          ..lineTo(depth, y)
-          ..lineTo(0, y + half)
-          ..close(),
-        paint,
-      )
-      ..drawPath(
-        Path()
-          ..moveTo(size.width, y - half)
-          ..lineTo(size.width - depth, y)
-          ..lineTo(size.width, y + half)
-          ..close(),
-        paint,
-      );
-  }
-
-  @override
-  bool shouldRepaint(_PaylinePainter oldDelegate) => oldDelegate.color != color;
 }
 
 /// The moving strip. Only the one or two posters crossing the window are
@@ -930,7 +893,10 @@ final class _ShuffleIdle extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(CandySpacing.page),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CandySpacing.page,
+          vertical: CandySpacing.compact,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           spacing: CandySpacing.compact,

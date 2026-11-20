@@ -178,7 +178,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoveryShortlistIdleDescription =>
-      'Spin the reel to pick from your shortlist.';
+      'Drag here to pick from your shortlist.';
 
   @override
   String get discoveryShortlistUnavailable => 'Unavailable';
@@ -437,7 +437,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoveryShuffleIdleDescription =>
-      'Spin the reel for a random pick from your current filters.';
+      'Drag here for a random pick from your current filters.';
 
   @override
   String discoveryShuffleLandedLabel(String title) {

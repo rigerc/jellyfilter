@@ -361,7 +361,7 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryShortlistIdleDescription.
   ///
   /// In en, this message translates to:
-  /// **'Spin the reel to pick from your shortlist.'**
+  /// **'Drag here to pick from your shortlist.'**
   String get discoveryShortlistIdleDescription;
 
   /// No description provided for @discoveryShortlistUnavailable.
@@ -799,7 +799,7 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryShuffleIdleDescription.
   ///
   /// In en, this message translates to:
-  /// **'Spin the reel for a random pick from your current filters.'**
+  /// **'Drag here for a random pick from your current filters.'**
   String get discoveryShuffleIdleDescription;
 
   /// No description provided for @discoveryShuffleLandedLabel.

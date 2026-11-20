@@ -789,13 +789,13 @@ void shortlistTests() {
       await tester.tap(find.byKey(WidgetKeys.discoveryShuffleShortlistSource));
       await tester.pumpAndSettle();
       expect(
-        find.text('Spin the reel to pick from your shortlist.'),
+        find.text('Drag here to pick from your shortlist.'),
         findsOneWidget,
       );
 
-      final spin = find.byKey(WidgetKeys.discoveryRevealButton);
-      await tester.ensureVisible(spin);
-      await tester.tap(spin);
+      final reel = find.byKey(WidgetKeys.discoveryShuffleReel);
+      await tester.ensureVisible(reel);
+      await tester.drag(reel, const Offset(100, 0));
       await tester.pump();
       final reelPosters = tester
           .widgetList<DiscoveryPoster>(find.byType(DiscoveryPoster))
@@ -808,6 +808,7 @@ void shortlistTests() {
       final liked = find.byKey(WidgetKeys.discoveryShuffleCandidate('liked'));
       final firstWasFresh = fresh.evaluate().isNotEmpty;
       expect(firstWasFresh ? fresh : liked, findsOneWidget);
+      final spin = find.byKey(WidgetKeys.discoveryRevealButton);
       await tester.ensureVisible(spin);
       await tester.tap(spin);
       await tester.pumpAndSettle();

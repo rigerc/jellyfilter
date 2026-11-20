@@ -1660,12 +1660,17 @@ void main() {
     await _pumpPage(tester, cubit);
     await robot.openShuffle();
     await tester.pumpAndSettle();
-    await robot.startSpin();
+    final reel = find.byKey(WidgetKeys.discoveryShuffleReel);
+    await tester.drag(reel, const Offset(0, -100));
+    await tester.pump();
 
     expect(cubit.state.currentRevealId, 'movie-1');
     robot.expectRevealButtonEnabled(enabled: false);
     expect(find.text('Spinning…'), findsOneWidget);
     expect(find.byKey(WidgetKeys.discoveryCandidate('movie-1')), findsNothing);
+
+    await tester.drag(reel, const Offset(100, 0));
+    expect(cubit.state.recentPickIds, ['movie-1']);
 
     await tester.pump(CandyMotion.reelSpin);
     await tester.pump(CandyMotion.reelSettle);
@@ -1680,6 +1685,47 @@ void main() {
       find.byKey(WidgetKeys.discoveryCandidate('movie-1')),
       findsOneWidget,
     );
+    await cubit.close();
+  });
+
+  testWidgets('should draw once per deliberate drag and open details on tap', (
+    tester,
+  ) async {
+    final selector = FakeDiscoverySelector(null)
+      ..choices.addAll(['movie-1', 'movie-2']);
+    final cubit = DiscoveryCubit(
+      store: ImmediateDiscoveryStore(),
+      scopeKey: 'server/user',
+      selector: selector,
+    );
+    await cubit.replaceCandidates(<CatalogCandidate>[
+      _candidate(),
+      _candidate(id: 'movie-2', name: 'Velvet Static'),
+    ]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit, disableAnimations: true);
+    await robot.openShuffle();
+    final reel = find.byKey(WidgetKeys.discoveryShuffleReel);
+    await tester.drag(reel, const Offset(24, 0));
+    expect(selector.receivedCalls, isEmpty);
+
+    final drag = await tester.startGesture(tester.getCenter(reel));
+    await drag.moveBy(const Offset(60, 0));
+    await drag.moveBy(const Offset(60, 0));
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(cubit.state.recentPickIds, ['movie-1']);
+    expect(selector.receivedCalls, hasLength(1));
+
+    await tester.drag(reel, const Offset(-100, 0));
+    await tester.pumpAndSettle();
+    expect(cubit.state.recentPickIds, ['movie-1', 'movie-2']);
+    expect(selector.receivedCalls, hasLength(2));
+
+    await tester.tap(find.byKey(WidgetKeys.discoveryCandidate('movie-2')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(WidgetKeys.discoveryDetails), findsOneWidget);
     await cubit.close();
   });
 

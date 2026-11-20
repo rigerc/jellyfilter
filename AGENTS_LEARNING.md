@@ -98,3 +98,17 @@ the persistent strip and active filter chips visible together.
 
 CustomSemanticsAction is defined in Flutter's semantics library. Import it
 explicitly when adding custom accessibility actions to Material widgets.
+
+## Shuffle reel gestures and scrollable content
+
+The first reel gesture missed vertical drags because the idle placeholder
+overflowed its viewport by 16 pixels and its scroll view claimed the gesture.
+Check vertical drags from the idle state at typical viewport sizes. Keep
+placeholder padding compact so scrolling takes over only when space is tight.
+
+## Refresh Flutter plugins before release builds
+
+After running tests, `flutter build apk --release --no-pub` reused a
+registrant that referenced the development-only integration test plugin.
+Run `flutter build apk --release` so Flutter refreshes the registrant before
+Gradle compiles the release.
