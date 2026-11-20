@@ -146,6 +146,9 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
 
   Future<void> dismiss(String id) => reject(id);
 
+  Future<void> clearReveal() =>
+      _commit(state.copyWith(currentRevealId: null, currentPickId: null));
+
   Future<void> revealNext() {
     final eligible = state.eligibleCandidates;
     if (eligible.isEmpty) {

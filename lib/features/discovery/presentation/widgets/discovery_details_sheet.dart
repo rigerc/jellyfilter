@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_metadata.dart';
@@ -41,21 +43,27 @@ Future<void> showDiscoveryDetails(
   TrailerLauncher? onOpenTrailer,
   Map<String, String> imageHeaders = const <String, String>{},
 }) {
-  // Modal routes sit above the page, so hand the organizer across.
+  // Modal routes sit above the page, so hand the page's actions across.
   final organize = DiscoveryOrganizerScope.maybeOf(context);
+  final shortlist = context.read<ShortlistCubit?>();
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (sheetContext) => DiscoveryDetailsSheet(
-      candidate: candidate,
-      onLoadDetails: onLoadDetails,
-      onOpenTrailer: onOpenTrailer,
-      imageHeaders: imageHeaders,
-      onOrganize: organize == null
-          ? null
-          : (current) => organize(sheetContext, current),
-    ),
+    builder: (sheetContext) {
+      final sheet = DiscoveryDetailsSheet(
+        candidate: candidate,
+        onLoadDetails: onLoadDetails,
+        onOpenTrailer: onOpenTrailer,
+        imageHeaders: imageHeaders,
+        onOrganize: organize == null
+            ? null
+            : (current) => organize(sheetContext, current),
+      );
+      return shortlist == null
+          ? sheet
+          : BlocProvider.value(value: shortlist, child: sheet);
+    },
   );
 }
 
@@ -293,11 +301,21 @@ final class _DetailsHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: CandySpacing.compact / 2,
             children: <Widget>[
-              Text(
-                candidate.name,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.headlineSmall?.copyWith(height: 1.15),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      candidate.name,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                  DiscoveryShortlistButton(candidate: candidate),
+                ],
               ),
               if (meta.isNotEmpty)
                 Text(

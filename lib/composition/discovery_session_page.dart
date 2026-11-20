@@ -13,9 +13,11 @@ import 'package:jellyfilter/features/catalog/domain/failures/catalog_failure.dar
 import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/application/random_discovery_selector.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
 import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/shortlist_store.dart';
 import 'package:jellyfilter/features/discovery/domain/serialization/catalog_filter_codec.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/favorites/application/favorite_cubit.dart';
@@ -23,6 +25,7 @@ import 'package:jellyfilter/features/favorites/data/jellyfin_favorite_repository
 import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/features/persistence/data/shared_preferences_discovery_store.dart';
+import 'package:jellyfilter/features/persistence/data/shared_preferences_shortlist_store.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -32,6 +35,7 @@ final class DiscoverySessionPage extends StatefulWidget {
     required this.client,
     this.onReconnect,
     this.discoveryStore,
+    this.shortlistStore,
     super.key,
   });
 
@@ -39,6 +43,7 @@ final class DiscoverySessionPage extends StatefulWidget {
   final http.Client client;
   final VoidCallback? onReconnect;
   final DiscoveryStore? discoveryStore;
+  final ShortlistStore? shortlistStore;
 
   @override
   State<DiscoverySessionPage> createState() => _DiscoverySessionPageState();
@@ -51,6 +56,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
 
   late final CatalogCubit _catalogCubit;
   late final DiscoveryCubit _discoveryCubit;
+  late final ShortlistCubit _shortlistCubit;
   late final FavoriteCubit _favoriteCubit;
   late final LibraryActionsRepository _libraryActions;
   StreamSubscription<DiscoveryState>? _discoverySubscription;
@@ -63,24 +69,30 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   void initState() {
     super.initState();
     final session = widget.session;
-    _catalogCubit = CatalogCubit(
-      JellyfinCatalogRepository(
-        client: widget.client,
-        serverUrl: session.serverUrl,
-        accessToken: session.accessToken,
-        deviceId: session.deviceId,
-        userId: session.userId,
-      ),
+    final scope = '${session.serverUrl}/${session.userId}';
+    late final preferences = SharedPreferencesAsyncBlobPreferences();
+    final catalog = JellyfinCatalogRepository(
+      client: widget.client,
+      serverUrl: session.serverUrl,
+      accessToken: session.accessToken,
+      deviceId: session.deviceId,
+      userId: session.userId,
     );
+    _catalogCubit = CatalogCubit(catalog);
     _discoveryCubit = DiscoveryCubit(
       store:
-          widget.discoveryStore ??
-          SharedPreferencesDiscoveryStore(
-            SharedPreferencesAsyncBlobPreferences(),
-          ),
-      scopeKey: '${session.serverUrl}/${session.userId}',
+          widget.discoveryStore ?? SharedPreferencesDiscoveryStore(preferences),
+      scopeKey: scope,
       selector: RandomDiscoverySelector(),
     );
+    _shortlistCubit = ShortlistCubit(
+      store:
+          widget.shortlistStore ??
+          SharedPreferencesShortlistStore(preferences, scope),
+      loadMovies: catalog.loadMoviesByIds,
+      selector: RandomDiscoverySelector(),
+    );
+    unawaited(_shortlistCubit.hydrate());
     _favoriteCubit = FavoriteCubit(
       JellyfinFavoriteRepository(
         client: widget.client,
@@ -160,6 +172,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_catalogCubit.close());
     unawaited(_discoveryCubit.close());
+    unawaited(_shortlistCubit.close());
     unawaited(_favoriteCubit.close());
     unawaited(_discoverySubscription?.cancel());
     super.dispose();
@@ -171,7 +184,9 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     return MultiBlocProvider(
       providers: [
         BlocProvider<CatalogCubit>.value(value: _catalogCubit),
+        BlocProvider<DiscoveryCubit>.value(value: _discoveryCubit),
         BlocProvider<FavoriteCubit>.value(value: _favoriteCubit),
+        BlocProvider<ShortlistCubit>.value(value: _shortlistCubit),
       ],
       child: BlocConsumer<CatalogCubit, CatalogState>(
         listenWhen: (previous, current) => switch ((previous, current)) {
@@ -189,6 +204,12 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
           }
         },
         builder: (context, state) {
+          final isShuffle = context.select(
+            (DiscoveryCubit cubit) => cubit.state.mode == DiscoveryMode.shuffle,
+          );
+          final useShortlist = context.select(
+            (ShortlistCubit cubit) => cubit.state.useShortlist,
+          );
           final loading = switch (state) {
             CatalogLoading() || CatalogLoaded(loadingMore: true) => true,
             _ => false,
@@ -200,10 +221,11 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
                   failure is! NoCatalogMatchFailure,
             _ => false,
           };
-          if (failedWithoutCandidates) {
+          if (failedWithoutCandidates && !isShuffle) {
             return _CatalogError(onReconnect: widget.onReconnect ?? _retry);
           }
-          if (state is CatalogLoading &&
+          if (!isShuffle &&
+              state is CatalogLoading &&
               _discoveryCubit.state.candidates.isEmpty) {
             return const _CatalogLoading();
           }
@@ -235,8 +257,12 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
                   ),
                 },
                 onToggleFavorite: _toggleFavorite,
+                onRetryCatalog: failedWithoutCandidates
+                    ? (widget.onReconnect ?? _retry)
+                    : null,
               ),
-              if (loading) const LinearProgressIndicator(),
+              if (loading && !(isShuffle && useShortlist))
+                const LinearProgressIndicator(),
             ],
           );
         },
@@ -274,6 +300,7 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     // The catalog is the source of truth; the discovery list mirrors it, and
     // is patched directly too in case the catalog is mid-reload.
     _catalogCubit.setFavorite(candidate.id, favorite);
+    _shortlistCubit.setFavorite(candidate.id, favorite);
     unawaited(
       _discoveryCubit.updateCandidate(candidate.copyWith(favorite: favorite)),
     );

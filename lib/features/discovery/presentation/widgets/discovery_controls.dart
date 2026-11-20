@@ -6,6 +6,7 @@ import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
@@ -27,6 +28,9 @@ final class DiscoveryControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shortlistSelected = context.select(
+      (ShortlistCubit? cubit) => cubit?.state.useShortlist ?? false,
+    );
     return BlocBuilder<DiscoveryCubit, DiscoveryState>(
       buildWhen: (previous, current) =>
           previous.filteredCandidates.length !=
@@ -35,6 +39,8 @@ final class DiscoveryControls extends StatelessWidget {
           previous.mode != current.mode ||
           previous.fadeWatched != current.fadeWatched,
       builder: (context, state) {
+        final showCatalogFilters =
+            state.mode != DiscoveryMode.shuffle || !shortlistSelected;
         void openFilters() => showDiscoveryFilters(
           context,
           state.filter,
@@ -46,9 +52,11 @@ final class DiscoveryControls extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             DiscoveryHeader(
-              candidateCount: state.filteredCandidates.length,
+              candidateCount: showCatalogFilters
+                  ? state.filteredCandidates.length
+                  : null,
               filter: state.filter,
-              onOpenFilters: openFilters,
+              onOpenFilters: showCatalogFilters ? openFilters : null,
               onClear: onClear,
               onSortChanged: state.mode == DiscoveryMode.shuffle
                   ? null
@@ -71,12 +79,13 @@ final class DiscoveryControls extends StatelessWidget {
                   .read<DiscoveryCubit>()
                   .setFadeWatched,
             ),
-            DiscoveryActiveFilters(
-              filter: state.filter,
-              mode: state.mode,
-              libraries: libraries,
-              onOpenFilters: openFilters,
-            ),
+            if (showCatalogFilters)
+              DiscoveryActiveFilters(
+                filter: state.filter,
+                mode: state.mode,
+                libraries: libraries,
+                onOpenFilters: openFilters,
+              ),
           ],
         );
       },

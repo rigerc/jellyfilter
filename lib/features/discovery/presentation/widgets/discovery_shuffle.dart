@@ -10,6 +10,8 @@ import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/core/widgets/candy_bounce.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
@@ -22,6 +24,8 @@ import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 final class DiscoveryShuffle extends StatefulWidget {
   const DiscoveryShuffle({
     required this.state,
+    this.shortlist,
+    this.onRetryCatalog,
     this.onToggleFavorite,
     this.onLoadDetails,
     this.onOpenTrailer,
@@ -30,6 +34,8 @@ final class DiscoveryShuffle extends StatefulWidget {
   });
 
   final DiscoveryState state;
+  final ShortlistState? shortlist;
+  final VoidCallback? onRetryCatalog;
   final FavoriteToggle? onToggleFavorite;
   final CandidateDetailsLoader? onLoadDetails;
   final TrailerLauncher? onOpenTrailer;
@@ -65,13 +71,17 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
   double _blur = 0;
 
   bool get _spinning => _reel.isNotEmpty;
+  bool get _usesShortlist => widget.shortlist?.useShortlist ?? false;
 
   @override
   void didUpdateWidget(covariant DiscoveryShuffle oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Something outside the reel (filters, a dismissal, a refill) replaced
     // the pick mid-spin: stop rather than land on a stale title.
-    if (_spinning && widget.state.currentRevealId != _reel.last.id) {
+    final pickId = _usesShortlist
+        ? widget.shortlist?.pick?.id
+        : widget.state.currentRevealId;
+    if (_spinning && pickId != _reel.last.id) {
       _stopReel();
     }
   }
@@ -85,22 +95,47 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
 
   void _spin() {
     final cubit = context.read<DiscoveryCubit>();
+    if (_usesShortlist) {
+      final shortlist = context.read<ShortlistCubit>();
+      final previous = shortlist.state.pick;
+      final pool = shortlist.state.pool;
+      final target = shortlist.revealNext();
+      if (target != null) {
+        _reveal(
+          target,
+          previous: previous,
+          pool: pool,
+          immediate: pool.length == 1,
+        );
+      }
+      return;
+    }
     final previous = _candidateIn(cubit.state);
     // revealNext emits synchronously, so the new pick is readable right away.
     unawaited(cubit.revealNext());
     final next = cubit.state;
     final target = _candidateIn(next);
-    if (target == null) {
-      return;
+    if (target != null) {
+      _reveal(target, previous: previous, pool: next.eligibleCandidates);
     }
-    if (MediaQuery.disableAnimationsOf(context) ||
-        next.shuffleDuration == ShuffleDuration.instant) {
+  }
+
+  void _reveal(
+    CatalogCandidate target, {
+    required CatalogCandidate? previous,
+    required List<CatalogCandidate> pool,
+    bool immediate = false,
+  }) {
+    final duration = widget.state.shuffleDuration;
+    if (immediate ||
+        MediaQuery.disableAnimationsOf(context) ||
+        duration == ShuffleDuration.instant) {
       unawaited(HapticFeedback.mediumImpact());
       setState(() => _landings++);
       return;
     }
-    _controller.duration = next.shuffleDuration.duration;
-    _startSpin(target, previous: previous, pool: next.eligibleCandidates);
+    _controller.duration = duration.duration;
+    _startSpin(target, previous: previous, pool: pool);
   }
 
   void _startSpin(
@@ -255,7 +290,15 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
   Widget build(BuildContext context) {
     final localization = AppLocalizations.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final candidate = _candidateIn(widget.state);
+    final shortlist = widget.shortlist;
+    final usesShortlist = _usesShortlist;
+    final pool = usesShortlist
+        ? shortlist?.pool ?? const <CatalogCandidate>[]
+        : widget.state.eligibleCandidates;
+    final candidate = usesShortlist
+        ? shortlist?.pick
+        : _candidateIn(widget.state);
+    final directReveal = usesShortlist && pool.length == 1;
     final spinning = _spinning;
     final Widget windowContent;
     if (spinning) {
@@ -265,12 +308,25 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
         blur: () => _blur,
         headers: widget.imageHeaders,
       );
+    } else if (usesShortlist && shortlist != null && pool.isEmpty) {
+      windowContent = _shortlistStatus(context, shortlist);
+    } else if (widget.onRetryCatalog case final retry? when !usesShortlist) {
+      windowContent = _ShuffleMessage(
+        message: localization.catalogErrorTitle,
+        action: TextButton(
+          key: WidgetKeys.discoveryShuffleCatalogRetry,
+          onPressed: retry,
+          child: Text(localization.discoveryRetryLabel),
+        ),
+      );
     } else if (candidate == null) {
       windowContent = _ShuffleIdle(
         key: WidgetKeys.discoveryShufflePlaceholder,
+        usesShortlist: usesShortlist,
         exhausted:
-            widget.state.noEligibleCandidates ||
-            widget.state.eligibleCandidates.isEmpty,
+            !usesShortlist &&
+            (widget.state.noEligibleCandidates ||
+                widget.state.eligibleCandidates.isEmpty),
       );
     } else {
       windowContent = Semantics(
@@ -298,11 +354,43 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
       );
     }
 
-    return Column(
-      key: WidgetKeys.discoveryShuffle,
+    final reelAndSettings = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: CandySpacing.compact,
       children: <Widget>[
+        if (shortlist != null)
+          SegmentedButton<bool>(
+            key: WidgetKeys.discoveryShuffleSource,
+            expandedInsets: EdgeInsets.zero,
+            showSelectedIcon: false,
+            segments: [
+              ButtonSegment(
+                value: false,
+                label: Text(
+                  localization.discoveryShuffleFilteredSourceLabel,
+                  key: WidgetKeys.discoveryShuffleFilteredSource,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text(
+                  localization.discoveryShortlistLabel,
+                  key: WidgetKeys.discoveryShuffleShortlistSource,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+            selected: {usesShortlist},
+            onSelectionChanged: spinning
+                ? null
+                : (selection) {
+                    unawaited(context.read<DiscoveryCubit>().clearReveal());
+                    context.read<ShortlistCubit>().selectSource(
+                      useShortlist: selection.single,
+                    );
+                  },
+          ),
         Expanded(
           child: _ReelWindow(
             landings: _landings,
@@ -361,6 +449,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
                                 unawaited(organize(context, candidate)),
                             icon: const Icon(Icons.playlist_add_rounded),
                           ),
+                        DiscoveryShortlistButton(candidate: candidate),
                         DiscoveryFavoriteButton(
                           candidate: candidate,
                           onToggleFavorite: widget.onToggleFavorite,
@@ -370,71 +459,170 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
                   ),
           ),
         ),
-        _FavoriteBiasControl(
-          bias: widget.state.favoriteBias,
-          hasFavorites: widget.state.eligibleCandidates.any(
-            (candidate) => candidate.favorite == true,
+        if (!usesShortlist)
+          _FavoriteBiasControl(
+            bias: widget.state.favoriteBias,
+            hasFavorites: pool.any((candidate) => candidate.favorite == true),
+            enabled: !spinning,
           ),
-          enabled: !spinning,
+      ],
+    );
+    return Column(
+      key: WidgetKeys.discoveryShuffle,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: CandySpacing.compact,
+      children: [
+        Expanded(
+          child: shortlist == null
+              ? reelAndSettings
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final textScale =
+                        MediaQuery.textScalerOf(context).scale(16) / 16;
+                    final minimumHeight =
+                        310 + 110 * (textScale - 1).clamp(0.0, 2.0);
+                    if (constraints.maxHeight >= minimumHeight) {
+                      return reelAndSettings;
+                    }
+                    return SingleChildScrollView(
+                      child: SizedBox(
+                        height: minimumHeight,
+                        child: reelAndSettings,
+                      ),
+                    );
+                  },
+                ),
         ),
         Row(
           children: <Widget>[
             Expanded(
               child: FilledButton.icon(
                 key: WidgetKeys.discoveryRevealButton,
-                onPressed: spinning ? null : _spin,
+                onPressed:
+                    spinning ||
+                        (usesShortlist
+                            ? pool.isEmpty
+                            : widget.onRetryCatalog != null)
+                    ? null
+                    : _spin,
                 icon: const Icon(Icons.casino_rounded),
                 label: Text(
                   spinning
                       ? localization.discoverySpinningLabel
+                      : directReveal
+                      ? localization.discoveryShortlistRevealLabel
                       : candidate == null
                       ? localization.discoveryRevealLabel
                       : localization.discoverySpinAgainLabel,
                 ),
               ),
             ),
-            const SizedBox(width: CandySpacing.compact),
-            PopupMenuButton<ShuffleDuration>(
-              key: WidgetKeys.discoveryShuffleDuration,
-              tooltip: localization.discoveryShuffleDurationLabel,
-              enabled: !spinning,
-              initialValue: widget.state.shuffleDuration,
-              popUpAnimationStyle: reduceMotion
-                  ? AnimationStyle.noAnimation
-                  : null,
-              onSelected: context.read<DiscoveryCubit>().setShuffleDuration,
-              itemBuilder: (context) => <PopupMenuEntry<ShuffleDuration>>[
-                for (final choice in ShuffleDuration.values)
-                  CheckedPopupMenuItem<ShuffleDuration>(
-                    key: WidgetKeys.discoveryShuffleDurationChoice(choice.name),
-                    value: choice,
-                    checked: choice == widget.state.shuffleDuration,
-                    child: Text(_durationLabel(localization, choice)),
-                  ),
-              ],
-              child: SizedBox(
-                height: 48,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    const Icon(Icons.timer_outlined),
-                    const SizedBox(width: CandySpacing.compact / 2),
-                    Text(
-                      _durationLabel(
-                        localization,
-                        widget.state.shuffleDuration,
+            if (!usesShortlist || pool.length > 1) ...[
+              const SizedBox(width: CandySpacing.compact),
+              PopupMenuButton<ShuffleDuration>(
+                key: WidgetKeys.discoveryShuffleDuration,
+                tooltip: localization.discoveryShuffleDurationLabel,
+                enabled: !spinning,
+                initialValue: widget.state.shuffleDuration,
+                popUpAnimationStyle: reduceMotion
+                    ? AnimationStyle.noAnimation
+                    : null,
+                onSelected: context.read<DiscoveryCubit>().setShuffleDuration,
+                itemBuilder: (context) => <PopupMenuEntry<ShuffleDuration>>[
+                  for (final choice in ShuffleDuration.values)
+                    CheckedPopupMenuItem<ShuffleDuration>(
+                      key: WidgetKeys.discoveryShuffleDurationChoice(
+                        choice.name,
                       ),
+                      value: choice,
+                      checked: choice == widget.state.shuffleDuration,
+                      child: Text(_durationLabel(localization, choice)),
                     ),
-                    const Icon(Icons.arrow_drop_down),
-                  ],
+                ],
+                child: SizedBox(
+                  height: 48,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(Icons.timer_outlined),
+                      const SizedBox(width: CandySpacing.compact / 2),
+                      Text(
+                        _durationLabel(
+                          localization,
+                          widget.state.shuffleDuration,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ],
     );
   }
+
+  Widget _shortlistStatus(BuildContext context, ShortlistState shortlist) {
+    final l10n = AppLocalizations.of(context);
+    if (shortlist.isHydrated && shortlist.entries.isEmpty) {
+      return _ShuffleMessage(
+        message: l10n.discoveryShortlistEmpty,
+        action: TextButton(
+          key: WidgetKeys.discoveryShortlistBrowse,
+          onPressed: () =>
+              context.read<DiscoveryCubit>().setMode(DiscoveryMode.grid),
+          child: Text(l10n.discoveryShortlistBrowseLabel),
+        ),
+      );
+    }
+    return switch (shortlist.lookup) {
+      ShortlistLookup.idle || ShortlistLookup.loading => _ShuffleMessage(
+        message: l10n.discoveryShortlistLoading,
+        action: const Padding(
+          padding: EdgeInsets.all(CandySpacing.compact),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      ShortlistLookup.failed => _ShuffleMessage(
+        message: l10n.discoveryShortlistLookupError,
+        action: TextButton(
+          key: WidgetKeys.discoveryShortlistRetry,
+          onPressed: context.read<ShortlistCubit>().refresh,
+          child: Text(l10n.discoveryRetryLabel),
+        ),
+      ),
+      ShortlistLookup.ready => _ShuffleMessage(
+        message: l10n.discoveryShortlistNoneAvailable,
+      ),
+    };
+  }
+}
+
+final class _ShuffleMessage extends StatelessWidget {
+  const _ShuffleMessage({required this.message, this.action});
+
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(CandySpacing.gutter),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        spacing: CandySpacing.compact,
+        children: [
+          Semantics(
+            liveRegion: true,
+            child: Text(message, textAlign: TextAlign.center),
+          ),
+          ?action,
+        ],
+      ),
+    ),
+  );
 }
 
 String _durationLabel(AppLocalizations l10n, ShuffleDuration choice) =>
@@ -726,10 +914,15 @@ final class _ReelStrip extends StatelessWidget {
 }
 
 final class _ShuffleIdle extends StatelessWidget {
-  const _ShuffleIdle({required this.exhausted, super.key});
+  const _ShuffleIdle({
+    required this.exhausted,
+    required this.usesShortlist,
+    super.key,
+  });
 
   /// Nothing is left to pick under the current filters and decisions.
   final bool exhausted;
+  final bool usesShortlist;
 
   @override
   Widget build(BuildContext context) {
@@ -762,6 +955,8 @@ final class _ShuffleIdle extends StatelessWidget {
               child: Text(
                 exhausted
                     ? localization.discoveryNoCandidatesDescription
+                    : usesShortlist
+                    ? localization.discoveryShortlistIdleDescription
                     : localization.discoveryShuffleIdleDescription,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,

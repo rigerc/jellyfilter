@@ -9,6 +9,7 @@ import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/core/widgets/candy_bounce.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
@@ -73,16 +74,29 @@ final class DiscoveryCandidateCard extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: radius,
-                  child: ColoredBox(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: DiscoveryWatchedFade(
-                      candidate: candidate,
-                      child: DiscoveryPoster(
-                        candidate: candidate,
-                        headers: imageHeaders,
-                        fit: posterFit,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      ColoredBox(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: DiscoveryWatchedFade(
+                          candidate: candidate,
+                          child: DiscoveryPoster(
+                            candidate: candidate,
+                            headers: imageHeaders,
+                            fit: posterFit,
+                          ),
+                        ),
                       ),
-                    ),
+                      PositionedDirectional(
+                        top: CandySpacing.compact / 2,
+                        end: CandySpacing.compact / 2,
+                        child: DiscoveryShortlistButton(
+                          candidate: candidate,
+                          onPoster: true,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -205,6 +219,54 @@ final class DiscoveryWatchedFade extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+final class DiscoveryShortlistButton extends StatelessWidget {
+  const DiscoveryShortlistButton({
+    required this.candidate,
+    this.onPoster = false,
+    super.key,
+  });
+
+  final CatalogCandidate candidate;
+  final bool onPoster;
+
+  @override
+  Widget build(BuildContext context) {
+    if (candidate.mediaType != CatalogMediaType.movie) {
+      return const SizedBox.shrink();
+    }
+    final saved = context.select(
+      (ShortlistCubit? cubit) => cubit?.state.contains(candidate.id),
+    );
+    if (saved == null) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return IconButton(
+      key: WidgetKeys.discoveryShortlistBookmark(candidate.id),
+      tooltip: saved
+          ? l10n.discoveryShortlistRemoveLabel(candidate.name)
+          : l10n.discoveryShortlistAddLabel(candidate.name),
+      isSelected: saved,
+      color: saved ? scheme.primary : scheme.onSurface,
+      style: onPoster
+          ? IconButton.styleFrom(backgroundColor: CandyColors.surface)
+          : null,
+      onPressed: () async {
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        final success = await context.read<ShortlistCubit>().toggle(candidate);
+        if (!success && messenger != null && messenger.mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.discoveryShortlistSaveError)),
+          );
+        }
+      },
+      icon: const Icon(Icons.bookmark_border_rounded),
+      selectedIcon: const Icon(Icons.bookmark_rounded),
     );
   }
 }

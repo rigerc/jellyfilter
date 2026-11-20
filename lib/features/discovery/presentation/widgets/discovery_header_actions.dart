@@ -20,7 +20,7 @@ final class DiscoveryHeaderActions extends StatelessWidget {
   });
 
   final bool filterActive;
-  final VoidCallback onOpenFilters;
+  final VoidCallback? onOpenFilters;
   final VoidCallback onClear;
   final CatalogSort sort;
   final bool sortReversed;
@@ -84,19 +84,20 @@ final class DiscoveryHeaderActions extends StatelessWidget {
               ],
             ],
           ),
-        IconButton.filledTonal(
-          key: WidgetKeys.discoveryFilterButton,
-          tooltip: filterActive
-              ? localization.discoveryActiveFilterLabel
-              : localization.discoveryFiltersLabel,
-          onPressed: onOpenFilters,
-          icon: filterActive
-              ? const Badge(
-                  key: WidgetKeys.discoveryActiveFilterIndicator,
-                  child: filterIcon,
-                )
-              : filterIcon,
-        ),
+        if (onOpenFilters case final openFilters?)
+          IconButton.filledTonal(
+            key: WidgetKeys.discoveryFilterButton,
+            tooltip: filterActive
+                ? localization.discoveryActiveFilterLabel
+                : localization.discoveryFiltersLabel,
+            onPressed: openFilters,
+            icon: filterActive
+                ? const Badge(
+                    key: WidgetKeys.discoveryActiveFilterIndicator,
+                    child: filterIcon,
+                  )
+                : filterIcon,
+          ),
         PopupMenuButton<void>(
           key: WidgetKeys.discoveryMoreButton,
           tooltip: localization.discoveryMoreActionsLabel,

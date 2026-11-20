@@ -298,6 +298,114 @@ abstract class AppLocalizations {
   /// **'Shuffle'**
   String get discoveryShuffleLabel;
 
+  /// No description provided for @discoveryShuffleFilteredSourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtered titles'**
+  String get discoveryShuffleFilteredSourceLabel;
+
+  /// No description provided for @discoveryShortlistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortlist'**
+  String get discoveryShortlistLabel;
+
+  /// No description provided for @discoveryShortlistAddLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {title} to shortlist'**
+  String discoveryShortlistAddLabel(String title);
+
+  /// No description provided for @discoveryShortlistRemoveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {title} from shortlist'**
+  String discoveryShortlistRemoveLabel(String title);
+
+  /// No description provided for @discoveryShortlistCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortlist · {count, plural, =1{1 movie} other{{count} movies}}'**
+  String discoveryShortlistCount(int count);
+
+  /// No description provided for @discoveryShortlistViewLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'View shortlist'**
+  String get discoveryShortlistViewLabel;
+
+  /// No description provided for @discoveryShortlistPreviewPair.
+  ///
+  /// In en, this message translates to:
+  /// **'{first}, {second}'**
+  String discoveryShortlistPreviewPair(String first, String second);
+
+  /// No description provided for @discoveryShortlistEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark movies to shuffle them here.'**
+  String get discoveryShortlistEmpty;
+
+  /// No description provided for @discoveryShortlistBrowseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse movies'**
+  String get discoveryShortlistBrowseLabel;
+
+  /// No description provided for @discoveryShortlistLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading shortlist…'**
+  String get discoveryShortlistLoading;
+
+  /// No description provided for @discoveryShortlistIdleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Spin the reel to pick from your shortlist.'**
+  String get discoveryShortlistIdleDescription;
+
+  /// No description provided for @discoveryShortlistUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get discoveryShortlistUnavailable;
+
+  /// No description provided for @discoveryShortlistNoneAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'None of your saved movies are available.'**
+  String get discoveryShortlistNoneAvailable;
+
+  /// No description provided for @discoveryShortlistLookupError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t load your shortlist.'**
+  String get discoveryShortlistLookupError;
+
+  /// No description provided for @discoveryShortlistSaveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t update your shortlist. Try again.'**
+  String get discoveryShortlistSaveError;
+
+  /// No description provided for @discoveryShortlistRevealLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal movie'**
+  String get discoveryShortlistRevealLabel;
+
+  /// No description provided for @discoveryShortlistRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {title}'**
+  String discoveryShortlistRemoved(String title);
+
+  /// No description provided for @discoveryShortlistUndoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get discoveryShortlistUndoLabel;
+
   /// No description provided for @discoveryLikeLabel.
   ///
   /// In en, this message translates to:
@@ -585,6 +693,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NOPE'**
   String get discoverySwipeNopeStamp;
+
+  /// No description provided for @discoverySwipeShortlistPull.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull down to shortlist'**
+  String get discoverySwipeShortlistPull;
+
+  /// No description provided for @discoverySwipeShortlistRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Release to shortlist'**
+  String get discoverySwipeShortlistRelease;
+
+  /// No description provided for @discoverySwipeShortlistAlreadySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Already on your shortlist'**
+  String get discoverySwipeShortlistAlreadySaved;
+
+  /// No description provided for @discoverySwipeShortlistSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {title} to your shortlist'**
+  String discoverySwipeShortlistSaved(String title);
 
   /// No description provided for @discoverySwipeInfoLabel.
   ///

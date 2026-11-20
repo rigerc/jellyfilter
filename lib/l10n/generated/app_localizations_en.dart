@@ -133,6 +133,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryShuffleLabel => 'Shuffle';
 
   @override
+  String get discoveryShuffleFilteredSourceLabel => 'Filtered titles';
+
+  @override
+  String get discoveryShortlistLabel => 'Shortlist';
+
+  @override
+  String discoveryShortlistAddLabel(String title) {
+    return 'Add $title to shortlist';
+  }
+
+  @override
+  String discoveryShortlistRemoveLabel(String title) {
+    return 'Remove $title from shortlist';
+  }
+
+  @override
+  String discoveryShortlistCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count movies',
+      one: '1 movie',
+    );
+    return 'Shortlist · $_temp0';
+  }
+
+  @override
+  String get discoveryShortlistViewLabel => 'View shortlist';
+
+  @override
+  String discoveryShortlistPreviewPair(String first, String second) {
+    return '$first, $second';
+  }
+
+  @override
+  String get discoveryShortlistEmpty => 'Bookmark movies to shuffle them here.';
+
+  @override
+  String get discoveryShortlistBrowseLabel => 'Browse movies';
+
+  @override
+  String get discoveryShortlistLoading => 'Loading shortlist…';
+
+  @override
+  String get discoveryShortlistIdleDescription =>
+      'Spin the reel to pick from your shortlist.';
+
+  @override
+  String get discoveryShortlistUnavailable => 'Unavailable';
+
+  @override
+  String get discoveryShortlistNoneAvailable =>
+      'None of your saved movies are available.';
+
+  @override
+  String get discoveryShortlistLookupError => 'Couldn’t load your shortlist.';
+
+  @override
+  String get discoveryShortlistSaveError =>
+      'Couldn’t update your shortlist. Try again.';
+
+  @override
+  String get discoveryShortlistRevealLabel => 'Reveal movie';
+
+  @override
+  String discoveryShortlistRemoved(String title) {
+    return 'Removed $title';
+  }
+
+  @override
+  String get discoveryShortlistUndoLabel => 'Undo';
+
+  @override
   String get discoveryLikeLabel => 'Like';
 
   @override
@@ -298,6 +371,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoverySwipeNopeStamp => 'NOPE';
+
+  @override
+  String get discoverySwipeShortlistPull => 'Pull down to shortlist';
+
+  @override
+  String get discoverySwipeShortlistRelease => 'Release to shortlist';
+
+  @override
+  String get discoverySwipeShortlistAlreadySaved => 'Already on your shortlist';
+
+  @override
+  String discoverySwipeShortlistSaved(String title) {
+    return 'Added $title to your shortlist';
+  }
 
   @override
   String get discoverySwipeInfoLabel => 'Show details';

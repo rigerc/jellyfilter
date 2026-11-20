@@ -5,8 +5,68 @@ import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/persistence/data/shared_preferences_discovery_store.dart';
+import 'package:jellyfilter/features/persistence/data/shared_preferences_shortlist_store.dart';
 
 void main() {
+  test(
+    'keeps the shortlist scoped and independent of discovery resets',
+    () async {
+      final preferences = RecordingBlobPreferences();
+      const scope = 'https://example.test/user-1';
+      final discovery = SharedPreferencesDiscoveryStore(preferences);
+      final shortlist = SharedPreferencesShortlistStore(preferences, scope);
+      const entries = [
+        (id: 'movie-2', title: 'Second'),
+        (id: 'movie-1', title: 'First'),
+      ];
+      await shortlist.write(entries);
+      await discovery.write(scope, const DiscoverySnapshot());
+      await discovery.clear(scope);
+
+      expect(
+        await SharedPreferencesShortlistStore(preferences, scope).read(),
+        entries,
+      );
+      expect(
+        await SharedPreferencesShortlistStore(
+          preferences,
+          'https://example.test/user-2',
+        ).read(),
+        isEmpty,
+      );
+      expect(
+        await SharedPreferencesShortlistStore(
+          preferences,
+          'https://another.test/user-1',
+        ).read(),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'restores valid and unique shortlist entries from persisted data',
+    () async {
+      final preferences = RecordingBlobPreferences();
+      final shortlist = SharedPreferencesShortlistStore(preferences, 'test');
+      final key = '${preferences.keyFor('test')}.shortlist';
+      await preferences.write(key, '{bad');
+      expect(await shortlist.read(), isEmpty);
+
+      await preferences.write(
+        key,
+        jsonEncode([
+          {'id': 'saved', 'title': 'Movie'},
+          {'id': 'saved', 'title': 'Duplicate'},
+          {'id': ' ', 'title': 'Missing ID'},
+          {'id': 'other', 'title': 42},
+          false,
+        ]),
+      );
+      expect(await shortlist.read(), [(id: 'saved', title: 'Movie')]);
+    },
+  );
+
   test('should persist one scoped versioned JSON blob', () async {
     final preferences = RecordingBlobPreferences();
     final store = SharedPreferencesDiscoveryStore(preferences);

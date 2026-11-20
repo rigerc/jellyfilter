@@ -43,6 +43,42 @@ final class JellyfinCatalogRepository implements CatalogRepository {
   final Duration timeout;
   final DateTime Function() _clock;
 
+  /// Resolves an explicit set of movie IDs independently of discovery filters.
+  Future<List<CatalogCandidate>> loadMoviesByIds(Set<String> ids) async {
+    final movies = <CatalogCandidate>[];
+    final requestedIds = ids.toList(growable: false);
+    for (var offset = 0; offset < requestedIds.length; offset += pageSize) {
+      final batch = requestedIds.skip(offset).take(pageSize).toSet();
+      var startIndex = 0;
+      final foundIds = <String>{};
+      while (true) {
+        final page = await loadPage(startIndex: startIndex, includedIds: batch);
+        final failure = page.failure;
+        if (failure != null &&
+            failure is! NoCatalogMatchFailure &&
+            failure is! MissingMetadataCatalogFailure) {
+          throw failure;
+        }
+        for (final candidate in page.candidates) {
+          if (!batch.contains(candidate.id)) {
+            throw const IncompatibleCatalogFailure();
+          }
+          if (foundIds.add(candidate.id)) {
+            movies.add(candidate);
+          }
+        }
+        if (!page.hasMore || foundIds.length == batch.length) {
+          break;
+        }
+        if (page.nextIndex <= startIndex || page.nextIndex >= batch.length) {
+          throw const PartialCatalogFailure();
+        }
+        startIndex = page.nextIndex;
+      }
+    }
+    return movies;
+  }
+
   @override
   Future<CatalogPage> loadPage({
     CatalogFilter filter = const CatalogFilter(),

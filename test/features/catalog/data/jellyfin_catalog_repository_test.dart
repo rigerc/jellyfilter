@@ -14,6 +14,44 @@ import 'package:jellyfilter/features/catalog/domain/repositories/catalog_reposit
 import '../../../shared/recording_http_client.dart';
 
 void main() {
+  test('resolves all shortlisted movies across ID batches and pages', () async {
+    final client = RecordingHttpClient((request) async {
+      final query = request.url.queryParameters;
+      final ids = (query['ids'] ?? '').split(',');
+      if (ids.contains('missing')) {
+        return _jsonResponse({'Items': <Object?>[], 'TotalRecordCount': 0});
+      }
+      final index = int.parse(query['startIndex'] ?? '0');
+      return _jsonResponse({
+        'Items': [
+          {..._movieJson(), 'Id': ids[index]},
+        ],
+        'StartIndex': index,
+        'TotalRecordCount': ids.length,
+      });
+    });
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+      pageSize: 2,
+    );
+
+    final movies = await repository.loadMoviesByIds({
+      'first',
+      'second',
+      'missing',
+    });
+
+    expect(movies.map((movie) => movie.id), ['first', 'second']);
+    expect(
+      client.requests.map((request) => request.url.queryParameters['ids']),
+      ['first,second', 'first,second', 'missing'],
+    );
+  });
+
   test(
     'should load a bounded default page with supported payload limits',
     () async {

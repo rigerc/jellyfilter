@@ -10,7 +10,8 @@ final class DiscoveryEmptyState extends StatelessWidget {
     final localization = AppLocalizations.of(context);
     final theme = Theme.of(context);
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
+        primary: false,
         padding: const EdgeInsets.all(CandySpacing.page),
         child: Column(
           mainAxisSize: MainAxisSize.min,

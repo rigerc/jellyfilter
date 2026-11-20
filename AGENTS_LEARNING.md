@@ -81,3 +81,20 @@ Adding `workflow_dispatch` while rejecting all branch refs made the default
 Run workflow action fail immediately. Support branch dispatch by deriving the
 version tag from pubspec and targeting the selected commit. Validate signing
 configuration before spending time on builds.
+
+## Scoped stores with injected dependencies
+
+The initial shortlist wiring eagerly constructed the SharedPreferences adapter
+even when both stores were injected, which broke widget tests without a platform
+plugin. Initialize platform-backed defaults lazily so injected stores stand alone.
+
+The shared Shuffle placeholder still used filtered-catalog copy and exhaustion
+state after switching sources. Verify the ready-to-spin state and its text
+against the selected source, especially when the catalog has no matches.
+
+The shortlist strip reduced Shuffle's available height enough to put Spin
+below the fold on a standard test viewport. Check the primary action with
+the persistent strip and active filter chips visible together.
+
+CustomSemanticsAction is defined in Flutter's semantics library. Import it
+explicitly when adding custom accessibility actions to Material widgets.

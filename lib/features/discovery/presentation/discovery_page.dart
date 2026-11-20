@@ -11,6 +11,7 @@ import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_co
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_selector.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_switcher.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_shortlist.dart';
 
 typedef FavoriteToggle = Future<bool> Function(CatalogCandidate candidate);
 typedef CandidateDetailsLoader =
@@ -24,6 +25,7 @@ final class DiscoveryPage extends StatelessWidget {
     this.onLoadDetails,
     this.onOpenTrailer,
     this.onLoadMore,
+    this.onRetryCatalog,
     this.libraries = const <CatalogLibrary>[],
     this.facets = const CatalogFacets(),
     this.imageHeaders = const <String, String>{},
@@ -38,6 +40,7 @@ final class DiscoveryPage extends StatelessWidget {
   final CandidateDetailsLoader? onLoadDetails;
   final TrailerLauncher? onOpenTrailer;
   final Future<void> Function()? onLoadMore;
+  final VoidCallback? onRetryCatalog;
   final List<CatalogLibrary> libraries;
   final CatalogFacets facets;
   final Map<String, String> imageHeaders;
@@ -53,6 +56,7 @@ final class DiscoveryPage extends StatelessWidget {
           onLoadDetails: onLoadDetails,
           onOpenTrailer: onOpenTrailer,
           onLoadMore: onLoadMore,
+          onRetryCatalog: onRetryCatalog,
           libraries: libraries,
           facets: facets,
           imageHeaders: imageHeaders,
@@ -71,12 +75,14 @@ final class _DiscoveryView extends StatelessWidget {
     this.onLoadDetails,
     this.onOpenTrailer,
     this.onLoadMore,
+    this.onRetryCatalog,
   });
 
   final FavoriteToggle? onToggleFavorite;
   final CandidateDetailsLoader? onLoadDetails;
   final TrailerLauncher? onOpenTrailer;
   final Future<void> Function()? onLoadMore;
+  final VoidCallback? onRetryCatalog;
   final List<CatalogLibrary> libraries;
   final CatalogFacets facets;
   final Map<String, String> imageHeaders;
@@ -86,7 +92,13 @@ final class _DiscoveryView extends StatelessWidget {
     return Scaffold(
       key: WidgetKeys.discoveryPage,
       resizeToAvoidBottomInset: false,
-      bottomNavigationBar: const DiscoveryModeSelector(),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DiscoveryShortlistStrip(imageHeaders: imageHeaders),
+          const DiscoveryModeSelector(),
+        ],
+      ),
       body: SafeArea(
         bottom: false,
         child: Padding(
@@ -110,6 +122,7 @@ final class _DiscoveryView extends StatelessWidget {
                   onLoadDetails: onLoadDetails,
                   onOpenTrailer: onOpenTrailer,
                   onLoadMore: onLoadMore,
+                  onRetryCatalog: onRetryCatalog,
                   imageHeaders: imageHeaders,
                 ),
               ),

@@ -4,6 +4,7 @@ import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
@@ -17,6 +18,7 @@ final class DiscoveryModeSwitcher extends StatelessWidget {
     this.onLoadDetails,
     this.onOpenTrailer,
     this.onLoadMore,
+    this.onRetryCatalog,
     this.imageHeaders = const <String, String>{},
     super.key,
   });
@@ -25,6 +27,7 @@ final class DiscoveryModeSwitcher extends StatelessWidget {
   final CandidateDetailsLoader? onLoadDetails;
   final TrailerLauncher? onOpenTrailer;
   final Future<void> Function()? onLoadMore;
+  final VoidCallback? onRetryCatalog;
   final Map<String, String> imageHeaders;
 
   @override
@@ -56,12 +59,16 @@ final class DiscoveryModeSwitcher extends StatelessWidget {
               onOpenTrailer: onOpenTrailer,
               imageHeaders: imageHeaders,
             ),
-            DiscoveryMode.shuffle => DiscoveryShuffle(
-              state: state,
-              onToggleFavorite: onToggleFavorite,
-              onLoadDetails: onLoadDetails,
-              onOpenTrailer: onOpenTrailer,
-              imageHeaders: imageHeaders,
+            DiscoveryMode.shuffle => Builder(
+              builder: (context) => DiscoveryShuffle(
+                state: state,
+                shortlist: context.watch<ShortlistCubit?>()?.state,
+                onRetryCatalog: onRetryCatalog,
+                onToggleFavorite: onToggleFavorite,
+                onLoadDetails: onLoadDetails,
+                onOpenTrailer: onOpenTrailer,
+                imageHeaders: imageHeaders,
+              ),
             ),
           },
         ),

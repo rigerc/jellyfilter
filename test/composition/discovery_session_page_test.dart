@@ -11,8 +11,11 @@ import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart
 import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/shortlist_store.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 import '../shared/discovery_robot.dart';
@@ -216,6 +219,7 @@ void main() {
   group('exhausted shuffle', exhaustedShuffleTests);
   group('optimistic favorites', optimisticFavoriteTests);
   group('favorite freshness', favoriteFreshnessTests);
+  group('shortlist', shortlistTests);
 
   testWidgets('should keep the default catalog when switching to Shuffle', (
     tester,
@@ -628,23 +632,413 @@ void exhaustedShuffleTests() {
   });
 }
 
-Widget _app(http.Client client, {DiscoveryStore? discoveryStore}) =>
-    MaterialApp(
-      theme: buildCandyTheme(),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DiscoverySessionPage(
-        session: const StoredSession(
-          serverUrl: 'https://example.test',
-          accessToken: 'token',
-          userId: 'user-id',
-          username: 'alice',
-          deviceId: 'device-id',
+void shortlistTests() {
+  testWidgets(
+    'pulls a movie down to shortlist it and leaves swipe decisions available',
+    (tester) async {
+      final store = _MemoryShortlistStore();
+      final discovery = ImmediateDiscoveryStore()
+        ..snapshot = const DiscoverySnapshot(mode: DiscoveryMode.swipe);
+      await tester.pumpWidget(
+        _app(
+          _shortlistClient(),
+          shortlistStore: store,
+          discoveryStore: discovery,
         ),
-        client: client,
-        discoveryStore: discoveryStore ?? ImmediateDiscoveryStore(),
-      ),
+      );
+      await tester.pumpAndSettle();
+      final card = find
+          .byKey(WidgetKeys.discoveryCandidate('fresh'))
+          .hitTestable();
+
+      await tester.drag(card, const Offset(0, 48));
+      await tester.pumpAndSettle();
+      expect(store.entries, isEmpty);
+
+      await tester.drag(card, const Offset(0, -170));
+      await tester.pumpAndSettle();
+      expect(store.entries, isEmpty);
+
+      final pull = await tester.startGesture(tester.getCenter(card));
+      await pull.moveBy(const Offset(0, 44));
+      await pull.moveBy(const Offset(0, 30));
+      await tester.pump();
+      expect(find.text('Pull down to shortlist'), findsOneWidget);
+      await pull.moveBy(const Offset(28, 116));
+      await tester.pump();
+      expect(find.text('Release to shortlist'), findsOneWidget);
+      expect(store.entries, isEmpty);
+      await pull.up();
+      await tester.pumpAndSettle();
+      expect(store.entries, [(id: 'fresh', title: 'Fresh')]);
+      expect(find.text('Added Fresh to your shortlist'), findsOneWidget);
+      expect(find.text('Shortlist · 1 movie'), findsOneWidget);
+      expect(card, findsOneWidget);
+      expect(discovery.snapshot?.likedIds, isEmpty);
+      expect(discovery.snapshot?.rejectedIds, isEmpty);
+
+      await tester.drag(card, const Offset(0, 175));
+      await tester.pumpAndSettle();
+      expect(store.entries, [(id: 'fresh', title: 'Fresh')]);
+      await tester.fling(card, const Offset(-90, 0), 2000);
+      await tester.pumpAndSettle();
+      expect(card, findsNothing);
+      expect(discovery.snapshot?.rejectedIds, {'fresh'});
+      expect(store.entries, [(id: 'fresh', title: 'Fresh')]);
+    },
+  );
+
+  testWidgets('shows the shortlist above navigation and opens it in any mode', (
+    tester,
+  ) async {
+    final store = _MemoryShortlistStore();
+    var lookups = 0;
+    final client = _shortlistClient(
+      lookup: (ids) {
+        lookups++;
+        return lookups == 1
+            ? http.Response('', 500)
+            : _catalogItems(ids.split(','));
+      },
     );
+    final strip = find.byKey(WidgetKeys.discoveryViewShortlist);
+    final navigation = find.byKey(WidgetKeys.discoveryModeNavigation);
+    final sheet = find.byKey(WidgetKeys.discoveryShortlistSheet);
+    final close = find.byKey(WidgetKeys.discoveryShortlistClose);
+    final robot = DiscoveryRobot(tester);
+
+    await tester.pumpWidget(_app(client, shortlistStore: store));
+    await tester.pumpAndSettle();
+    expect(strip, findsNothing);
+    await tester.tap(
+      find.byKey(WidgetKeys.discoveryShortlistBookmark('fresh')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Shortlist · 1 movie'), findsOneWidget);
+    await tester.tap(
+      find.byKey(WidgetKeys.discoveryShortlistBookmark('suggested')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Shortlist · 2 movies'), findsOneWidget);
+    expect(find.text('Suggested, Fresh'), findsOneWidget);
+    expect(
+      tester.getBottomLeft(strip).dy,
+      lessThan(tester.getTopLeft(navigation).dy),
+    );
+
+    await tester.tap(strip);
+    await tester.pumpAndSettle();
+    expect(sheet, findsOneWidget);
+    expect(lookups, 1);
+    expect(
+      find.descendant(of: sheet, matching: find.text('Fresh')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(WidgetKeys.discoveryShortlistSheetRetry));
+    await tester.pumpAndSettle();
+    expect(lookups, 2);
+    expect(find.byKey(WidgetKeys.discoveryShortlistSheetRetry), findsNothing);
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+    robot.expectGridVisible();
+
+    await robot.openSwipe();
+    await tester.tap(strip);
+    await tester.pumpAndSettle();
+    expect(sheet, findsOneWidget);
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+    robot.expectSwipeVisible();
+
+    await robot.openShuffle();
+    await tester.tap(strip);
+    await tester.pumpAndSettle();
+    expect(sheet, findsOneWidget);
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+    expect(find.byKey(WidgetKeys.discoveryFavoriteBias), findsOneWidget);
+    expect(strip, findsOneWidget);
+  });
+
+  testWidgets(
+    'spins only shortlisted movies without repeating on a compact screen',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(360, 640);
+      tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      final store = _MemoryShortlistStore([
+        (id: 'fresh', title: 'Fresh'),
+        (id: 'liked', title: 'Liked'),
+      ]);
+      final discovery = ImmediateDiscoveryStore()
+        ..snapshot = const DiscoverySnapshot(
+          filter: CatalogFilter(searchTerm: 'Suggested'),
+          mode: DiscoveryMode.shuffle,
+        );
+      await tester.pumpWidget(
+        _app(
+          _shortlistClient(),
+          shortlistStore: store,
+          discoveryStore: discovery,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(WidgetKeys.discoveryShuffleShortlistSource));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Spin the reel to pick from your shortlist.'),
+        findsOneWidget,
+      );
+
+      final spin = find.byKey(WidgetKeys.discoveryRevealButton);
+      await tester.ensureVisible(spin);
+      await tester.tap(spin);
+      await tester.pump();
+      final reelPosters = tester
+          .widgetList<DiscoveryPoster>(find.byType(DiscoveryPoster))
+          .map((poster) => poster.candidate.id);
+      expect(reelPosters, isNotEmpty);
+      expect(reelPosters, everyElement(isIn(['fresh', 'liked'])));
+      await tester.pumpAndSettle();
+
+      final fresh = find.byKey(WidgetKeys.discoveryShuffleCandidate('fresh'));
+      final liked = find.byKey(WidgetKeys.discoveryShuffleCandidate('liked'));
+      final firstWasFresh = fresh.evaluate().isNotEmpty;
+      expect(firstWasFresh ? fresh : liked, findsOneWidget);
+      await tester.ensureVisible(spin);
+      await tester.tap(spin);
+      await tester.pumpAndSettle();
+      expect(firstWasFresh ? liked : fresh, findsOneWidget);
+      expect(firstWasFresh ? fresh : liked, findsNothing);
+    },
+  );
+
+  testWidgets(
+    'bookmarks a movie from Grid and Details and restores it on restart',
+    (tester) async {
+      final store = _MemoryShortlistStore();
+      final client = _shortlistClient();
+      final bookmark = find.byKey(
+        WidgetKeys.discoveryShortlistBookmark('fresh'),
+      );
+
+      await tester.pumpWidget(_app(client, shortlistStore: store));
+      await tester.pumpAndSettle();
+      await tester.tap(bookmark);
+      await tester.pumpAndSettle();
+      expect(tester.widget<IconButton>(bookmark).isSelected, isTrue);
+      expect(store.entries, [(id: 'fresh', title: 'Fresh')]);
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryCandidate('fresh')));
+      await tester.pumpAndSettle();
+      final detailBookmark = bookmark.hitTestable();
+      expect(tester.widget<IconButton>(detailBookmark).isSelected, isTrue);
+      await tester.tap(detailBookmark);
+      await tester.pumpAndSettle();
+      expect(store.entries, isEmpty);
+      await tester.tap(detailBookmark);
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(client, shortlistStore: store));
+      await tester.pumpAndSettle();
+      expect(tester.widget<IconButton>(bookmark).isSelected, isTrue);
+    },
+  );
+
+  testWidgets(
+    'shuffles a movie outside the filters and restores the filtered pool',
+    (tester) async {
+      final store = _MemoryShortlistStore([(id: 'fresh', title: 'Fresh')]);
+      final discovery = ImmediateDiscoveryStore()
+        ..snapshot = const DiscoverySnapshot(
+          filter: CatalogFilter(searchTerm: 'Suggested'),
+          mode: DiscoveryMode.shuffle,
+          rejectedIds: {'fresh'},
+          favoriteBias: 1,
+          shuffleDuration: ShuffleDuration.instant,
+        );
+      final client = _shortlistClient();
+
+      await tester.pumpWidget(
+        _app(client, shortlistStore: store, discoveryStore: discovery),
+      );
+      await tester.pumpAndSettle();
+      final robot = DiscoveryRobot(tester);
+      await robot.reveal();
+      expect(
+        find.byKey(WidgetKeys.discoveryShuffleCandidate('suggested')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryShuffleShortlistSource));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(WidgetKeys.discoveryShuffleCandidate('suggested')),
+        findsNothing,
+      );
+      expect(find.text('Reveal movie'), findsOneWidget);
+      await robot.reveal();
+      expect(
+        find.byKey(WidgetKeys.discoveryShuffleCandidate('fresh')),
+        findsOneWidget,
+      );
+      expect(store.entries, [(id: 'fresh', title: 'Fresh')]);
+      final lookup = client.requests.singleWhere(
+        (request) => request.url.queryParameters['ids'] == 'fresh',
+      );
+      expect(lookup.url.queryParameters, isNot(contains('searchTerm')));
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryShuffleFilteredSource));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(WidgetKeys.discoveryShuffleCandidate('fresh')),
+        findsNothing,
+      );
+      expect(discovery.snapshot?.filter.searchTerm, 'Suggested');
+      await robot.reveal();
+      expect(
+        find.byKey(WidgetKeys.discoveryShuffleCandidate('suggested')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'retries lookup, manages an unavailable entry, and links an empty list to Grid',
+    (tester) async {
+      final store = _MemoryShortlistStore([
+        (id: 'missing', title: 'Missing Movie'),
+      ]);
+      final discovery = ImmediateDiscoveryStore()
+        ..snapshot = const DiscoverySnapshot(mode: DiscoveryMode.shuffle);
+      var lookups = 0;
+      final client = _shortlistClient(
+        lookup: (_) {
+          lookups++;
+          return lookups == 1 ? http.Response('', 500) : _catalogItems([]);
+        },
+      );
+
+      await tester.pumpWidget(
+        _app(client, shortlistStore: store, discoveryStore: discovery),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(WidgetKeys.discoveryShuffleShortlistSource));
+      await tester.pumpAndSettle();
+      expect(find.text('Couldn’t load your shortlist.'), findsOneWidget);
+      await tester.tap(find.byKey(WidgetKeys.discoveryShortlistRetry));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('None of your saved movies are available.'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(WidgetKeys.discoveryRevealButton))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryViewShortlist));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(WidgetKeys.discoveryShortlistSheet),
+          matching: find.text('Missing Movie'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Unavailable'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(WidgetKeys.discoveryShortlistSheet)).height,
+        lessThan(300),
+      );
+      final remove = find.byKey(WidgetKeys.discoveryShortlistRemove('missing'));
+      await tester.tap(remove);
+      await tester.pumpAndSettle();
+      expect(store.entries, isEmpty);
+      await tester.tap(find.byKey(WidgetKeys.discoveryShortlistUndo));
+      await tester.pumpAndSettle();
+      expect(store.entries, [(id: 'missing', title: 'Missing Movie')]);
+      await tester.tap(remove);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(WidgetKeys.discoveryShortlistClose));
+      await tester.pumpAndSettle();
+      expect(find.byKey(WidgetKeys.discoveryViewShortlist), findsNothing);
+      expect(
+        find.text('Bookmark movies to shuffle them here.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(WidgetKeys.discoveryShortlistBrowse));
+      await tester.pumpAndSettle();
+      DiscoveryRobot(tester).expectGridVisible();
+    },
+  );
+}
+
+RecordingHttpClient _shortlistClient({
+  http.Response Function(String)? lookup,
+}) => RecordingHttpClient((request) async {
+  final query = request.url.queryParameters;
+  final ids = query['ids'];
+  return switch (request.url.path) {
+    '/UserViews' => _jsonResponse({'Items': <Object?>[]}),
+    '/Items/Filters' || '/Items/Filters2' => _jsonResponse(<String, Object?>{}),
+    '/Items/fresh' => _jsonResponse(_movie('fresh')),
+    '/Items' when ids != null =>
+      lookup?.call(ids) ?? _catalogItems(ids.split(',')),
+    '/Items' when query['searchTerm'] != null => _catalogItems(['suggested']),
+    '/Items' => _catalogItems(['fresh', 'suggested']),
+    _ => http.Response('', 404),
+  };
+});
+
+http.Response _catalogItems(List<String> ids) => _jsonResponse({
+  'Items': ids.map(_movie).toList(),
+  'StartIndex': 0,
+  'TotalRecordCount': ids.length,
+});
+
+final class _MemoryShortlistStore implements ShortlistStore {
+  _MemoryShortlistStore([this.entries = const <ShortlistEntry>[]]);
+
+  List<ShortlistEntry> entries;
+
+  @override
+  Future<List<ShortlistEntry>> read() async => entries;
+
+  @override
+  Future<void> write(List<ShortlistEntry> entries) async {
+    this.entries = entries;
+  }
+}
+
+Widget _app(
+  http.Client client, {
+  DiscoveryStore? discoveryStore,
+  ShortlistStore? shortlistStore,
+}) => MaterialApp(
+  theme: buildCandyTheme(),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: DiscoverySessionPage(
+    session: const StoredSession(
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      userId: 'user-id',
+      username: 'alice',
+      deviceId: 'device-id',
+    ),
+    client: client,
+    discoveryStore: discoveryStore ?? ImmediateDiscoveryStore(),
+    shortlistStore: shortlistStore ?? _MemoryShortlistStore(),
+  ),
+);
 
 Map<String, Object?> _movie(String id) => <String, Object?>{
   'Id': id,

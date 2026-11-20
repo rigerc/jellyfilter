@@ -23,8 +23,8 @@ final class DiscoveryHeader extends StatelessWidget {
   final bool fadeWatched;
   final ValueChanged<bool>? onFadeWatchedChanged;
 
-  final int candidateCount;
-  final VoidCallback onOpenFilters;
+  final int? candidateCount;
+  final VoidCallback? onOpenFilters;
   final VoidCallback onClear;
   final CatalogFilter filter;
 
@@ -63,21 +63,22 @@ final class DiscoveryHeader extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              AnimatedSwitcher(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : CandyMotion.quick,
-                child: Text(
-                  localization.discoveryCandidateCount(candidateCount),
-                  key: ValueKey<int>(candidateCount),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures(),
-                    ],
+              if (candidateCount case final count?)
+                AnimatedSwitcher(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : CandyMotion.quick,
+                  child: Text(
+                    localization.discoveryCandidateCount(count),
+                    key: ValueKey<int>(count),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

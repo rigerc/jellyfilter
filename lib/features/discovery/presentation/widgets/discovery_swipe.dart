@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
@@ -9,6 +10,7 @@ import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/core/widgets/candy_bounce.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
@@ -64,6 +66,7 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
   Size _deck = Size.zero;
   bool _dragging = false;
   bool _pastThreshold = false;
+  String? _draggedId;
 
   /// The id of a card that has flown out and is waiting for the cubit to
   /// drop it; it stays off-screen until the list updates.
@@ -73,7 +76,14 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
   void didUpdateWidget(covariant DiscoverySwipe oldWidget) {
     super.didUpdateWidget(oldWidget);
     final departed = _departedId;
-    if (departed != null && widget.candidates.firstOrNull?.id != departed) {
+    final topId = widget.candidates.firstOrNull?.id;
+    if (_dragging && _draggedId != topId) {
+      _dragging = false;
+      _draggedId = null;
+      _drag = Offset.zero;
+      _pastThreshold = false;
+    }
+    if (departed != null && topId != departed) {
       _departedId = null;
       _drag = Offset.zero;
       _pastThreshold = false;
@@ -90,6 +100,12 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
   bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
 
   double get _threshold => math.max(1, _deck.width * _commitFraction);
+  double get _shortlistThreshold => (_deck.height * 0.22).clamp(64.0, 120.0);
+
+  bool get _pullingDown =>
+      _drag.dy > _drag.dx.abs() &&
+      widget.candidates.firstOrNull?.mediaType == CatalogMediaType.movie &&
+      context.read<ShortlistCubit?>() != null;
 
   /// 0 at rest, 1 once the drag reaches the commit threshold.
   double get _progress => (_drag.dx.abs() / _threshold).clamp(0.0, 1.0);
@@ -107,6 +123,7 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
     }
     _controller.stop();
     _dragging = true;
+    _draggedId = widget.candidates.firstOrNull?.id;
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
@@ -114,7 +131,9 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
       return;
     }
     setState(() => _drag += details.delta);
-    final past = _drag.dx.abs() >= _threshold;
+    final past = _pullingDown
+        ? _drag.dy >= _shortlistThreshold
+        : _drag.dx.abs() >= _threshold;
     if (past != _pastThreshold) {
       _pastThreshold = past;
       if (past) {
@@ -128,6 +147,15 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
       return;
     }
     _dragging = false;
+    _draggedId = null;
+    if (_pullingDown) {
+      final movie = widget.candidates.firstOrNull;
+      if (movie != null && _drag.dy >= _shortlistThreshold) {
+        unawaited(_addToShortlist(movie));
+      }
+      _springBack();
+      return;
+    }
     final velocity = details.velocity.pixelsPerSecond;
     final flung =
         velocity.dx.abs() >= _flingVelocity &&
@@ -140,6 +168,27 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
     } else {
       _springBack();
     }
+  }
+
+  Future<void> _addToShortlist(CatalogCandidate movie) async {
+    final shortlist = context.read<ShortlistCubit?>();
+    if (shortlist == null || shortlist.state.contains(movie.id)) {
+      return;
+    }
+    final saved = await shortlist.add(movie);
+    if (!mounted) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          saved
+              ? l10n.discoverySwipeShortlistSaved(movie.name)
+              : l10n.discoveryShortlistSaveError,
+        ),
+      ),
+    );
   }
 
   void _springBack() {
@@ -163,6 +212,7 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
     }
     _departedId = candidate.id;
     _dragging = false;
+    _draggedId = null;
     unawaited(
       verdict == _SwipeVerdict.like
           ? HapticFeedback.mediumImpact()
@@ -243,8 +293,13 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
     final next = candidates.length > 1 ? candidates[1] : null;
     final third = candidates.length > 2 ? candidates[2] : null;
     final reduceMotion = _reduceMotion;
-    final progress = _progress;
-    final leaning = _drag.dx == 0
+    final l10n = AppLocalizations.of(context);
+    final saved = context.select(
+      (ShortlistCubit? cubit) => cubit?.state.contains(top.id),
+    );
+    final pullingDown = _departedId == null && _pullingDown;
+    final progress = pullingDown ? 0.0 : _progress;
+    final leaning = pullingDown || _drag.dx == 0
         ? null
         : _drag.dx > 0
         ? _SwipeVerdict.like
@@ -289,32 +344,55 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
                       onPanCancel: () {
                         if (_dragging) {
                           _dragging = false;
+                          _draggedId = null;
                           _springBack();
                         }
                       },
-                      child: Transform.translate(
-                        offset: _drag,
-                        child: Transform.rotate(
-                          // Pivot below the card, like a card held at its base.
-                          angle: tilt,
-                          alignment: const Alignment(0, 1.8),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: <Widget>[
-                              _card(top, interactive: true),
-                              _Stamp(
-                                verdict: _SwipeVerdict.like,
-                                opacity: leaning == _SwipeVerdict.like
-                                    ? progress
-                                    : 0,
-                              ),
-                              _Stamp(
-                                verdict: _SwipeVerdict.nope,
-                                opacity: leaning == _SwipeVerdict.nope
-                                    ? progress
-                                    : 0,
-                              ),
-                            ],
+                      child: Semantics(
+                        customSemanticsActions:
+                            saved == false &&
+                                top.mediaType == CatalogMediaType.movie
+                            ? {
+                                CustomSemanticsAction(
+                                  label: l10n.discoveryShortlistAddLabel(
+                                    top.name,
+                                  ),
+                                ): () =>
+                                    unawaited(_addToShortlist(top)),
+                              }
+                            : null,
+                        child: Transform.translate(
+                          offset: _drag,
+                          child: Transform.rotate(
+                            // Pivot below the card, like a card held at its base.
+                            angle: tilt,
+                            alignment: const Alignment(0, 1.8),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: <Widget>[
+                                _card(top, interactive: true),
+                                _Stamp(
+                                  verdict: _SwipeVerdict.like,
+                                  opacity: leaning == _SwipeVerdict.like
+                                      ? progress
+                                      : 0,
+                                ),
+                                if (_dragging && pullingDown)
+                                  _ShortlistPullHint(
+                                    label: saved == true
+                                        ? l10n.discoverySwipeShortlistAlreadySaved
+                                        : _drag.dy >= _shortlistThreshold
+                                        ? l10n.discoverySwipeShortlistRelease
+                                        : l10n.discoverySwipeShortlistPull,
+                                  ),
+                                _Stamp(
+                                  verdict: _SwipeVerdict.nope,
+                                  opacity: leaning == _SwipeVerdict.nope
+                                      ? progress
+                                      : 0,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -363,6 +441,42 @@ final class _DiscoverySwipeState extends State<DiscoverySwipe>
     return interactive
         ? layer
         : IgnorePointer(child: ExcludeSemantics(child: layer));
+  }
+}
+
+final class _ShortlistPullHint extends StatelessWidget {
+  const _ShortlistPullHint({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Container(
+            margin: const EdgeInsets.all(CandySpacing.compact),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CandySpacing.compact,
+              vertical: CandySpacing.compact / 2,
+            ),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(CandyShapes.pill),
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -132,6 +132,29 @@ abstract final class WidgetKeys {
   static const discoverySwipeReject = Key('discovery-swipe-reject');
   static const discoverySwipeInfo = Key('discovery-swipe-info');
   static const discoveryFavoriteBias = Key('discovery-favorite-bias');
+  static Key discoveryShortlistBookmark(String id) =>
+      Key('discovery-shortlist-bookmark-$id');
+  static Key discoveryShortlistRemove(String id) =>
+      Key('discovery-shortlist-remove-$id');
+  static const discoveryShuffleSource = Key('discovery-shuffle-source');
+  static const discoveryShuffleFilteredSource = Key(
+    'discovery-shuffle-filtered-source',
+  );
+  static const discoveryShuffleShortlistSource = Key(
+    'discovery-shuffle-shortlist-source',
+  );
+  static const discoveryViewShortlist = Key('discovery-view-shortlist');
+  static const discoveryShortlistSheet = Key('discovery-shortlist-sheet');
+  static const discoveryShortlistClose = Key('discovery-shortlist-close');
+  static const discoveryShortlistUndo = Key('discovery-shortlist-undo');
+  static const discoveryShortlistRetry = Key('discovery-shortlist-retry');
+  static const discoveryShortlistSheetRetry = Key(
+    'discovery-shortlist-sheet-retry',
+  );
+  static const discoveryShortlistBrowse = Key('discovery-shortlist-browse');
+  static const discoveryShuffleCatalogRetry = Key(
+    'discovery-shuffle-catalog-retry',
+  );
   static const discoveryShuffleDuration = Key('discovery-shuffle-duration');
   static Key discoveryShuffleDurationChoice(String name) =>
       Key('discovery-shuffle-duration-$name');

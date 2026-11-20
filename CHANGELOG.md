@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.33 — 2026-11-20
+
+- Save movies to a shortlist, including by pulling a movie down in Swipe and releasing it.
+- View and manage your shortlist from the strip above your titles.
+- Pick from your shortlist in Shuffle when you want a spin from the movies you've saved.
+
 ## 1.0.32 — 2026-11-19
 
 - Keep loading the full movie catalog in the background after the first page appears, in Grid, Swipe, and Shuffle.
