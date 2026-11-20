@@ -1,0 +1,53 @@
+---
+import type { CollectionEntry } from "astro:content";
+import Section from "@/components/Wrapper/Section.astro";
+import ContentWrapper from "@/components/Wrapper/ContentWrapper.astro";
+import Heading from "@/components/Typography/Heading.astro";
+import Paragraph from "@/components/Typography/Paragraph.astro";
+import ButtonWrapper from "@/components/Wrapper/ButtonWrapper.astro";
+import Button from "@/components/Button.astro";
+import GraphicMark from "@/components/Graphic/GraphicMark.astro";
+interface Props {
+  /** Set to `false` to skip rendering this component and its children. */
+  render?: boolean;
+  /** Project content from the collection. */
+  project: CollectionEntry<"project">["data"];
+}
+const { render = true, project } = Astro.props;
+---
+
+<Section render={render} class="project-cta_wrap" theme="dark">
+  <ContentWrapper centered>
+    <GraphicMark />
+    <Heading variant="h2">{project.ctaHeading}</Heading>
+    <Paragraph>{project.ctaIntro}</Paragraph>
+    <ButtonWrapper>
+      <Button element="link" href={project.download}>Get Android APK</Button>
+      <Button element="link" href={project.repository} emphasis="secondary"
+        >View on GitHub</Button
+      >
+    </ButtonWrapper>
+  </ContentWrapper>
+</Section>
+<style is:global>
+  @layer components {
+    .project-cta_wrap {
+      border-block: var(--border-width) solid var(--border);
+      & .project-mark {
+        width: 3rem;
+        height: 3rem;
+      }
+      & .heading {
+        max-width: 18ch;
+        margin-top: 2rem;
+      }
+      & .text {
+        color: var(--text-2);
+        font-size: 0.95rem;
+      }
+      & .button-wrapper {
+        gap: 0.8rem;
+      }
+    }
+  }
+</style>

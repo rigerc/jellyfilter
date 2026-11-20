@@ -1,0 +1,53 @@
+---
+import { getCollection, getEntry } from "astro:content";
+import Layout from "@/layouts/BaseLayout.astro";
+import Section from "@/components/Wrapper/Section.astro";
+import SectionProjectHero from "@/components/Content/SectionProjectHero.astro";
+import ContentProjectStats from "@/components/Content/ContentProjectStats.astro";
+import ContentProjectFeatures from "@/components/Content/ContentProjectFeatures.astro";
+import ContentProjectSetup from "@/components/Content/ContentProjectSetup.astro";
+import ContentProjectFaq from "@/components/Content/ContentProjectFaq.astro";
+import SectionProjectCta from "@/components/Content/SectionProjectCta.astro";
+
+const [entry, features, steps, faq] = await Promise.all([
+  getEntry("project", "main"),
+  getCollection("features"),
+  getCollection("steps"),
+  getCollection("faq"),
+]);
+if (!entry) throw new Error("Missing the Jellyfilter site configuration.");
+
+const project = entry.data;
+const byOrder = (
+  a: { data: { order: number } },
+  b: { data: { order: number } },
+) => a.data.order - b.data.order;
+---
+
+<Layout description={project.description}>
+  <SectionProjectHero project={project} />
+  <Section paddingTop="none" paddingBottom="none">
+    <ContentProjectStats stats={project.stats} />
+  </Section>
+  <Section id="features">
+    <ContentProjectFeatures
+      heading={project.featuresHeading}
+      description={project.featuresIntro}
+      features={features.sort(byOrder)}
+    />
+  </Section>
+  <Section id="get-started" class="project-surface">
+    <ContentProjectSetup
+      heading={project.setupHeading}
+      description={project.setupIntro}
+      steps={steps.sort(byOrder)}
+    />
+  </Section>
+  <Section id="faq">
+    <ContentProjectFaq
+      heading={project.faqHeading}
+      entries={faq.sort(byOrder)}
+    />
+  </Section>
+  <SectionProjectCta project={project} />
+</Layout>

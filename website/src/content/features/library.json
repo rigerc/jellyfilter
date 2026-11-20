@@ -1,0 +1,6 @@
+{
+  "title": "Jellyfin library actions",
+  "description": "Update favorites and playlists from Jellyfilter, or edit tags with a Jellyfin administrator account.",
+  "icon": "key",
+  "order": 6
+}

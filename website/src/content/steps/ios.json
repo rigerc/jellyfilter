@@ -1,0 +1,9 @@
+{
+  "title": "Build for iPhone",
+  "description": "Build the iOS app from source with Flutter and Xcode.",
+  "order": 2,
+  "link": {
+    "label": "Read the build instructions",
+    "href": "https://github.com/rigerc/jellyfilter#getting-started"
+  }
+}

@@ -1,0 +1,84 @@
+---
+import { Image } from "astro:assets";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  screenshots: CollectionEntry<"project">["data"]["screenshots"];
+}
+const { screenshots } = Astro.props;
+---
+
+<figure class="project-preview_wrap">
+  <div
+    class="project-preview_strip"
+    role="group"
+    aria-label="App screenshots"
+    tabindex="0"
+  >
+    {
+      screenshots.map(({ image, label, alt }, index) => (
+        <figure class="project-preview_screen">
+          <Image
+            src={image}
+            alt={alt}
+            widths={[280, 560, 800]}
+            sizes="(max-width: 44rem) 66vw, 17rem"
+            loading={index === 0 ? "eager" : "lazy"}
+            format="webp"
+          />
+          <figcaption>{label}</figcaption>
+        </figure>
+      ))
+    }
+  </div>
+  <figcaption class="project-preview_caption">
+    Jellyfilter with a sample library
+  </figcaption>
+</figure>
+<style is:global>
+  @layer components {
+    .project-preview_wrap {
+      width: 100%;
+      max-width: 58rem;
+      margin: 0 auto;
+      & .project-preview_strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: clamp(0.75rem, 3vw, 2rem);
+        padding: 0.75rem 0.5rem;
+        @media (width < 44rem) {
+          grid-template-columns: none;
+          grid-auto-flow: column;
+          grid-auto-columns: min(66vw, 17rem);
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          scroll-padding-inline: 0.5rem;
+        }
+      }
+      & .project-preview_screen {
+        margin: 0;
+        text-align: center;
+        scroll-snap-align: start;
+        & img {
+          width: 100%;
+          height: auto;
+          display: block;
+          border-radius: 1.25rem;
+          border: var(--border-width) solid var(--border);
+          box-shadow: 0 0.35rem 1.35rem
+            color-mix(in srgb, #110f0d 22%, transparent);
+        }
+        & figcaption {
+          margin-top: 0.85rem;
+          font-weight: 700;
+        }
+      }
+      & .project-preview_caption {
+        text-align: center;
+        color: var(--text-2);
+        margin-top: 1rem;
+        font-size: 0.875rem;
+      }
+    }
+  }
+</style>

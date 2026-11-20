@@ -1,0 +1,136 @@
+---
+import { getEntry } from "astro:content";
+import Button from "@/components/Button.astro";
+interface Props {
+  /** Set to `false` to skip rendering this component and its children. */
+  render?: boolean;
+}
+const { render = true } = Astro.props;
+const project = (await getEntry("project", "main"))?.data;
+---
+
+{
+  render && project && (
+    <footer class="footer_wrap">
+      <div class="footer_inner">
+        <span class="footer_name">{project.name}</span>
+        <nav class="footer_links" aria-label="Footer">
+          <Button element="link" variant="link" href={project.repository}>
+            GitHub
+          </Button>
+          <Button element="link" variant="link" href={project.docs}>
+            Documentation
+          </Button>
+          <Button element="link" variant="link" href={project.download}>
+            Releases
+          </Button>
+        </nav>
+      </div>
+      <div class="footer_bottom">
+        <a
+          href={`${project.repository}/blob/main/website/README.md#poster-credits`}
+        >
+          Poster credits
+        </a>
+        <span class="footer_credits">
+          Built with{" "}
+          <a href="https://github.com/lauroguedes/landpack">Landpack</a>,
+          <a href="https://astro.build">Astro</a>, and{" "}
+          <a href="https://lumosframework.com/docs/">Lumos</a>
+        </span>
+      </div>
+      <div class="footer_wordmark" aria-hidden="true">
+        <span>{project.shortName}.</span>
+        <span class="footer_wordmark-haze">{project.shortName}.</span>
+      </div>
+    </footer>
+  )
+}
+<style is:global>
+  @layer components {
+    .footer_wrap {
+      padding: 2.5rem var(--site-margin) 0;
+      overflow: hidden;
+      & .footer_wordmark {
+        position: relative;
+        display: grid;
+        max-width: var(--max-width-main);
+        margin: 4rem auto 0;
+        padding-bottom: 2rem;
+        font-size: clamp(3rem, 15.5vw, 15rem);
+        font-weight: 500;
+        line-height: 1;
+        letter-spacing: -0.075em;
+        white-space: nowrap;
+        text-align: center;
+        opacity: 0.16;
+        user-select: none;
+        pointer-events: none;
+        mask-image: linear-gradient(to top, transparent 5%, black 85%);
+      }
+      & .footer_wordmark > span {
+        grid-area: 1 / 1;
+      }
+      & .footer_wordmark > span:first-child {
+        mask-image: linear-gradient(to bottom, black 15%, transparent 95%);
+      }
+      & .footer_wordmark-haze {
+        filter: blur(0.22rem);
+        mask-image: linear-gradient(to bottom, transparent 10%, black 80%);
+      }
+
+      & .footer_inner,
+      & .footer_bottom {
+        max-width: var(--max-width-main);
+        margin: auto;
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+      }
+      & .footer_name {
+        font-size: 1.125rem;
+        font-weight: 700;
+        letter-spacing: -0.035em;
+      }
+      & .footer_links {
+        margin-left: auto;
+        display: flex;
+        gap: 1.4rem;
+        font-size: 0.75rem;
+      }
+      & .footer_links .button_wrap {
+        font-size: inherit;
+      }
+      & .footer_credits {
+        display: flex;
+        align-items: center;
+        gap: 0.4em;
+        flex-wrap: wrap;
+      }
+      & .footer_bottom .button_wrap {
+        font: inherit;
+      }
+      & .footer_bottom {
+        justify-content: space-between;
+        font: 0.65rem/1.6 var(--font-code);
+        color: var(--text-2);
+        border-top: var(--border-width) solid var(--border);
+        padding-top: 1.3rem;
+        margin-top: 2rem;
+      }
+      @media (width < 48rem) {
+        & .footer_inner {
+          flex-wrap: wrap;
+          gap: 1.5rem;
+        }
+        & .footer_links {
+          margin-left: 0;
+        }
+        & .footer_bottom {
+          align-items: start;
+          gap: 1rem;
+        }
+      }
+    }
+  }
+</style>
