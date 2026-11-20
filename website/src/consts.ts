@@ -4,7 +4,6 @@ const project = parse(projectYaml) as {
   name: string;
   description: string;
   headline: string;
-  headlineAccent: string;
   seo?: {
     image: string;
     imageAlt: string;
@@ -25,7 +24,7 @@ export const SITE_SOCIAL_IMAGE = project.seo?.image ?? "/og-image.jpg";
 /** Accessible description of the default social card. */
 export const SITE_SOCIAL_IMAGE_ALT =
   project.seo?.imageAlt ??
-  `${project.name} — ${project.headline} ${project.headlineAccent}`;
+  `${project.name} — ${project.headline}`;
 /** Dimensions of the configured social card; custom assets may omit them. */
 export const SITE_SOCIAL_IMAGE_WIDTH =
   project.seo?.imageWidth ??

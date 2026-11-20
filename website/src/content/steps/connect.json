@@ -1,5 +1,5 @@
 {
   "title": "Connect your library",
-  "description": "Enter your Jellyfin server URL and sign in with your Jellyfin account. Then open Grid, Swipe, or Shuffle.",
+  "description": "Enter your Jellyfin server URL and sign in with your Jellyfin account.",
   "order": 3
 }

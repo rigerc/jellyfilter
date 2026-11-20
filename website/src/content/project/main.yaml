@@ -1,40 +1,25 @@
 name: Jellyfilter
-shortName: Jellyfilter
-description: Jellyfilter helps you choose a movie from your Jellyfin library. Browse a poster grid, swipe through titles, or shuffle for a pick.
+description: Jellyfilter helps you choose a movie from your Jellyfin library. Browse the poster grid, swipe through titles, or shuffle for a pick.
 repository: https://github.com/rigerc/jellyfilter
 docs: https://github.com/rigerc/jellyfilter#readme
 download: https://github.com/rigerc/jellyfilter/releases/latest
-eyebrow: A JELLYFIN COMPANION
-headline: Less scrolling.
-headlineAccent: More movie nights.
-intro: Browse, swipe, or shuffle through your own Jellyfin library and find something to watch tonight.
-background: glow
-stats:
-  - value: Android 8.0+
-    label: APK download
-  - value: iPhone
-    label: Build with Xcode
-  - value: Your Jellyfin server
-    label: Required to sign in
+headline: Find a movie to watch.
+intro: Browse the movies on your Jellyfin server, swipe to make a shortlist, or shuffle for a pick.
 screenshots:
   - image: ../../assets/screenshots/grid.webp
     label: Grid
+    description: Browse and sort your poster library.
     alt: Jellyfilter Grid mode showing a two-column library of movie posters.
   - image: ../../assets/screenshots/swipe.webp
     label: Swipe
+    description: Like, pass, or save a movie to your shortlist.
     alt: Jellyfilter Swipe mode showing a movie card and controls to pass, open details, or like.
   - image: ../../assets/screenshots/shuffle.webp
     label: Shuffle
+    description: Pick from your filtered movies, shortlist, or recommendations.
     alt: Jellyfilter Shuffle mode showing the movie selected by the reel.
-featuresHeading: Find the movie that fits tonight.
-featuresIntro: Switch between discovery modes as you browse. Your active filters carry across all three.
-setupHeading: Get Jellyfilter.
-setupIntro: Connect the app to an existing Jellyfin server to browse its movie library.
-faqHeading: Frequently asked questions
-ctaHeading: Pick a movie tonight.
-ctaIntro: Get Jellyfilter for Android or check the source and setup instructions on GitHub.
 seo:
   image: /og-image.jpg
-  imageAlt: Jellyfilter. Less scrolling. More movie nights.
+  imageAlt: Jellyfilter. Find a movie to watch. Beside the text is Jellyfilter’s poster grid.
   imageWidth: 1200
   imageHeight: 630

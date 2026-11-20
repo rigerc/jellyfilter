@@ -17,29 +17,22 @@ const project = defineCollection({
   schema: ({ image }) =>
     z.object({
       name: text,
-      shortName: text,
       description: text,
       repository: link,
       docs: link,
       download: link,
-      eyebrow: text,
       headline: text,
-      headlineAccent: text,
       intro: text,
-      background: z.enum(["grid", "glow", "rays"]).default("glow"),
-      stats: z.array(
-        z.object({ value: text, label: text, href: link.optional() }),
-      ),
       screenshots: z
-        .array(z.object({ image: image(), label: text, alt: text }))
+        .array(
+          z.object({
+            image: image(),
+            label: text,
+            description: text,
+            alt: text,
+          }),
+        )
         .min(1),
-      featuresHeading: text,
-      featuresIntro: text,
-      setupHeading: text,
-      setupIntro: text,
-      faqHeading: text,
-      ctaHeading: text,
-      ctaIntro: text,
       seo: z
         .object({
           image: z.union([link, z.string().regex(/^\/(?!\/)[^\s]+$/)]),
@@ -53,19 +46,7 @@ const project = defineCollection({
 
 const features = defineCollection({
   loader: glob({ pattern: "*.json", base: "./src/content/features" }),
-  schema: heading.extend({
-    icon: z.enum([
-      "key",
-      "globe",
-      "apps",
-      "shield",
-      "users",
-      "code",
-      "activity",
-      "palette",
-      "book",
-    ]),
-  }),
+  schema: heading,
 });
 
 const steps = defineCollection({

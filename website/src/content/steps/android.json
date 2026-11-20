@@ -1,9 +1,9 @@
 {
   "title": "Install on Android",
-  "description": "Open the latest GitHub release and install the APK on Android 8.0 or later.",
+  "description": "Install the APK on Android 8.0 or later.",
   "order": 1,
   "link": {
-    "label": "Get the APK",
+    "label": "Latest Android release",
     "href": "https://github.com/rigerc/jellyfilter/releases/latest"
   }
 }

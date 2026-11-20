@@ -1,6 +1,5 @@
 {
   "title": "Filters and presets",
   "description": "Include or exclude genres, tags, decades, and ratings. Save combinations you use often.",
-  "icon": "globe",
-  "order": 4
+  "order": 1
 }

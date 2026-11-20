@@ -1,13 +1,7 @@
 ---
-import { getCollection, getEntry } from "astro:content";
+import { getCollection, getEntry, render } from "astro:content";
 import Layout from "@/layouts/BaseLayout.astro";
-import Section from "@/components/Wrapper/Section.astro";
-import SectionProjectHero from "@/components/Content/SectionProjectHero.astro";
-import ContentProjectStats from "@/components/Content/ContentProjectStats.astro";
-import ContentProjectFeatures from "@/components/Content/ContentProjectFeatures.astro";
-import ContentProjectSetup from "@/components/Content/ContentProjectSetup.astro";
-import ContentProjectFaq from "@/components/Content/ContentProjectFaq.astro";
-import SectionProjectCta from "@/components/Content/SectionProjectCta.astro";
+import GraphicProjectPreview from "@/components/Graphic/GraphicProjectPreview.astro";
 
 const [entry, features, steps, faq] = await Promise.all([
   getEntry("project", "main"),
@@ -22,32 +16,160 @@ const byOrder = (
   a: { data: { order: number } },
   b: { data: { order: number } },
 ) => a.data.order - b.data.order;
+const answers = await Promise.all(
+  faq.sort(byOrder).map(async (question) => ({
+    question: question.data.question,
+    ...(await render(question)),
+  })),
+);
 ---
 
-<Layout description={project.description}>
-  <SectionProjectHero project={project} />
-  <Section paddingTop="none" paddingBottom="none">
-    <ContentProjectStats stats={project.stats} />
-  </Section>
-  <Section id="features">
-    <ContentProjectFeatures
-      heading={project.featuresHeading}
-      description={project.featuresIntro}
-      features={features.sort(byOrder)}
-    />
-  </Section>
-  <Section id="get-started" class="project-surface">
-    <ContentProjectSetup
-      heading={project.setupHeading}
-      description={project.setupIntro}
-      steps={steps.sort(byOrder)}
-    />
-  </Section>
-  <Section id="faq">
-    <ContentProjectFaq
-      heading={project.faqHeading}
-      entries={faq.sort(byOrder)}
-    />
-  </Section>
-  <SectionProjectCta project={project} />
+<Layout>
+  <header class="intro">
+    <h1>{project.headline}</h1>
+    <div>
+      <p>{project.intro}</p>
+      <a class="primary-action" href={project.download}>Download for Android</a>
+    </div>
+  </header>
+
+  <GraphicProjectPreview screenshots={project.screenshots} />
+
+  <section id="get-started" class="information">
+    <h2>Install Jellyfilter</h2>
+    <dl>
+      {
+        steps.sort(byOrder).map(({ data: step }) => (
+          <div class="information-row">
+            <dt>{step.title}</dt>
+            <dd>
+              {step.description}
+              {step.link && <a href={step.link.href}>{step.link.label}</a>}
+            </dd>
+          </div>
+        ))
+      }
+    </dl>
+  </section>
+
+  <section id="features" class="information">
+    <h2>Library tools</h2>
+    <dl>
+      {
+        features.sort(byOrder).map(({ data: feature }) => (
+          <div class="information-row">
+            <dt>{feature.title}</dt>
+            <dd>{feature.description}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </section>
+
+  <section id="faq" class="information">
+    <h2>FAQ</h2>
+    <div>
+      {
+        answers.map(({ question, Content }) => (
+          <details>
+            <summary>{question}</summary>
+            <Content />
+          </details>
+        ))
+      }
+    </div>
+  </section>
 </Layout>
+
+<style>
+  .intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.52fr);
+    align-items: end;
+    gap: 2rem;
+    padding-block: clamp(3rem, 7vw, 6rem) clamp(2rem, 4.5vw, 3.75rem);
+  }
+
+  .intro h1 {
+    max-inline-size: 13ch;
+  }
+
+  .intro p {
+    max-inline-size: 36ch;
+    margin: 0 0 1.125rem;
+    color: var(--muted);
+  }
+
+  .information {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2.1fr);
+    gap: 2rem;
+    border-top: 1px solid var(--rule);
+    padding-block: 2.25rem;
+  }
+
+  .information-row {
+    display: grid;
+    grid-template-columns: minmax(9rem, 0.65fr) minmax(0, 1.35fr);
+    gap: 0.5rem 1rem;
+    padding-block: 0.875rem;
+  }
+
+  .information-row:first-child {
+    padding-block-start: 0;
+  }
+
+  .information-row + .information-row,
+  details + details {
+    border-top: 1px solid var(--rule);
+  }
+
+  dt {
+    font-weight: 700;
+  }
+
+  dd {
+    color: var(--muted);
+  }
+
+  dd a {
+    display: block;
+    width: fit-content;
+    margin-top: 0.25rem;
+    color: var(--ink);
+  }
+
+  details {
+    padding-block: 0.625rem;
+  }
+
+  details:first-child {
+    padding-block-start: 0;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  details :global(p) {
+    max-inline-size: 65ch;
+    margin: 0.75rem 0 0.25rem;
+    color: var(--muted);
+  }
+
+  @media (width < 45rem) {
+    .intro,
+    .information {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+  }
+
+  @media (width < 32rem) {
+    .information-row {
+      grid-template-columns: 1fr;
+      gap: 0.25rem;
+    }
+  }
+</style>

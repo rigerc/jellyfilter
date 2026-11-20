@@ -1,6 +1,5 @@
 {
   "title": "For you",
   "description": "See movies that match what you watch, rate, favorite, and swipe, with a reason for each recommendation.",
-  "icon": "book",
-  "order": 5
+  "order": 2
 }

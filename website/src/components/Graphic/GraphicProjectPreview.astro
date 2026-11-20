@@ -8,77 +8,92 @@ interface Props {
 const { screenshots } = Astro.props;
 ---
 
-<figure class="project-preview_wrap">
+<figure class="screens">
   <div
-    class="project-preview_strip"
+    class="screens-strip"
     role="group"
-    aria-label="App screenshots"
+    aria-label="Jellyfilter app screenshots"
     tabindex="0"
   >
     {
-      screenshots.map(({ image, label, alt }, index) => (
-        <figure class="project-preview_screen">
+      screenshots.map(({ image, label, description, alt }, index) => (
+        <figure class="screen">
           <Image
             src={image}
             alt={alt}
-            widths={[280, 560, 800]}
-            sizes="(max-width: 44rem) 66vw, 17rem"
+            widths={[320, 640, 800]}
+            sizes="(max-width: 36rem) 72vw, (max-width: 67rem) 31vw, 20rem"
             loading={index === 0 ? "eager" : "lazy"}
             format="webp"
           />
-          <figcaption>{label}</figcaption>
+          <figcaption>
+            <>
+              <strong>{label}</strong>
+              <span>{description}</span>
+            </>
+          </figcaption>
         </figure>
       ))
     }
   </div>
-  <figcaption class="project-preview_caption">
+  <figcaption class="screens-note">
     Jellyfilter with a sample library
   </figcaption>
 </figure>
-<style is:global>
-  @layer components {
-    .project-preview_wrap {
-      width: 100%;
-      max-width: 58rem;
-      margin: 0 auto;
-      & .project-preview_strip {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: clamp(0.75rem, 3vw, 2rem);
-        padding: 0.75rem 0.5rem;
-        @media (width < 44rem) {
-          grid-template-columns: none;
-          grid-auto-flow: column;
-          grid-auto-columns: min(66vw, 17rem);
-          overflow-x: auto;
-          scroll-snap-type: x mandatory;
-          scroll-padding-inline: 0.5rem;
-        }
-      }
-      & .project-preview_screen {
-        margin: 0;
-        text-align: center;
-        scroll-snap-align: start;
-        & img {
-          width: 100%;
-          height: auto;
-          display: block;
-          border-radius: 1.25rem;
-          border: var(--border-width) solid var(--border);
-          box-shadow: 0 0.35rem 1.35rem
-            color-mix(in srgb, #110f0d 22%, transparent);
-        }
-        & figcaption {
-          margin-top: 0.85rem;
-          font-weight: 700;
-        }
-      }
-      & .project-preview_caption {
-        text-align: center;
-        color: var(--text-2);
-        margin-top: 1rem;
-        font-size: 0.875rem;
-      }
+
+<style>
+  .screens {
+    margin: 0 0 clamp(2.5rem, 6vw, 5rem);
+  }
+
+  .screens-strip {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: clamp(0.75rem, 2vw, 1.5rem);
+  }
+
+  .screen img {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    border: 1px solid var(--rule);
+    border-radius: 0.75rem;
+  }
+
+  .screen figcaption {
+    margin-top: 0.625rem;
+  }
+
+  .screen span {
+    display: block;
+    color: var(--muted);
+  }
+
+  .screens-note {
+    margin-top: 0.875rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  @media (width < 36rem) {
+    .screens-strip {
+      grid-auto-columns: 72vw;
+      overflow-x: auto;
+      scroll-snap-type: inline mandatory;
+      scroll-padding-inline: var(--gutter);
+      scrollbar-color: var(--muted) transparent;
+      scrollbar-width: thin;
+      margin-inline: calc(-1 * var(--gutter));
+      padding: 0 var(--gutter) 0.625rem;
+    }
+
+    .screens-strip:focus-visible {
+      outline-offset: -2px;
+    }
+
+    .screen {
+      scroll-snap-align: start;
     }
   }
 </style>
