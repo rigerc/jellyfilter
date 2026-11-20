@@ -181,6 +181,7 @@ abstract final class CatalogFilterCodec {
 
   static CatalogSort? _sort(Object? value) => switch (value) {
     'defaultOrder' => CatalogSort.defaultOrder,
+    'forYou' => CatalogSort.forYou,
     'random' => CatalogSort.random,
     'recentlyAdded' => CatalogSort.recentlyAdded,
     'title' => CatalogSort.title,

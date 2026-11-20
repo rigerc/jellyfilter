@@ -76,7 +76,7 @@ void main() {
       expect(query['sortBy'], 'CommunityRating,SortName');
       expect(
         query['fields'],
-        'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
+        'Genres,Tags,Studios,PrimaryImageAspectRatio,DateCreated',
       );
       expect(query['enableImageTypes'], 'Primary,Backdrop');
       expect(query['imageTypeLimit'], '1');
@@ -582,6 +582,97 @@ void main() {
     expect(client.requests.single.url.path, '/jellyfin/Items/movie-1');
   });
 
+  test('should read studios and the taste parts of user data', () async {
+    final client = RecordingHttpClient(
+      (request) async => _jsonResponse(<String, Object?>{
+        ..._movieJson(),
+        'Studios': <Object?>[
+          <String, Object?>{'Name': 'A24', 'Id': 'studio-1'},
+          <String, Object?>{'Name': ''},
+          'not-a-studio',
+        ],
+        'UserData': <String, Object?>{
+          'Played': true,
+          'IsFavorite': false,
+          'PlayCount': 3,
+          'LastPlayedDate': '2026-10-01T20:00:00.0000000Z',
+          'Likes': true,
+          'Rating': 8.5,
+        },
+      }),
+    );
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    final movie = (await repository.loadDetails('movie-1')).value;
+
+    expect(movie?.studios, <String>{'A24'});
+    expect(movie?.playCount, 3);
+    expect(movie?.lastPlayed, DateTime.utc(2026, 10, 1, 20));
+    expect(movie?.likes, isTrue);
+    expect(movie?.userRating, 8.5);
+  });
+
+  test('should leave malformed taste user data unset', () async {
+    final client = RecordingHttpClient(
+      (request) async => _jsonResponse(<String, Object?>{
+        ..._movieJson(),
+        'UserData': <String, Object?>{
+          'PlayCount': -1,
+          'LastPlayedDate': 'yesterday',
+          'Likes': 'yes',
+          'Rating': '9',
+        },
+      }),
+    );
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    final movie = (await repository.loadDetails('movie-1')).value;
+
+    expect(movie, isNotNull);
+    expect(movie?.studios, isEmpty);
+    expect(movie?.playCount, isNull);
+    expect(movie?.lastPlayed, isNull);
+    expect(movie?.likes, isNull);
+    expect(movie?.userRating, isNull);
+  });
+
+  test('should send For you to the server in default order', () async {
+    final client = RecordingHttpClient(
+      (request) async => _jsonResponse(<String, Object?>{
+        'Items': <Object?>[],
+        'StartIndex': 0,
+        'TotalRecordCount': 0,
+      }),
+    );
+    final repository = JellyfinCatalogRepository(
+      client: client,
+      serverUrl: 'https://example.test',
+      accessToken: 'token',
+      deviceId: 'device',
+      userId: 'user-id',
+    );
+
+    await repository.loadPage(
+      filter: const CatalogFilter(sort: CatalogSort.forYou, sortReversed: true),
+    );
+
+    final query = client.requests.single.url.queryParameters;
+    expect(query['sortBy'], 'CommunityRating,SortName');
+    expect(query['sortOrder'], 'Descending,Ascending');
+  });
+
   test(
     'should continue Jellyfin pages until every selected genre matches',
     () async {
@@ -744,7 +835,7 @@ void main() {
       expect(request.url.queryParameters['filters'], 'IsNotFolder');
       expect(
         request.url.queryParameters['fields'],
-        'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
+        'Genres,Tags,Studios,PrimaryImageAspectRatio,DateCreated',
       );
       expect(request.url.queryParameters['imageTypeLimit'], '1');
       expect(request.followRedirects, isFalse);

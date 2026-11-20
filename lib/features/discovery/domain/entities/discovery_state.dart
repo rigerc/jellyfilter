@@ -1,5 +1,6 @@
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/media/entities/media_affinity.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 
@@ -21,7 +22,10 @@ final class DiscoveryState {
     double favoriteBias = 0,
     this.fadeWatched = false,
     this.shuffleDuration = ShuffleDuration.standard,
-  }) : favoriteBias = favoriteBias.isNaN ? 0 : favoriteBias.clamp(0, 1),
+    MediaAffinity? affinity,
+    this.shuffleForYou = false,
+  }) : affinity = affinity ?? MediaAffinity.empty,
+       favoriteBias = favoriteBias.isNaN ? 0 : favoriteBias.clamp(0, 1),
        candidates = List<CatalogCandidate>.unmodifiable(candidates),
        presets = Map<String, CatalogFilter>.unmodifiable(presets),
        rejectedIds = Set<String>.unmodifiable(rejectedIds),
@@ -51,9 +55,20 @@ final class DiscoveryState {
   final bool fadeWatched;
   final ShuffleDuration shuffleDuration;
 
+  /// The personal ranking behind the For you sort and Shuffle source.
+  final MediaAffinity affinity;
+
+  /// Whether Shuffle draws from the best personal matches.
+  final bool shuffleForYou;
+
   // Derived lists are computed once per state; every view reads them.
   late final List<CatalogCandidate> filteredCandidates = List.unmodifiable(
-    candidates.where(filter.matches),
+    filter.sort == CatalogSort.forYou
+        ? affinity.sort(
+            candidates.where(filter.matches).toList(growable: false),
+            (candidate) => candidate.id,
+          )
+        : candidates.where(filter.matches),
   );
 
   late final List<CatalogCandidate> undecidedCandidates = filteredCandidates
@@ -86,6 +101,8 @@ final class DiscoveryState {
     double? favoriteBias,
     bool? fadeWatched,
     ShuffleDuration? shuffleDuration,
+    MediaAffinity? affinity,
+    bool? shuffleForYou,
   }) => DiscoveryState(
     candidates: candidates ?? this.candidates,
     filter: filter ?? this.filter,
@@ -107,6 +124,8 @@ final class DiscoveryState {
     favoriteBias: favoriteBias ?? this.favoriteBias,
     fadeWatched: fadeWatched ?? this.fadeWatched,
     shuffleDuration: shuffleDuration ?? this.shuffleDuration,
+    affinity: affinity ?? this.affinity,
+    shuffleForYou: shuffleForYou ?? this.shuffleForYou,
   );
 }
 

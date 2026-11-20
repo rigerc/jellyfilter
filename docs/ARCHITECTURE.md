@@ -25,6 +25,11 @@ The dependency rules are:
   live in `lib/core/media/`. Discovery consumes these neutral contracts and
   never imports the catalog feature domain; catalog data maps transport data
   into the same neutral model.
+- Recommendations live in `lib/features/recommendations/`. Its domain ranks
+  movies with pure Dart and publishes the result as the neutral
+  `MediaAffinity` in `lib/core/media/`, which discovery reads for the For you
+  sort and Shuffle source. `lib/composition/` feeds it the catalog and the
+  user's choices, and it fetches nothing until a For you view is used.
 - App composition injects one `GoRouter` instance into the root widget so
   rebuilds cannot reset navigation state.
 

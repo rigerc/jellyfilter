@@ -18,6 +18,9 @@ enum CatalogAddedWindow {
 
 enum CatalogSort {
   defaultOrder,
+
+  /// Personal recommendations, ranked on the device.
+  forYou,
   random,
   recentlyAdded,
   title,
@@ -137,7 +140,9 @@ final class CatalogFilter {
 
   /// Whether this sort has a direction to reverse.
   bool get canReverseSort =>
-      sort != CatalogSort.defaultOrder && sort != CatalogSort.random;
+      sort != CatalogSort.defaultOrder &&
+      sort != CatalogSort.forYou &&
+      sort != CatalogSort.random;
 
   Set<CatalogMediaType> get mediaTypes =>
       UnmodifiableSetView<CatalogMediaType>(_mediaTypes);

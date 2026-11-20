@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/media/entities/media_affinity.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
@@ -46,6 +48,11 @@ Future<void> showDiscoveryDetails(
   // Modal routes sit above the page, so hand the page's actions across.
   final organize = DiscoveryOrganizerScope.maybeOf(context);
   final shortlist = context.read<ShortlistCubit?>();
+  final reasons =
+      context.read<DiscoveryCubit?>()?.state.affinity.reasonsFor(
+        candidate.id,
+      ) ??
+      const <AffinityReason>[];
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -53,6 +60,7 @@ Future<void> showDiscoveryDetails(
     builder: (sheetContext) {
       final sheet = DiscoveryDetailsSheet(
         candidate: candidate,
+        reasons: reasons,
         onLoadDetails: onLoadDetails,
         onOpenTrailer: onOpenTrailer,
         imageHeaders: imageHeaders,
@@ -70,6 +78,7 @@ Future<void> showDiscoveryDetails(
 final class DiscoveryDetailsSheet extends StatefulWidget {
   const DiscoveryDetailsSheet({
     required this.candidate,
+    this.reasons = const <AffinityReason>[],
     this.onLoadDetails,
     this.onOpenTrailer,
     this.onOrganize,
@@ -79,6 +88,9 @@ final class DiscoveryDetailsSheet extends StatefulWidget {
 
   final Map<String, String> imageHeaders;
   final CatalogCandidate candidate;
+
+  /// Why this title is a personal match; empty hides the line.
+  final List<AffinityReason> reasons;
   final CandidateDetailsLoader? onLoadDetails;
   final TrailerLauncher? onOpenTrailer;
   final ValueChanged<CatalogCandidate>? onOrganize;
@@ -102,6 +114,7 @@ final class _DiscoveryDetailsSheetState extends State<DiscoveryDetailsSheet> {
     if (details == null) {
       return _DetailsLayout(
         candidate: widget.candidate,
+        reasons: widget.reasons,
         loading: false,
         imageHeaders: widget.imageHeaders,
         onOpenTrailer: widget.onOpenTrailer,
@@ -112,6 +125,7 @@ final class _DiscoveryDetailsSheetState extends State<DiscoveryDetailsSheet> {
       future: details,
       builder: (context, snapshot) => _DetailsLayout(
         candidate: snapshot.data ?? widget.candidate,
+        reasons: widget.reasons,
         loading: snapshot.connectionState != ConnectionState.done,
         imageHeaders: widget.imageHeaders,
         onOpenTrailer: widget.onOpenTrailer,
@@ -124,6 +138,7 @@ final class _DiscoveryDetailsSheetState extends State<DiscoveryDetailsSheet> {
 final class _DetailsLayout extends StatelessWidget {
   const _DetailsLayout({
     required this.candidate,
+    required this.reasons,
     required this.loading,
     required this.onOpenTrailer,
     required this.onOrganize,
@@ -132,6 +147,7 @@ final class _DetailsLayout extends StatelessWidget {
 
   final Map<String, String> imageHeaders;
   final CatalogCandidate candidate;
+  final List<AffinityReason> reasons;
   final bool loading;
   final TrailerLauncher? onOpenTrailer;
   final ValueChanged<CatalogCandidate>? onOrganize;
@@ -179,6 +195,16 @@ final class _DetailsLayout extends StatelessWidget {
                 imageHeaders: imageHeaders,
               ),
             ),
+            if (reasons.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  CandySpacing.page,
+                  CandySpacing.cardGap,
+                  CandySpacing.page,
+                  0,
+                ),
+                child: _RecommendationReason(reasons: reasons),
+              ),
             if (trailers.isNotEmpty || organize != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -980,4 +1006,52 @@ final class _RetryRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One line naming the traits a title shares with the user's taste.
+final class _RecommendationReason extends StatelessWidget {
+  const _RecommendationReason({required this.reasons});
+
+  final List<AffinityReason> reasons;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final labels = reasons
+        .map(
+          (reason) => reason.kind == AffinityReasonKind.genre
+              ? _capitalized(reason.label)
+              : reason.label,
+        )
+        .join(', ');
+    return Row(
+      key: WidgetKeys.discoveryRecommendationReason,
+      spacing: CandySpacing.compact,
+      children: <Widget>[
+        Icon(
+          Icons.auto_awesome_rounded,
+          size: 18,
+          color: theme.colorScheme.primary,
+        ),
+        Expanded(
+          child: Text(
+            l10n.discoveryRecommendationReason(labels),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _capitalized(String value) => value
+      .split(' ')
+      .map(
+        (word) => word.isEmpty
+            ? word
+            : '${word[0].toUpperCase()}${word.substring(1)}',
+      )
+      .join(' ');
 }

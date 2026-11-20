@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.34 — 2026-11-20
+
+- Sort by For you to see movies that match what you've watched, rated, favorited, and swiped first.
+- Spin For you in Shuffle to draw from your best matches, with the closest matches coming up more often.
+- See why a movie was picked for you, such as a genre or director you enjoy, at the top of its details.
+- Recommendations are worked out on your phone from your own library, and only after you choose For you.
+- Drag the Shuffle reel to draw a new pick.
+
 ## 1.0.33 — 2026-11-20
 
 - Save movies to a shortlist, including by pulling a movie down in Swipe and releasing it.

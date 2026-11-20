@@ -20,6 +20,8 @@ import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_ca
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
+enum _ShuffleSource { filtered, forYou, shortlist }
+
 /// Shuffle mode: a single-reel slot machine that spins through eligible
 /// posters and locks onto the randomly selected pick.
 final class DiscoveryShuffle extends StatefulWidget {
@@ -379,13 +381,13 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
       spacing: CandySpacing.compact,
       children: <Widget>[
         if (shortlist != null)
-          SegmentedButton<bool>(
+          SegmentedButton<_ShuffleSource>(
             key: WidgetKeys.discoveryShuffleSource,
             expandedInsets: EdgeInsets.zero,
             showSelectedIcon: false,
             segments: [
               ButtonSegment(
-                value: false,
+                value: _ShuffleSource.filtered,
                 label: Text(
                   localization.discoveryShuffleFilteredSourceLabel,
                   key: WidgetKeys.discoveryShuffleFilteredSource,
@@ -393,7 +395,15 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
                 ),
               ),
               ButtonSegment(
-                value: true,
+                value: _ShuffleSource.forYou,
+                label: Text(
+                  localization.discoveryShuffleForYouSourceLabel,
+                  key: WidgetKeys.discoveryShuffleForYouSource,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              ButtonSegment(
+                value: _ShuffleSource.shortlist,
                 label: Text(
                   localization.discoveryShortlistLabel,
                   key: WidgetKeys.discoveryShuffleShortlistSource,
@@ -401,13 +411,28 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
                 ),
               ),
             ],
-            selected: {usesShortlist},
+            selected: {
+              usesShortlist
+                  ? _ShuffleSource.shortlist
+                  : widget.state.shuffleForYou
+                  ? _ShuffleSource.forYou
+                  : _ShuffleSource.filtered,
+            },
             onSelectionChanged: spinning
                 ? null
                 : (selection) {
-                    unawaited(context.read<DiscoveryCubit>().clearReveal());
+                    final source = selection.single;
+                    final discovery = context.read<DiscoveryCubit>();
+                    unawaited(discovery.clearReveal());
+                    if (source != _ShuffleSource.shortlist) {
+                      unawaited(
+                        discovery.setShuffleForYou(
+                          source == _ShuffleSource.forYou,
+                        ),
+                      );
+                    }
                     context.read<ShortlistCubit>().selectSource(
-                      useShortlist: selection.single,
+                      useShortlist: source == _ShuffleSource.shortlist,
                     );
                   },
           ),
@@ -489,7 +514,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
                   ),
           ),
         ),
-        if (!usesShortlist)
+        if (!usesShortlist && !widget.state.shuffleForYou)
           _FavoriteBiasControl(
             bias: widget.state.favoriteBias,
             hasFavorites: pool.any((candidate) => candidate.favorite == true),

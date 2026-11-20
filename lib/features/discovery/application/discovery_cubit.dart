@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/media/entities/media_affinity.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
@@ -97,6 +98,24 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
   Future<void> setMode(DiscoveryMode mode) =>
       _commit(state.copyWith(mode: mode));
 
+  /// Replaces the personal ranking. It is rebuilt each session, never saved.
+  Future<void> updateAffinity(MediaAffinity affinity) =>
+      identical(affinity, state.affinity)
+      ? Future<void>.value()
+      : _commit(state.copyWith(affinity: affinity));
+
+  /// Switches Shuffle between the filtered titles and the best personal
+  /// matches among them.
+  Future<void> setShuffleForYou(bool forYou) => forYou == state.shuffleForYou
+      ? Future<void>.value()
+      : _commit(
+          state.copyWith(
+            shuffleForYou: forYou,
+            currentRevealId: null,
+            currentPickId: null,
+          ),
+        );
+
   Future<void> setFadeWatched(bool fade) => fade == state.fadeWatched
       ? Future<void>.value()
       : _commit(state.copyWith(fadeWatched: fade));
@@ -163,13 +182,16 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     final alternatives = eligible
         .where((candidate) => !state.recentPickIds.contains(candidate.id))
         .toList(growable: false);
-    final pool = _favoredPool(
-      alternatives.isEmpty ? eligible : alternatives,
-      eligible,
-    );
-    final selectedId = selector.select(
-      pool.map((candidate) => candidate.id).toList(growable: false),
-    );
+    final fresh = alternatives.isEmpty ? eligible : alternatives;
+    final matches = state.shuffleForYou
+        ? _forYouPool(fresh)
+        : const <CatalogCandidate>[];
+    final pool = matches.isNotEmpty ? matches : _favoredPool(fresh, eligible);
+    final selectedId = matches.isNotEmpty
+        ? _weightedPick(matches)
+        : selector.select(
+            pool.map((candidate) => candidate.id).toList(growable: false),
+          );
     if (selectedId == null ||
         !pool.any((candidate) => candidate.id == selectedId)) {
       return Future<void>.value();
@@ -208,6 +230,40 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
       return pool;
     }
     return favorites;
+  }
+
+  /// How many of the best personal matches Shuffle chooses between.
+  static const forYouPoolSize = 30;
+
+  /// The best-ranked titles in [pool], best first. Empty when none are
+  /// ranked, so Shuffle falls back to the whole pool.
+  List<CatalogCandidate> _forYouPool(List<CatalogCandidate> pool) {
+    final affinity = state.affinity;
+    final ranked =
+        pool
+            .where((candidate) => affinity.rankOf(candidate.id) != null)
+            .toList()
+          ..sort(
+            (left, right) => (affinity.rankOf(left.id) ?? 0).compareTo(
+              affinity.rankOf(right.id) ?? 0,
+            ),
+          );
+    return ranked.take(forYouPoolSize).toList(growable: false);
+  }
+
+  /// Picks from [ranked] with linearly falling odds: the best match is
+  /// [forYouPoolSize] times likelier than the last.
+  String _weightedPick(List<CatalogCandidate> ranked) {
+    final count = ranked.length;
+    final total = count * (count + 1) / 2;
+    var roll = selector.nextChance().clamp(0.0, 1.0) * total;
+    for (final (index, candidate) in ranked.indexed) {
+      roll -= count - index;
+      if (roll < 0) {
+        return candidate.id;
+      }
+    }
+    return ranked.last.id;
   }
 
   Future<void> savePreset(String name, {CatalogFilter? filter}) {

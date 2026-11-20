@@ -136,6 +136,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryShuffleFilteredSourceLabel => 'Filtered titles';
 
   @override
+  String get discoveryShuffleForYouSourceLabel => 'For you';
+
+  @override
+  String discoveryRecommendationReason(String reasons) {
+    return 'Picked for you: $reasons';
+  }
+
+  @override
   String get discoveryShortlistLabel => 'Shortlist';
 
   @override
@@ -530,6 +538,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discoverySortDefaultLabel => 'Recommended';
+
+  @override
+  String get discoverySortForYouLabel => 'For you';
 
   @override
   String get discoverySortRandomLabel => 'Random';

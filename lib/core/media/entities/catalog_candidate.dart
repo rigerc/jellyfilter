@@ -73,7 +73,14 @@ final class CatalogCandidate {
     List<CatalogTrailer> trailers = const <CatalogTrailer>[],
     this.watched,
     this.favorite,
+    Set<String> studios = const <String>{},
+    this.playCount,
+    this.lastPlayed,
+    this.likes,
+    this.userRating,
   }) : // Public constructor names intentionally differ from backing fields.
+       // ignore: prefer_initializing_formals
+       _studios = studios,
        // ignore: prefer_initializing_formals
        _genres = genres,
        // ignore: prefer_initializing_formals
@@ -102,10 +109,26 @@ final class CatalogCandidate {
   final List<CatalogTrailer> _trailers;
   final bool? watched;
   final bool? favorite;
+  final Set<String> _studios;
+
+  /// How many times the user has played this title, when Jellyfin says.
+  final int? playCount;
+
+  /// When the user last played this title, in UTC.
+  final DateTime? lastPlayed;
+
+  /// The user's thumbs up (true) or down (false), if they set one.
+  final bool? likes;
+
+  /// The user's own rating on Jellyfin's 0–10 scale; 0 means unrated.
+  final double? userRating;
   final CatalogImage poster;
   final CatalogImage backdrop;
 
   Set<String> get genres => UnmodifiableSetView<String>(_genres);
+
+  /// Studio names, as written on the server.
+  Set<String> get studios => UnmodifiableSetView<String>(_studios);
 
   /// Jellyfin tags on the title, as written on the server.
   Set<String> get tags => UnmodifiableSetView<String>(_tags);
@@ -137,6 +160,11 @@ final class CatalogCandidate {
     trailers: _trailers,
     watched: watched,
     favorite: favorite ?? this.favorite,
+    studios: _studios,
+    playCount: playCount,
+    lastPlayed: lastPlayed,
+    likes: likes,
+    userRating: userRating,
     poster: poster,
     backdrop: backdrop,
   );

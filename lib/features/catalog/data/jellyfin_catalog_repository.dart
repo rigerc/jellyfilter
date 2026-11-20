@@ -685,7 +685,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         'parentId': ?filter.libraryId,
         'includeItemTypes': 'Movie',
         'recursive': 'true',
-        'fields': 'Genres,Tags,PrimaryImageAspectRatio,DateCreated',
+        'fields': 'Genres,Tags,Studios,PrimaryImageAspectRatio,DateCreated',
         'enableUserData': 'true',
         'enableImages': 'true',
         'enableImageTypes': 'Primary,Backdrop',
@@ -841,6 +841,11 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       trailers: _trailers(item['RemoteTrailers']),
       watched: _bool(userData['Played']),
       favorite: _bool(userData['IsFavorite']),
+      studios: _nameList(item['Studios']).toSet(),
+      playCount: _nonNegativeInt(userData['PlayCount']),
+      lastPlayed: _dateTime(userData['LastPlayedDate']),
+      likes: _bool(userData['Likes']),
+      userRating: _number(userData['Rating']),
       poster: _image(
         baseUrl: Uri.parse(serverUrl),
         id: id,
@@ -1015,6 +1020,9 @@ final class JellyfinCatalogRepository implements CatalogRepository {
 
   bool? _bool(Object? value) => value is bool ? value : null;
 
+  int? _nonNegativeInt(Object? value) =>
+      value is int && value >= 0 ? value : null;
+
   bool _hasMalformedMetadata(Map<String, Object?> item) {
     final userData = item['UserData'];
     if (userData != null && userData is! Map) {
@@ -1064,7 +1072,9 @@ final class JellyfinCatalogRepository implements CatalogRepository {
 
   Map<String, String> _naturalSortParameters(CatalogSort sort) =>
       switch (sort) {
-        CatalogSort.defaultOrder => const <String, String>{
+        // For you is ranked on the device, over the default server order.
+        CatalogSort.defaultOrder ||
+        CatalogSort.forYou => const <String, String>{
           'sortBy': 'CommunityRating,SortName',
           'sortOrder': 'Descending,Ascending',
         },

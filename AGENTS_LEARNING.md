@@ -112,3 +112,15 @@ After running tests, `flutter build apk --release --no-pub` reused a
 registrant that referenced the development-only integration test plugin.
 Run `flutter build apk --release` so Flutter refreshes the registrant before
 Gradle compiles the release.
+
+## Feeding derived state back into discovery
+
+`DiscoveryState` copies its candidate list into a new unmodifiable list on
+every `copyWith`, so identity checks on `state.candidates` never match. When a
+listener of the discovery stream pushes data back into `DiscoveryCubit` (such
+as recommendations), compare against the catalog cubit's list instead, or the
+two cubits re-emit each other forever.
+
+A first `DiscoveryCubit` commit always writes, because nothing is marked as
+saved before hydration. Tests that check a field is never persisted must save
+something first and count writes after that.

@@ -63,6 +63,12 @@ abstract final class WidgetKeys {
   static const discoveryPresetName = Key('discovery-preset-name');
   static const discoverySavePreset = Key('discovery-save-preset');
   static const discoveryPosterPreview = Key('discovery-poster-preview');
+  static const discoveryShuffleForYouSource = Key(
+    'discovery-shuffle-for-you-source',
+  );
+  static const discoveryRecommendationReason = Key(
+    'discovery-recommendation-reason',
+  );
 
   static Key discoveryCandidate(String id) => Key('discovery-candidate-$id');
 

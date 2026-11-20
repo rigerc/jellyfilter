@@ -8,6 +8,15 @@ import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.da
 import 'package:jellyfilter/features/discovery/domain/serialization/catalog_filter_codec.dart';
 
 void main() {
+  test('should round-trip the For you sort without a direction', () {
+    const filter = CatalogFilter(sort: CatalogSort.forYou, sortReversed: true);
+    final decoded = CatalogFilterCodec.decode(
+      CatalogFilterCodec.encode(filter),
+    );
+    expect(decoded?.sort, CatalogSort.forYou);
+    expect(filter.canReverseSort, isFalse);
+  });
+
   test(
     'should round-trip each shuffle duration and include it in snapshot equality',
     () {

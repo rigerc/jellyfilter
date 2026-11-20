@@ -150,6 +150,7 @@ final class DiscoveryBasicsFilterTab extends StatelessWidget {
   static String sortLabel(AppLocalizations l10n, CatalogSort value) =>
       switch (value) {
         CatalogSort.defaultOrder => l10n.discoverySortDefaultLabel,
+        CatalogSort.forYou => l10n.discoverySortForYouLabel,
         CatalogSort.random => l10n.discoverySortRandomLabel,
         CatalogSort.recentlyAdded => l10n.discoverySortRecentlyAddedLabel,
         CatalogSort.title => l10n.discoverySortTitleLabel,

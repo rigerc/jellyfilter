@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
+import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/core/network/media_browser_authorization.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/catalog/application/catalog_cubit.dart';
@@ -26,6 +27,10 @@ import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repo
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/features/persistence/data/shared_preferences_discovery_store.dart';
 import 'package:jellyfilter/features/persistence/data/shared_preferences_shortlist_store.dart';
+import 'package:jellyfilter/features/recommendations/application/recommendation_cubit.dart';
+import 'package:jellyfilter/features/recommendations/data/jellyfin_taste_repository.dart';
+import 'package:jellyfilter/features/recommendations/domain/entities/taste_item.dart';
+import 'package:jellyfilter/features/recommendations/domain/repositories/taste_repository.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,6 +41,7 @@ final class DiscoverySessionPage extends StatefulWidget {
     this.onReconnect,
     this.discoveryStore,
     this.shortlistStore,
+    this.tasteRepository,
     super.key,
   });
 
@@ -44,6 +50,7 @@ final class DiscoverySessionPage extends StatefulWidget {
   final VoidCallback? onReconnect;
   final DiscoveryStore? discoveryStore;
   final ShortlistStore? shortlistStore;
+  final TasteRepository? tasteRepository;
 
   @override
   State<DiscoverySessionPage> createState() => _DiscoverySessionPageState();
@@ -54,12 +61,19 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   /// Minimum gap between favorite syncs triggered by resume or mode changes.
   static const _favoriteSyncInterval = Duration(seconds: 10);
 
+  /// Minimum gap between watch history refreshes on resume.
+  static const _historyRefreshInterval = Duration(minutes: 5);
+
   late final CatalogCubit _catalogCubit;
   late final DiscoveryCubit _discoveryCubit;
   late final ShortlistCubit _shortlistCubit;
   late final FavoriteCubit _favoriteCubit;
+  late final RecommendationCubit _recommendationCubit;
   late final LibraryActionsRepository _libraryActions;
   StreamSubscription<DiscoveryState>? _discoverySubscription;
+  final List<StreamSubscription<Object?>> _recommendationFeeds =
+      <StreamSubscription<Object?>>[];
+  DateTime? _lastHistoryRefresh;
   String? _loadedFilterFingerprint;
   DiscoveryMode? _lastMode;
   DateTime? _lastFavoriteSync;
@@ -93,6 +107,24 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
       selector: RandomDiscoverySelector(),
     );
     unawaited(_shortlistCubit.hydrate());
+    _recommendationCubit = RecommendationCubit(
+      repository:
+          widget.tasteRepository ??
+          JellyfinTasteRepository(
+            client: widget.client,
+            serverUrl: session.serverUrl,
+            accessToken: session.accessToken,
+            deviceId: session.deviceId,
+            userId: session.userId,
+          ),
+    );
+    _recommendationFeeds.addAll(<StreamSubscription<Object?>>[
+      _catalogCubit.stream.listen((_) => _feedRecommendations()),
+      _shortlistCubit.stream.listen((_) => _feedRecommendations()),
+      _recommendationCubit.stream.listen(
+        (state) => unawaited(_discoveryCubit.updateAffinity(state.affinity)),
+      ),
+    ]);
     _favoriteCubit = FavoriteCubit(
       JellyfinFavoriteRepository(
         client: widget.client,
@@ -118,6 +150,43 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     // Favorites may have changed in another Jellyfin app while we were away.
     if (state == AppLifecycleState.resumed) {
       unawaited(_syncFavorites());
+      _refreshHistory();
+    }
+  }
+
+  void _refreshHistory() {
+    final last = _lastHistoryRefresh;
+    final now = DateTime.now();
+    if (last != null && now.difference(last) < _historyRefreshInterval) {
+      return;
+    }
+    _lastHistoryRefresh = now;
+    unawaited(_recommendationCubit.refreshHistory());
+  }
+
+  /// Hands the catalog and the user's choices to recommendations, and
+  /// starts learning once a For you view is in use.
+  void _feedRecommendations() {
+    final discovery = _discoveryCubit.state;
+    final catalog = _catalogCubit.state;
+    unawaited(
+      _recommendationCubit.update(
+        candidates: catalog is CatalogLoaded
+            ? catalog.candidates
+            : const <CatalogCandidate>[],
+        choices: LocalTasteChoices(
+          likedIds: discovery.likedIds,
+          rejectedIds: discovery.rejectedIds,
+          shortlistedIds: _shortlistCubit.state.entries
+              .map((entry) => entry.id)
+              .toSet(),
+        ),
+      ),
+    );
+    if (discovery.filter.sort == CatalogSort.forYou ||
+        discovery.shuffleForYou) {
+      _lastHistoryRefresh ??= DateTime.now();
+      unawaited(_recommendationCubit.activate());
     }
   }
 
@@ -143,10 +212,12 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     _discoverySubscription = _discoveryCubit.stream.listen(
       _reloadWhenDiscoveryChanges,
     );
+    _feedRecommendations();
     await _loadCatalog(_discoveryCubit.state);
   }
 
   void _reloadWhenDiscoveryChanges(DiscoveryState state) {
+    _feedRecommendations();
     final modeChanged = state.mode != _lastMode;
     _lastMode = state.mode;
     final fingerprint = _fingerprint(state);
@@ -174,6 +245,10 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     unawaited(_discoveryCubit.close());
     unawaited(_shortlistCubit.close());
     unawaited(_favoriteCubit.close());
+    for (final subscription in _recommendationFeeds) {
+      unawaited(subscription.cancel());
+    }
+    unawaited(_recommendationCubit.close());
     unawaited(_discoverySubscription?.cancel());
     super.dispose();
   }

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/media/entities/media_affinity.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
@@ -35,6 +36,7 @@ void main() {
   );
 
   group('favorite bias', favoriteBiasTests);
+  group('For you', forYouTests);
 
   test('should persist and restore the fade watched option', () async {
     final store = FakeDiscoveryStore();
@@ -887,6 +889,97 @@ void favoriteBiasTests() {
       1,
     );
   });
+}
+
+void forYouTests() {
+  List<CatalogCandidate> movies() => <CatalogCandidate>[
+    for (final id in <String>['a', 'b', 'c', 'd']) _candidate(id),
+  ];
+  final affinity = MediaAffinity(
+    rankedIds: const <String>['c', 'a', 'b'],
+    hasTaste: true,
+  );
+
+  test('should order titles by affinity under the For you sort', () async {
+    final cubit = _cubit(FakeDiscoverySelector(null));
+    await cubit.replaceCandidates(movies());
+    await cubit.updateAffinity(affinity);
+
+    expect(cubit.state.filteredCandidates.map((c) => c.id), <String>[
+      'a',
+      'b',
+      'c',
+      'd',
+    ]);
+
+    await cubit.updateFilter(const CatalogFilter(sort: CatalogSort.forYou));
+    expect(cubit.state.filteredCandidates.map((c) => c.id), <String>[
+      'c',
+      'a',
+      'b',
+      'd',
+    ]);
+    await cubit.like('c');
+    expect(cubit.state.undecidedCandidates.map((c) => c.id), <String>[
+      'a',
+      'b',
+      'd',
+    ]);
+    await cubit.close();
+  });
+
+  test('should never save the affinity', () async {
+    final store = FakeDiscoveryStore();
+    final cubit = DiscoveryCubit(
+      store: store,
+      scopeKey: 'scope',
+      selector: FakeDiscoverySelector(null),
+    );
+    await cubit.setFadeWatched(true);
+    final writes = store.writeCount;
+    await cubit.updateAffinity(affinity);
+    await cubit.setShuffleForYou(true);
+    expect(store.writeCount, writes);
+    await cubit.close();
+  });
+
+  test('should favor the best matches when Shuffle draws For you', () async {
+    // Weights are 3, 2, 1 for c, a, b: rolls split at 1/2 and 5/6.
+    for (final (roll, expected) in <(double, String)>[
+      (0, 'c'),
+      (0.49, 'c'),
+      (0.51, 'a'),
+      (0.9, 'b'),
+    ]) {
+      final selector = FakeDiscoverySelector(null)..chance = roll;
+      final cubit = _cubit(selector);
+      await cubit.replaceCandidates(movies());
+      await cubit.updateAffinity(affinity);
+      await cubit.setShuffleForYou(true);
+
+      await cubit.revealNext();
+
+      expect(cubit.state.currentRevealId, expected, reason: 'roll $roll');
+      expect(selector.receivedCalls, isEmpty);
+      await cubit.close();
+    }
+  });
+
+  test(
+    'should fall back to the filtered pool when nothing is ranked',
+    () async {
+      final selector = FakeDiscoverySelector('d');
+      final cubit = _cubit(selector);
+      await cubit.replaceCandidates(movies());
+      await cubit.setShuffleForYou(true);
+
+      await cubit.revealNext();
+
+      expect(selector.receivedIds, <String>['a', 'b', 'c', 'd']);
+      expect(cubit.state.currentRevealId, 'd');
+      await cubit.close();
+    },
+  );
 }
 
 DiscoveryCubit _cubit(DiscoverySelector selector) => DiscoveryCubit(

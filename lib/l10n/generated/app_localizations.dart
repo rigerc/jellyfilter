@@ -304,6 +304,18 @@ abstract class AppLocalizations {
   /// **'Filtered titles'**
   String get discoveryShuffleFilteredSourceLabel;
 
+  /// No description provided for @discoveryShuffleForYouSourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'For you'**
+  String get discoveryShuffleForYouSourceLabel;
+
+  /// No description provided for @discoveryRecommendationReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Picked for you: {reasons}'**
+  String discoveryRecommendationReason(String reasons);
+
   /// No description provided for @discoveryShortlistLabel.
   ///
   /// In en, this message translates to:
@@ -969,6 +981,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recommended'**
   String get discoverySortDefaultLabel;
+
+  /// No description provided for @discoverySortForYouLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'For you'**
+  String get discoverySortForYouLabel;
 
   /// No description provided for @discoverySortRandomLabel.
   ///

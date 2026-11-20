@@ -16,10 +16,13 @@ import 'package:jellyfilter/features/discovery/domain/repositories/discovery_sto
 import 'package:jellyfilter/features/discovery/domain/repositories/shortlist_store.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
+import 'package:jellyfilter/features/recommendations/domain/entities/taste_item.dart';
+import 'package:jellyfilter/features/recommendations/domain/repositories/taste_repository.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 import '../shared/discovery_robot.dart';
 import '../shared/fake_discovery_store.dart';
+import '../shared/fake_taste_repository.dart';
 import '../shared/recording_http_client.dart';
 
 void main() {
@@ -760,6 +763,91 @@ void shortlistTests() {
     expect(strip, findsOneWidget);
   });
 
+  group('For you', () {
+    FakeTasteRepository taste() => FakeTasteRepository(
+      history: <TasteItem>[
+        TasteItem(id: 'seen', name: 'Seen', played: true, playCount: 1),
+      ],
+      items: <String, TasteItem>{
+        'seen': TasteItem(
+          id: 'seen',
+          name: 'Seen',
+          people: const <TastePerson>[
+            TastePerson(
+              id: 'd1',
+              name: 'Agnès Varda',
+              role: TasteRole.director,
+            ),
+          ],
+        ),
+      },
+      personMovies: <String, Set<String>>{
+        'd1': <String>{'liked'},
+      },
+    );
+
+    testWidgets('should learn only once asked, then rank and explain picks', (
+      tester,
+    ) async {
+      final repository = taste();
+      await tester.pumpWidget(
+        _app(
+          _narrowingClient(<String>['fresh', 'suggested', 'liked']),
+          tasteRepository: repository,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final cubit = tester
+          .widget<DiscoveryPage>(find.byType(DiscoveryPage))
+          .cubit;
+      expect(repository.historyLoads, 0);
+
+      await cubit.updateFilter(const CatalogFilter(sort: CatalogSort.forYou));
+      await tester.pumpAndSettle();
+
+      expect(repository.historyLoads, 1);
+      expect(cubit.state.filteredCandidates.first.id, 'liked');
+      await tester.tap(find.byKey(WidgetKeys.discoveryCandidate('liked')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(WidgetKeys.discoveryRecommendationReason),
+        findsOneWidget,
+      );
+      expect(find.text('Picked for you: Agnès Varda'), findsOneWidget);
+    });
+
+    testWidgets('should spin For you from the Shuffle source choice', (
+      tester,
+    ) async {
+      final repository = taste();
+      await tester.pumpWidget(
+        _app(
+          _narrowingClient(<String>['fresh', 'suggested', 'liked']),
+          tasteRepository: repository,
+          discoveryStore: ImmediateDiscoveryStore()
+            ..snapshot = const DiscoverySnapshot(mode: DiscoveryMode.shuffle),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final cubit = tester
+          .widget<DiscoveryPage>(find.byType(DiscoveryPage))
+          .cubit;
+      expect(find.byKey(WidgetKeys.discoveryFavoriteBias), findsOneWidget);
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryShuffleForYouSource));
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.shuffleForYou, isTrue);
+      expect(repository.historyLoads, 1);
+      expect(cubit.state.affinity.rankedIds.first, 'liked');
+      expect(find.byKey(WidgetKeys.discoveryFavoriteBias), findsNothing);
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryShuffleFilteredSource));
+      await tester.pumpAndSettle();
+      expect(cubit.state.shuffleForYou, isFalse);
+    });
+  });
+
   testWidgets(
     'spins only shortlisted movies without repeating on a compact screen',
     (tester) async {
@@ -1023,6 +1111,7 @@ Widget _app(
   http.Client client, {
   DiscoveryStore? discoveryStore,
   ShortlistStore? shortlistStore,
+  TasteRepository? tasteRepository,
 }) => MaterialApp(
   theme: buildCandyTheme(),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -1038,6 +1127,7 @@ Widget _app(
     client: client,
     discoveryStore: discoveryStore ?? ImmediateDiscoveryStore(),
     shortlistStore: shortlistStore ?? _MemoryShortlistStore(),
+    tasteRepository: tasteRepository,
   ),
 );
 
