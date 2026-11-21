@@ -1,10 +1,10 @@
 name: Jellyfilter
-description: Jellyfilter helps you choose a movie from your Jellyfin library. Browse posters or a list, swipe through titles, or let Shuffle pick one.
+description: Jellyfilter helps you choose a movie or TV show from your Jellyfin library. Browse posters or a list, swipe through titles, or let Shuffle pick one.
 repository: https://github.com/rigerc/jellyfilter
 docs: https://github.com/rigerc/jellyfilter#readme
 download: https://github.com/rigerc/jellyfilter/releases/latest
-headline: Find a movie to watch.
-intro: Browse your Jellyfin movies as posters or a list, swipe to build a shortlist, or let Shuffle pick one for you.
+headline: Find something to watch.
+intro: Browse your Jellyfin movies and TV shows as posters or a list, swipe to build a shortlist, or let Shuffle pick one.
 screenshots:
   - image: ../../assets/screenshots/browse.webp
     label: Browse
@@ -27,6 +27,6 @@ tour:
   note: Recorded from the app with a sample library. No sound.
 seo:
   image: /og-image.jpg
-  imageAlt: Jellyfilter. Find a movie to watch. Beside the text is Jellyfilter's Browse tab with a grid of movie posters.
+  imageAlt: Jellyfilter. Find something to watch. Beside the text is Jellyfilter's Browse tab with a grid of movie posters.
   imageWidth: 1200
   imageHeight: 630

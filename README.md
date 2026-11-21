@@ -11,20 +11,33 @@
   <a href="https://github.com/rigerc/jellyfilter/actions/workflows/android-ci.yml"><img src="https://github.com/rigerc/jellyfilter/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
 </p>
 
-Jellyfilter signs in to your Jellyfin server and turns a large library into
-something you can decide on in a few taps: a poster grid, a swipe deck, and a
-slot-machine shuffle. Filters, favorites, and playlists all talk to Jellyfin
+Jellyfilter signs in to your Jellyfin server and turns a large library of
+movies and TV shows into something you can decide on in a few taps: a poster
+grid, a swipe deck, and a slot-machine shuffle. Filters, favorites, and playlists all talk to Jellyfin
 directly, so what you pick here is what you find there.
 
 ## Features
+
+**Movies and TV shows**
+
+- When the server has both movie and TV libraries, tap the icon beside the
+  title to switch between them. A server with only one kind opens on it.
+- Movies and shows each keep their own filters, presets, likes, passes, and
+  shortlist; the tab and layout stay the same when you switch, and the app
+  remembers which one you were on.
+- Show cards list the years a show aired and its seasons. Shows you have
+  started carry an episodes-left badge and a progress bar.
+- A show's details add an Episodes tab with the next episode to watch and your
+  progress through each season.
 
 **Three ways to pick**
 
 - **Browse** — poster-first tiles with title, year, and runtime, or a list
   with ratings and genres on each row (in columns on tablets); sort by
   recommended, recently added, title, release year, community rating, or
-  runtime, in either direction. Long-press to select several movies, then
-  shortlist, favorite, or add them to a playlist together.
+  runtime, in either direction, and shows by new episodes or first aired.
+  Long-press to select several titles, then shortlist, favorite, or (for
+  movies) add them to a playlist together.
 - **Swipe** — a deck of cards that follow your finger and tilt, with LIKE and
   NOPE stamps, a flick to send a card flying, and a stack of what is coming
   next.
@@ -35,10 +48,11 @@ directly, so what you pick here is what you find there.
 **Filters that fit a real library**
 
 - Genres, Jellyfin tags, decades, content ratings, runtime, community rating,
-  and watched or favorite state.
+  and watched or favorite state. Shows add a Show tab for status (continuing or
+  ended), length in seasons, and how far you have got.
 - Tap a chip once to require it, twice to exclude it; the same choice works for
   genres, tags, decades, and ratings.
-- A tabbed sheet (Basics, Content, Ratings, Presets) with active-choice counts,
+- A tabbed sheet (Basics, Show, Content, Ratings, Presets) with active-choice counts,
   plus a strip of active-filter chips above your titles.
 - Tag lists are capped at your chosen tags plus the most used ones, with a
   search box, so libraries that carry thousands of TMDb keywords as tags stay
@@ -48,11 +62,12 @@ directly, so what you pick here is what you find there.
 **Details and library actions**
 
 - A details sheet with a poster header, score, and Overview, Details, and
-  Trailers tabs.
+  Trailers tabs, plus Episodes for shows.
 - Jellyfin trailers play in the app.
 - Add a title to a Jellyfin playlist, or edit its tags, from the details
   sheet, the deck, or Shuffle, or add several selected titles to a playlist
-  at once from Browse. Tag editing needs a Jellyfin administrator.
+  at once from Browse. Shows can be tagged but not added to playlists, since
+  Jellyfin would add every episode. Tag editing needs a Jellyfin administrator.
 - Hearts update instantly with a pop and a haptic tick, then confirm with the
   server in the background.
 
@@ -66,7 +81,8 @@ directly, so what you pick here is what you find there.
 
 ## Requirements
 
-- A Jellyfin server, current stable, with an account for the app.
+- A Jellyfin server, current stable, with a movie or TV library and an account
+  for the app.
 - Android 8.0 (API 26) or later, or iOS via Xcode.
 - Flutter stable with Dart 3.12 or later, JDK 17, and the Android SDK for
   development.
@@ -103,11 +119,13 @@ checks against your own server; follow
 ```text
 lib/
   app.dart          app composition, routes, and dependency wiring
+  composition/      one discovery session per media type (movies, shows)
   core/             cross-cutting contracts, theme, media models, widget keys
   features/
-    catalog/        Jellyfin library reads and mapping to neutral media models
+    catalog/        Jellyfin movie and series reads, mapped to neutral media models
     connection/     server sign-in and session handling
-    discovery/      grid, swipe, shuffle, filters, and details
+    discovery/      grid, swipe, shuffle, filters, details, and the movies/shows switch
+    recommendations/ on-device For you ranking, learned per media type
     favorites/      favorite state and syncing
     persistence/    on-device storage for settings and discovery state
   l10n/             ARB strings and generated localizations

@@ -1,5 +1,5 @@
 {
   "title": "Filters and presets",
-  "description": "Require or exclude genres, tags, decades, and content ratings, and narrow by runtime, score, or watched state. Save combinations you use often.",
-  "order": 1
+  "description": "Require or exclude genres, tags, decades, and content ratings, and narrow by runtime, score, or watched state. For shows, also filter by status, number of seasons, and how far you have got. Save combinations you use often.",
+  "order": 2
 }

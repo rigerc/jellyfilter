@@ -1,5 +1,5 @@
 {
   "title": "Jellyfin library actions",
-  "description": "Favorite movies and add them to playlists from Jellyfilter, or edit tags with a Jellyfin administrator account.",
-  "order": 4
+  "description": "Favorite movies and shows, add movies to playlists, or edit tags with a Jellyfin administrator account.",
+  "order": 5
 }
