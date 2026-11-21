@@ -5,6 +5,7 @@ import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/discovery/application/browse_selection_cubit.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
@@ -12,6 +13,7 @@ import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.d
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_header.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_selection.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 final class DiscoveryControls extends StatelessWidget {
@@ -31,6 +33,10 @@ final class DiscoveryControls extends StatelessWidget {
     final shortlistSelected = context.select(
       (ShortlistCubit? cubit) => cubit?.state.useShortlist ?? false,
     );
+    final selecting = context.select(
+      (BrowseSelectionCubit? selection) => selection?.isSelecting ?? false,
+    );
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return BlocBuilder<DiscoveryCubit, DiscoveryState>(
       buildWhen: (previous, current) =>
           previous.filteredCandidates.length !=
@@ -52,37 +58,58 @@ final class DiscoveryControls extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            DiscoveryHeader(
-              candidateCount: showCatalogFilters
-                  ? state.filteredCandidates.length
-                  : null,
-              filter: state.filter,
-              onOpenFilters: showCatalogFilters ? openFilters : null,
-              onClear: onClear,
-              onSortChanged: state.mode == DiscoveryMode.shuffle
-                  ? null
-                  : (sort) => context.read<DiscoveryCubit>().updateFilter(
-                      state.filter.copyWith(
-                        sort: sort,
-                        // A new order starts in its natural direction.
-                        sortReversed: sort == state.filter.sort
-                            ? state.filter.sortReversed
-                            : false,
-                      ),
-                    ),
-              onSortReversedChanged: state.mode == DiscoveryMode.shuffle
-                  ? null
-                  : (reversed) => context.read<DiscoveryCubit>().updateFilter(
-                      state.filter.copyWith(sortReversed: reversed),
-                    ),
-              fadeWatched: state.fadeWatched,
-              onFadeWatchedChanged: context
-                  .read<DiscoveryCubit>()
-                  .setFadeWatched,
-              browseLayout: state.browseLayout,
-              onBrowseLayoutChanged: state.mode == DiscoveryMode.grid
-                  ? context.read<DiscoveryCubit>().setBrowseLayout
-                  : null,
+            // The selection header sits over the normal one, which keeps its
+            // space so the titles below do not jump.
+            Stack(
+              children: <Widget>[
+                Visibility(
+                  visible: !selecting,
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
+                  child: DiscoveryHeader(
+                    candidateCount: showCatalogFilters
+                        ? state.filteredCandidates.length
+                        : null,
+                    filter: state.filter,
+                    onOpenFilters: showCatalogFilters ? openFilters : null,
+                    onClear: onClear,
+                    onSortChanged: state.mode == DiscoveryMode.shuffle
+                        ? null
+                        : (sort) => context.read<DiscoveryCubit>().updateFilter(
+                            state.filter.copyWith(
+                              sort: sort,
+                              // A new order starts in its natural direction.
+                              sortReversed: sort == state.filter.sort
+                                  ? state.filter.sortReversed
+                                  : false,
+                            ),
+                          ),
+                    onSortReversedChanged: state.mode == DiscoveryMode.shuffle
+                        ? null
+                        : (reversed) =>
+                              context.read<DiscoveryCubit>().updateFilter(
+                                state.filter.copyWith(sortReversed: reversed),
+                              ),
+                    fadeWatched: state.fadeWatched,
+                    onFadeWatchedChanged: context
+                        .read<DiscoveryCubit>()
+                        .setFadeWatched,
+                    browseLayout: state.browseLayout,
+                    onBrowseLayoutChanged: state.mode == DiscoveryMode.grid
+                        ? context.read<DiscoveryCubit>().setBrowseLayout
+                        : null,
+                  ),
+                ),
+                Positioned.fill(
+                  child: AnimatedSwitcher(
+                    duration: reduceMotion ? Duration.zero : CandyMotion.quick,
+                    child: selecting
+                        ? const DiscoverySelectionHeader()
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ],
             ),
             if (showCatalogFilters)
               DiscoveryActiveFilters(

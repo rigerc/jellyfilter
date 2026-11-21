@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/core/widgets/candy_bounce.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_selection.dart';
 
 final class DiscoveryRobot {
   const DiscoveryRobot(this.tester);
@@ -13,6 +14,44 @@ final class DiscoveryRobot {
     expect(find.byKey(WidgetKeys.discoveryGridMode), findsOneWidget);
     expect(find.byKey(WidgetKeys.discoverySwipeMode), findsOneWidget);
     expect(find.byKey(WidgetKeys.discoveryShuffleMode), findsOneWidget);
+  }
+
+  Future<void> startSelecting(String id) async {
+    await tester.longPress(find.byKey(WidgetKeys.discoveryCandidate(id)));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapCandidate(String id) async {
+    await tester.tap(find.byKey(WidgetKeys.discoveryCandidate(id)));
+    await tester.pumpAndSettle();
+  }
+
+  void expectSelecting(int count) {
+    expect(find.byKey(WidgetKeys.discoverySelectionHeader), findsOneWidget);
+    expect(find.byKey(WidgetKeys.discoverySelectionActions), findsOneWidget);
+    expect(find.byKey(WidgetKeys.discoveryModeNavigation), findsNothing);
+    expect(find.text('$count selected'), findsOneWidget);
+  }
+
+  void expectNotSelecting() {
+    expect(find.byKey(WidgetKeys.discoverySelectionHeader), findsNothing);
+    expect(find.byKey(WidgetKeys.discoverySelectionActions), findsNothing);
+    expect(find.byKey(WidgetKeys.discoveryModeNavigation), findsOneWidget);
+  }
+
+  void expectSelectionMark(String id, {required bool selected}) {
+    final mark = tester.widget<DiscoverySelectionMark>(
+      find.ancestor(
+        of: find.byKey(WidgetKeys.discoverySelectionMark(id)),
+        matching: find.byType(DiscoverySelectionMark),
+      ),
+    );
+    expect(mark.selected, selected);
+  }
+
+  Future<void> runBulkAction(Key key) async {
+    await tester.tap(find.byKey(key));
+    await tester.pumpAndSettle();
   }
 
   void expectListVisible() {

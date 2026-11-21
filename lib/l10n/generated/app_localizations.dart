@@ -286,6 +286,150 @@ abstract class AppLocalizations {
   /// **'Browse'**
   String get discoveryBrowseLabel;
 
+  /// No description provided for @discoverySelectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String discoverySelectionCount(int count);
+
+  /// No description provided for @discoverySelectionCancelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel selection'**
+  String get discoverySelectionCancelLabel;
+
+  /// No description provided for @discoverySelectAllLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get discoverySelectAllLabel;
+
+  /// No description provided for @discoverySelectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get discoverySelectHint;
+
+  /// No description provided for @discoveryBulkShortlistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortlist'**
+  String get discoveryBulkShortlistLabel;
+
+  /// No description provided for @discoveryBulkUnshortlistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsave'**
+  String get discoveryBulkUnshortlistLabel;
+
+  /// No description provided for @discoveryBulkShortlistTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to shortlist'**
+  String get discoveryBulkShortlistTooltip;
+
+  /// No description provided for @discoveryBulkUnshortlistTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from shortlist'**
+  String get discoveryBulkUnshortlistTooltip;
+
+  /// No description provided for @discoveryBulkFavoriteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get discoveryBulkFavoriteLabel;
+
+  /// No description provided for @discoveryBulkUnfavoriteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfavorite'**
+  String get discoveryBulkUnfavoriteLabel;
+
+  /// No description provided for @discoveryBulkFavoriteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get discoveryBulkFavoriteTooltip;
+
+  /// No description provided for @discoveryBulkUnfavoriteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get discoveryBulkUnfavoriteTooltip;
+
+  /// No description provided for @discoveryBulkPlaylistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist'**
+  String get discoveryBulkPlaylistLabel;
+
+  /// No description provided for @discoveryBulkPlaylistTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to a playlist'**
+  String get discoveryBulkPlaylistTooltip;
+
+  /// No description provided for @discoveryBulkShortlistAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Added 1 movie to your shortlist} other{Added {count} movies to your shortlist}}'**
+  String discoveryBulkShortlistAdded(int count);
+
+  /// No description provided for @discoveryBulkShortlistRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Removed 1 movie from your shortlist} other{Removed {count} movies from your shortlist}}'**
+  String discoveryBulkShortlistRemoved(int count);
+
+  /// No description provided for @discoveryBulkFavorited.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Added 1 movie to favorites} other{Added {count} movies to favorites}}'**
+  String discoveryBulkFavorited(int count);
+
+  /// No description provided for @discoveryBulkUnfavorited.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Removed 1 movie from favorites} other{Removed {count} movies from favorites}}'**
+  String discoveryBulkUnfavorited(int count);
+
+  /// No description provided for @discoveryBulkFavoriteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Couldn’t update 1 movie. Try again.} other{Couldn’t update {count} movies. Try again.}}'**
+  String discoveryBulkFavoriteFailed(int count);
+
+  /// No description provided for @discoveryBulkPlaylistTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Add 1 movie to a playlist} other{Add {count} movies to a playlist}}'**
+  String discoveryBulkPlaylistTitle(int count);
+
+  /// No description provided for @discoveryBulkPlaylistAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Added 1} other{Added {count}}}'**
+  String discoveryBulkPlaylistAdded(int count);
+
+  /// No description provided for @discoveryBulkPlaylistPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Couldn’t add 1 movie. Try again.} other{Couldn’t add {count} movies. Try again.}}'**
+  String discoveryBulkPlaylistPartial(int count);
+
+  /// No description provided for @discoveryBulkNoPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'No playlists yet. Name one below to create it with these movies.'**
+  String get discoveryBulkNoPlaylists;
+
+  /// No description provided for @discoveryBulkCreatePlaylistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Create playlist with these movies'**
+  String get discoveryBulkCreatePlaylistLabel;
+
   /// No description provided for @discoveryShowAsListLabel.
   ///
   /// In en, this message translates to:

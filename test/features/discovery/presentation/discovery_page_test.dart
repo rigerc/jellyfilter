@@ -2,6 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_bulk_playlist_sheet.dart';
+import 'package:jellyfilter/features/discovery/domain/repositories/shortlist_store.dart';
+import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
@@ -379,6 +384,251 @@ void main() {
         robot.topVisibleCandidate(WidgetKeys.discoveryGrid, ids),
         'movie-6',
       );
+      await cubit.close();
+    });
+  });
+
+  group('Browse selection', () {
+    List<CatalogCandidate> trio() => <CatalogCandidate>[
+      _candidate(),
+      _candidate(id: 'movie-2', name: 'Velvet Static'),
+      _candidate(id: 'movie-3', name: 'Harbor Lights'),
+    ];
+
+    for (final layout in BrowseLayout.values) {
+      testWidgets('should select titles by long press in ${layout.name}', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final cubit = _cubit();
+        await cubit.replaceCandidates(trio());
+        await cubit.setBrowseLayout(layout);
+        final robot = DiscoveryRobot(tester);
+        await _pumpPage(tester, cubit, onToggleFavorite: (_) async => true);
+
+        await robot.startSelecting('movie-1');
+        robot.expectSelecting(1);
+        robot.expectSelectionMark('movie-1', selected: true);
+        robot.expectSelectionMark('movie-2', selected: false);
+
+        // While selecting, a tap picks a title instead of opening it.
+        await robot.tapCandidate('movie-2');
+        robot.expectSelecting(2);
+        expect(find.byKey(WidgetKeys.discoveryDetails), findsNothing);
+
+        await robot.tapCandidate('movie-1');
+        robot.expectSelecting(1);
+        await robot.tapCandidate('movie-2');
+        robot.expectNotSelecting();
+        await cubit.close();
+      });
+    }
+
+    testWidgets('should select all, cancel, and leave with Back', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(trio());
+      final robot = DiscoveryRobot(tester);
+      await _pumpPage(tester, cubit, onToggleFavorite: (_) async => true);
+
+      await robot.startSelecting('movie-2');
+      await tester.tap(find.byKey(WidgetKeys.discoverySelectAll));
+      await tester.pumpAndSettle();
+      robot.expectSelecting(3);
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(WidgetKeys.discoverySelectAll))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.byKey(WidgetKeys.discoverySelectionCancel));
+      await tester.pumpAndSettle();
+      robot.expectNotSelecting();
+
+      await robot.startSelecting('movie-1');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      robot.expectNotSelecting();
+      expect(find.byKey(WidgetKeys.discoveryPage), findsOneWidget);
+      await cubit.close();
+    });
+
+    testWidgets('should drop picks the filters hide and end on mode change', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(trio());
+      final robot = DiscoveryRobot(tester);
+      await _pumpPage(tester, cubit, onToggleFavorite: (_) async => true);
+
+      await robot.startSelecting('movie-1');
+      await robot.tapCandidate('movie-2');
+      await cubit.updateFilter(const CatalogFilter(searchTerm: 'Velvet'));
+      await tester.pumpAndSettle();
+      robot.expectSelecting(1);
+
+      await cubit.setMode(DiscoveryMode.swipe);
+      await tester.pumpAndSettle();
+      await cubit.setMode(DiscoveryMode.grid);
+      await tester.pumpAndSettle();
+      robot.expectNotSelecting();
+      await cubit.close();
+    });
+
+    testWidgets('should favorite every selected title, then unfavorite', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(trio());
+      final toggled = <String>[];
+      final robot = DiscoveryRobot(tester);
+      await _pumpPage(
+        tester,
+        cubit,
+        onToggleFavorite: (candidate) async {
+          toggled.add(candidate.id);
+          return true;
+        },
+      );
+
+      await robot.startSelecting('movie-1');
+      await robot.tapCandidate('movie-3');
+      expect(find.text('Favorite'), findsOneWidget);
+      await robot.runBulkAction(WidgetKeys.discoveryBulkFavorite);
+
+      expect(toggled, unorderedEquals(<String>['movie-1', 'movie-3']));
+      expect(
+        cubit.state.candidates
+            .where((movie) => movie.favorite == true)
+            .map((movie) => movie.id),
+        unorderedEquals(<String>['movie-1', 'movie-3']),
+      );
+      expect(find.text('Added 2 movies to favorites'), findsOneWidget);
+      robot.expectNotSelecting();
+
+      // Only titles that differ change; all favorites offer Unfavorite.
+      await robot.startSelecting('movie-1');
+      expect(find.text('Unfavorite'), findsOneWidget);
+      await robot.tapCandidate('movie-2');
+      expect(find.text('Favorite'), findsOneWidget);
+      toggled.clear();
+      await robot.runBulkAction(WidgetKeys.discoveryBulkFavorite);
+      expect(toggled, <String>['movie-2']);
+      await cubit.close();
+    });
+
+    testWidgets('should keep the selection when a favorite fails', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(trio());
+      final robot = DiscoveryRobot(tester);
+      await _pumpPage(
+        tester,
+        cubit,
+        onToggleFavorite: (candidate) async => candidate.id != 'movie-2',
+      );
+
+      await robot.startSelecting('movie-1');
+      await robot.tapCandidate('movie-2');
+      await robot.runBulkAction(WidgetKeys.discoveryBulkFavorite);
+
+      expect(find.text('Couldn’t update 1 movie. Try again.'), findsOneWidget);
+      robot.expectSelecting(2);
+      await cubit.close();
+    });
+
+    testWidgets('should save and unsave selected titles in the shortlist', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(trio());
+      final store = _MemoryShortlistStore();
+      final shortlist = ShortlistCubit(
+        store: store,
+        loadMovies: (_) async => const <CatalogCandidate>[],
+        selector: FakeDiscoverySelector(null),
+      );
+      await shortlist.hydrate();
+      final robot = DiscoveryRobot(tester);
+      await _pumpPage(tester, cubit, shortlist: shortlist);
+
+      await robot.startSelecting('movie-2');
+      await robot.tapCandidate('movie-3');
+      await robot.runBulkAction(WidgetKeys.discoveryBulkShortlist);
+      expect(store.entries.map((entry) => entry.id), ['movie-2', 'movie-3']);
+      expect(find.text('Added 2 movies to your shortlist'), findsOneWidget);
+      robot.expectNotSelecting();
+
+      await robot.startSelecting('movie-2');
+      await robot.tapCandidate('movie-3');
+      expect(find.text('Unsave'), findsOneWidget);
+      await robot.runBulkAction(WidgetKeys.discoveryBulkShortlist);
+      expect(store.entries, isEmpty);
+      await shortlist.close();
+      await cubit.close();
+    });
+
+    testWidgets('should add selected titles to a playlist', (tester) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(trio());
+      final actions = LibraryActionsFake(
+        playlists: const <LibraryPlaylist>[
+          LibraryPlaylist(id: 'p1', name: 'Movie night'),
+        ],
+        members: const <String, List<String>>{
+          'p1': <String>['movie-1'],
+        },
+      );
+      final robot = DiscoveryRobot(tester);
+      await _pumpPage(tester, cubit, libraryActions: actions);
+
+      await robot.startSelecting('movie-1');
+      await robot.tapCandidate('movie-2');
+      await robot.runBulkAction(WidgetKeys.discoveryBulkPlaylist);
+      expect(find.text('Add 2 movies to a playlist'), findsOneWidget);
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryBulkPlaylistRow('p1')));
+      await tester.pumpAndSettle();
+      expect(actions.members['p1'], <String>['movie-1', 'movie-2']);
+      expect(find.text('Added 1'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(WidgetKeys.discoveryBulkNewPlaylistField),
+        'Double bill',
+      );
+      await tester.tap(find.byKey(WidgetKeys.discoveryBulkCreatePlaylist));
+      await tester.pumpAndSettle();
+      expect(actions.playlists.last.name, 'Double bill');
+      expect(actions.members[actions.playlists.last.id], <String>[
+        'movie-1',
+        'movie-2',
+      ]);
+
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      robot.expectNotSelecting();
+      await cubit.close();
+    });
+
+    testWidgets('should keep playlists and tags one tap away in Browse', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(trio());
+      await _pumpPage(tester, cubit, libraryActions: LibraryActionsFake());
+
+      await DiscoveryRobot(tester).tapCandidate('movie-1');
+      await tester.ensureVisible(
+        find.byKey(WidgetKeys.discoveryOrganizeButton),
+      );
+      await tester.tap(find.byKey(WidgetKeys.discoveryOrganizeButton));
+      await tester.pumpAndSettle();
+      expect(find.byKey(WidgetKeys.discoveryOrganizer), findsOneWidget);
       await cubit.close();
     });
   });
@@ -1388,16 +1638,18 @@ void main() {
         libraryActions: fake,
         facets: const CatalogFacets(tags: <String>['cozy', 'rainy day']),
       );
-      await tester.longPress(
-        find.byKey(WidgetKeys.discoveryCandidate('movie-1')),
+      // Long press selects in Browse; details holds playlists & tags.
+      await tester.tap(find.byKey(WidgetKeys.discoveryCandidate('movie-1')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(WidgetKeys.discoveryOrganizeButton),
       );
+      await tester.tap(find.byKey(WidgetKeys.discoveryOrganizeButton));
       await tester.pumpAndSettle();
       return (cubit, fake);
     }
 
-    testWidgets('should add a long-pressed title to a playlist once', (
-      tester,
-    ) async {
+    testWidgets('should add a title to a playlist once', (tester) async {
       final (cubit, actions) = await openOrganizer(tester);
       expect(find.byKey(WidgetKeys.discoveryOrganizer), findsOneWidget);
 
@@ -2088,6 +2340,7 @@ Future<void> _pumpPage(
   double bottomInset = 0,
   double bottomViewInset = 0,
   LibraryActionsRepository? libraryActions,
+  ShortlistCubit? shortlist,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -2104,26 +2357,53 @@ Future<void> _pumpPage(
         ),
         child: child ?? const SizedBox.shrink(),
       ),
-      home: DiscoveryPage(
-        cubit: cubit,
-        onToggleFavorite: onToggleFavorite,
-        onLoadDetails: onLoadDetails,
-        onOpenTrailer: onOpenTrailer,
-        onLoadMore: onLoadMore,
-        libraries: libraries,
-        facets: facets,
-        onOrganize: libraryActions == null
-            ? null
-            : (context, candidate) => showDiscoveryOrganizer(
-                context,
-                candidate,
-                repository: libraryActions,
-                knownTags: facets.tags,
-              ),
+      home: _withShortlist(
+        shortlist,
+        DiscoveryPage(
+          cubit: cubit,
+          onToggleFavorite: onToggleFavorite,
+          onLoadDetails: onLoadDetails,
+          onOpenTrailer: onOpenTrailer,
+          onLoadMore: onLoadMore,
+          libraries: libraries,
+          facets: facets,
+          onOrganize: libraryActions == null
+              ? null
+              : (context, candidate) => showDiscoveryOrganizer(
+                  context,
+                  candidate,
+                  repository: libraryActions,
+                  knownTags: facets.tags,
+                ),
+          onAddToPlaylist: libraryActions == null
+              ? null
+              : (context, movies) => showDiscoveryBulkPlaylist(
+                  context,
+                  movies,
+                  repository: libraryActions,
+                ),
+        ),
       ),
     ),
   );
   await tester.pump();
+}
+
+Widget _withShortlist(ShortlistCubit? shortlist, Widget child) =>
+    shortlist == null
+    ? child
+    : BlocProvider<ShortlistCubit>.value(value: shortlist, child: child);
+
+final class _MemoryShortlistStore implements ShortlistStore {
+  List<ShortlistEntry> entries = const <ShortlistEntry>[];
+
+  @override
+  Future<List<ShortlistEntry>> read() async => entries;
+
+  @override
+  Future<void> write(List<ShortlistEntry> entries) async {
+    this.entries = entries;
+  }
 }
 
 DiscoveryCubit _cubit() => DiscoveryCubit(

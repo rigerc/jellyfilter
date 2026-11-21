@@ -22,6 +22,29 @@ abstract final class WidgetKeys {
   static const discoveryShuffleMode = Key('discovery-shuffle-mode');
   static const discoveryGrid = Key('discovery-grid');
   static const discoveryList = Key('discovery-list');
+  static const discoverySelectionHeader = Key('discovery-selection-header');
+  static const discoverySelectionCancel = Key('discovery-selection-cancel');
+  static const discoverySelectAll = Key('discovery-select-all');
+  static const discoverySelectionActions = Key('discovery-selection-actions');
+  static const discoveryBulkShortlist = Key('discovery-bulk-shortlist');
+  static const discoveryBulkFavorite = Key('discovery-bulk-favorite');
+  static const discoveryBulkPlaylist = Key('discovery-bulk-playlist');
+  static const discoveryBulkPlaylistSheet = Key(
+    'discovery-bulk-playlist-sheet',
+  );
+  static const discoveryBulkPlaylistMessage = Key(
+    'discovery-bulk-playlist-message',
+  );
+  static const discoveryBulkNewPlaylistField = Key(
+    'discovery-bulk-new-playlist-field',
+  );
+  static const discoveryBulkCreatePlaylist = Key(
+    'discovery-bulk-create-playlist',
+  );
+  static Key discoveryBulkPlaylistRow(String id) =>
+      Key('discovery-bulk-playlist-$id');
+  static Key discoverySelectionMark(String id) =>
+      Key('discovery-selection-mark-$id');
   static const discoveryListHeader = Key('discovery-list-header');
   static const discoveryBrowseLayoutToggle = Key(
     'discovery-browse-layout-toggle',

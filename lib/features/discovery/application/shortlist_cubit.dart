@@ -112,6 +112,25 @@ final class ShortlistCubit extends Cubit<ShortlistState> {
       ? restore((id: movie.id, title: movie.name), 0)
       : Future<bool>.value(false);
 
+  /// Saves every movie in [movies] that is not saved yet, newest first, in
+  /// one write.
+  Future<bool> addAll(Iterable<CatalogCandidate> movies) => _edit((entries) {
+    final saved = entries.map((entry) => entry.id).toSet();
+    final added = <ShortlistEntry>[
+      for (final movie in movies)
+        if (movie.mediaType == CatalogMediaType.movie && saved.add(movie.id))
+          (id: movie.id, title: movie.name),
+    ];
+    return added.isEmpty ? entries : <ShortlistEntry>[...added, ...entries];
+  });
+
+  /// Removes every movie in [ids] in one write.
+  Future<bool> removeAll(Set<String> ids) => _edit(
+    (entries) => entries.any((entry) => ids.contains(entry.id))
+        ? entries.where((entry) => !ids.contains(entry.id)).toList()
+        : entries,
+  );
+
   Future<bool> remove(String id) => _edit(
     (entries) => entries.any((entry) => entry.id == id)
         ? entries.where((entry) => entry.id != id).toList()

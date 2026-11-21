@@ -24,6 +24,7 @@ import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart'
 import 'package:jellyfilter/features/favorites/application/favorite_cubit.dart';
 import 'package:jellyfilter/features/favorites/data/jellyfin_favorite_repository.dart';
 import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_bulk_playlist_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/features/persistence/data/shared_preferences_discovery_store.dart';
 import 'package:jellyfilter/features/persistence/data/shared_preferences_shortlist_store.dart';
@@ -316,6 +317,11 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
                       ? state.facets.tags
                       : const <String>[],
                   onTagsSaved: _catalogCubit.setTags,
+                ),
+                onAddToPlaylist: (context, movies) => showDiscoveryBulkPlaylist(
+                  context,
+                  movies,
+                  repository: _libraryActions,
                 ),
                 cubit: _discoveryCubit,
                 libraries: state is CatalogLoaded ? state.libraries : const [],

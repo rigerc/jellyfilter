@@ -23,7 +23,8 @@ directly, so what you pick here is what you find there.
 - **Browse** — poster-first tiles with title, year, and runtime, or a list
   with ratings and genres on each row (in columns on tablets); sort by
   recommended, recently added, title, release year, community rating, or
-  runtime, in either direction.
+  runtime, in either direction. Long-press to select several movies, then
+  shortlist, favorite, or add them to a playlist together.
 - **Swipe** — a deck of cards that follow your finger and tilt, with LIKE and
   NOPE stamps, a flick to send a card flying, and a stack of what is coming
   next.
@@ -49,8 +50,9 @@ directly, so what you pick here is what you find there.
 - A details sheet with a poster header, score, and Overview, Details, and
   Trailers tabs.
 - Jellyfin trailers play in the app.
-- Add a title to a Jellyfin playlist, or edit its tags, from the grid, the
-  deck, or the details sheet. Tag editing needs a Jellyfin administrator.
+- Add a title to a Jellyfin playlist, or edit its tags, from the details
+  sheet, the deck, or Shuffle, or add several selected titles to a playlist
+  at once from Browse. Tag editing needs a Jellyfin administrator.
 - Hearts update instantly with a pop and a haptic tick, then confirm with the
   server in the background.
 

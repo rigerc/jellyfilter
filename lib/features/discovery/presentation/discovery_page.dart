@@ -5,12 +5,17 @@ import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_library.dart';
+import 'package:jellyfilter/features/discovery/application/browse_selection_cubit.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_bulk_playlist_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_clear_dialog.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_controls.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_selector.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_switcher.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_selection.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_shortlist.dart';
 
 typedef FavoriteToggle = Future<bool> Function(CatalogCandidate candidate);
@@ -30,11 +35,15 @@ final class DiscoveryPage extends StatelessWidget {
     this.facets = const CatalogFacets(),
     this.imageHeaders = const <String, String>{},
     this.onOrganize,
+    this.onAddToPlaylist,
     super.key,
   });
 
   /// Opens playlists & tags for a title; null hides those actions.
   final CandidateOrganizer? onOrganize;
+
+  /// Adds the titles selected in Browse to a playlist; null hides it.
+  final BulkPlaylistAdder? onAddToPlaylist;
   final DiscoveryCubit cubit;
   final FavoriteToggle? onToggleFavorite;
   final CandidateDetailsLoader? onLoadDetails;
@@ -47,12 +56,18 @@ final class DiscoveryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: cubit,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<DiscoveryCubit>.value(value: cubit),
+        BlocProvider<BrowseSelectionCubit>(
+          create: (_) => BrowseSelectionCubit(),
+        ),
+      ],
       child: DiscoveryOrganizerScope(
         organize: onOrganize,
         child: _DiscoveryView(
           onToggleFavorite: onToggleFavorite,
+          onAddToPlaylist: onAddToPlaylist,
           onLoadDetails: onLoadDetails,
           onOpenTrailer: onOpenTrailer,
           onLoadMore: onLoadMore,
@@ -76,9 +91,11 @@ final class _DiscoveryView extends StatelessWidget {
     this.onOpenTrailer,
     this.onLoadMore,
     this.onRetryCatalog,
+    this.onAddToPlaylist,
   });
 
   final FavoriteToggle? onToggleFavorite;
+  final BulkPlaylistAdder? onAddToPlaylist;
   final CandidateDetailsLoader? onLoadDetails;
   final TrailerLauncher? onOpenTrailer;
   final Future<void> Function()? onLoadMore;
@@ -89,15 +106,61 @@ final class _DiscoveryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selecting = context.select(
+      (BrowseSelectionCubit selection) => selection.isSelecting,
+    );
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return BlocListener<DiscoveryCubit, DiscoveryState>(
+      listenWhen: (previous, current) =>
+          previous.mode != current.mode ||
+          !identical(previous.filteredCandidates, current.filteredCandidates),
+      // Selection belongs to Browse and to the titles it currently shows.
+      listener: (context, state) {
+        final selection = context.read<BrowseSelectionCubit>();
+        if (state.mode != DiscoveryMode.grid) {
+          selection.clear();
+          return;
+        }
+        selection.retain(state.filteredCandidates.map((movie) => movie.id));
+      },
+      child: PopScope(
+        canPop: !selecting,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) {
+            context.read<BrowseSelectionCubit>().clear();
+          }
+        },
+        child: _scaffold(
+          context,
+          selecting: selecting,
+          reduceMotion: reduceMotion,
+        ),
+      ),
+    );
+  }
+
+  Widget _scaffold(
+    BuildContext context, {
+    required bool selecting,
+    required bool reduceMotion,
+  }) {
     return Scaffold(
       key: WidgetKeys.discoveryPage,
       resizeToAvoidBottomInset: false,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DiscoveryShortlistStrip(imageHeaders: imageHeaders),
-          const DiscoveryModeSelector(),
-        ],
+      bottomNavigationBar: AnimatedSwitcher(
+        duration: reduceMotion ? Duration.zero : CandyMotion.quick,
+        child: selecting
+            ? DiscoverySelectionActions(
+                onToggleFavorite: onToggleFavorite,
+                onAddToPlaylist: onAddToPlaylist,
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DiscoveryShortlistStrip(imageHeaders: imageHeaders),
+                  const DiscoveryModeSelector(),
+                ],
+              ),
       ),
       body: SafeArea(
         bottom: false,

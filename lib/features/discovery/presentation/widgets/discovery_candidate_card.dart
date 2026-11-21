@@ -8,10 +8,12 @@ import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/core/widgets/candy_bounce.dart';
+import 'package:jellyfilter/features/discovery/application/browse_selection_cubit.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_selection.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// A poster-first title tile. Grid tiles stay compact; swipe and shuffle use
@@ -43,22 +45,26 @@ final class DiscoveryCandidateCard extends StatelessWidget {
     final radius = BorderRadius.circular(
       prominent ? CandyShapes.card : CandyShapes.poster,
     );
+    final press = DiscoverySelectablePress.of(
+      context,
+      candidate,
+      onOpen: () => showDiscoveryDetails(
+        context,
+        candidate,
+        onLoadDetails: onLoadDetails,
+        onOpenTrailer: onOpenTrailer,
+        imageHeaders: imageHeaders,
+      ),
+    );
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Semantics(
       label: localization.discoveryDetailsLabel(candidate.name),
+      selected: press.selecting ? press.selected : null,
+      onLongPressHint: press.longPressHint,
       child: CandyBounce(
         key: WidgetKeys.discoveryCandidate(candidate.id),
-        onPressed: () => showDiscoveryDetails(
-          context,
-          candidate,
-          onLoadDetails: onLoadDetails,
-          onOpenTrailer: onOpenTrailer,
-          imageHeaders: imageHeaders,
-        ),
-        // Long press: straight to playlists & tags.
-        onLongPress: switch (DiscoveryOrganizerScope.maybeOf(context)) {
-          final organize? => () => unawaited(organize(context, candidate)),
-          null => null,
-        },
+        onPressed: press.onPressed,
+        onLongPress: press.onLongPress,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: prominent
@@ -66,37 +72,57 @@ final class DiscoveryCandidateCard extends StatelessWidget {
               : CandySpacing.compact / 1.5,
           children: <Widget>[
             Expanded(
-              child: DecoratedBox(
-                position: DecorationPosition.foreground,
-                decoration: BoxDecoration(
-                  borderRadius: radius,
-                  border: Border.all(color: CandyColors.outline),
-                ),
-                child: ClipRRect(
-                  borderRadius: radius,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[
-                      ColoredBox(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: DiscoveryWatchedFade(
-                          candidate: candidate,
-                          child: DiscoveryPoster(
+              child: AnimatedScale(
+                scale: press.selected ? 0.94 : 1,
+                duration: reduceMotion ? Duration.zero : CandyMotion.quick,
+                curve: Curves.easeOutCubic,
+                child: AnimatedContainer(
+                  duration: reduceMotion ? Duration.zero : CandyMotion.quick,
+                  foregroundDecoration: BoxDecoration(
+                    borderRadius: radius,
+                    border: Border.all(
+                      color: press.selected
+                          ? theme.colorScheme.primary
+                          : CandyColors.outline,
+                      width: press.selected ? 3 : 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: radius,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        ColoredBox(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: DiscoveryWatchedFade(
                             candidate: candidate,
-                            headers: imageHeaders,
-                            fit: posterFit,
+                            child: DiscoveryPoster(
+                              candidate: candidate,
+                              headers: imageHeaders,
+                              fit: posterFit,
+                            ),
                           ),
                         ),
-                      ),
-                      PositionedDirectional(
-                        top: CandySpacing.compact / 2,
-                        end: CandySpacing.compact / 2,
-                        child: DiscoveryShortlistButton(
-                          candidate: candidate,
-                          onPoster: true,
-                        ),
-                      ),
-                    ],
+                        if (press.selecting)
+                          PositionedDirectional(
+                            top: CandySpacing.compact / 1.5,
+                            end: CandySpacing.compact / 1.5,
+                            child: DiscoverySelectionMark(
+                              id: candidate.id,
+                              selected: press.selected,
+                            ),
+                          )
+                        else
+                          PositionedDirectional(
+                            top: CandySpacing.compact / 2,
+                            end: CandySpacing.compact / 2,
+                            child: DiscoveryShortlistButton(
+                              candidate: candidate,
+                              onPoster: true,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -115,9 +141,12 @@ final class DiscoveryCandidateCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                DiscoveryFavoriteButton(
-                  candidate: candidate,
-                  onToggleFavorite: onToggleFavorite,
+                IgnorePointer(
+                  ignoring: press.selecting,
+                  child: DiscoveryFavoriteButton(
+                    candidate: candidate,
+                    onToggleFavorite: onToggleFavorite,
+                  ),
                 ),
               ],
             ),
@@ -128,6 +157,66 @@ final class DiscoveryCandidateCard extends StatelessWidget {
   }
 }
 
+/// What a tap and a long press do on a Browse title: open it and start
+/// selecting, or toggle it while selecting. Without a selection (outside
+/// Browse) a long press still opens playlists & tags.
+final class DiscoverySelectablePress {
+  const DiscoverySelectablePress._({
+    required this.selecting,
+    required this.selected,
+    required this.onPressed,
+    required this.onLongPress,
+    required this.longPressHint,
+  });
+
+  factory DiscoverySelectablePress.of(
+    BuildContext context,
+    CatalogCandidate candidate, {
+    required VoidCallback onOpen,
+  }) {
+    final selection = context.read<BrowseSelectionCubit?>();
+    if (selection == null) {
+      return DiscoverySelectablePress._(
+        selecting: false,
+        selected: false,
+        onPressed: onOpen,
+        onLongPress: switch (DiscoveryOrganizerScope.maybeOf(context)) {
+          final organize? => () => unawaited(organize(context, candidate)),
+          null => null,
+        },
+        longPressHint: null,
+      );
+    }
+    final selecting = context.select(
+      (BrowseSelectionCubit cubit) => cubit.isSelecting,
+    );
+    final selected = context.select(
+      (BrowseSelectionCubit cubit) => cubit.state.contains(candidate.id),
+    );
+    void toggle() {
+      unawaited(HapticFeedback.selectionClick());
+      selection.toggle(candidate.id);
+    }
+
+    return DiscoverySelectablePress._(
+      selecting: selecting,
+      selected: selected,
+      onPressed: selecting ? toggle : onOpen,
+      // CandyBounce already gives a firmer tick for the long press.
+      onLongPress: () => selection.toggle(candidate.id),
+      longPressHint: selecting
+          ? null
+          : AppLocalizations.of(context).discoverySelectHint,
+    );
+  }
+
+  final bool selecting;
+  final bool selected;
+  final VoidCallback onPressed;
+  final VoidCallback? onLongPress;
+  final String? longPressHint;
+}
+
 /// Toggles a Jellyfin favorite. The toggle callback owns optimistic state;
 /// this only mirrors a confirmed change when nothing else has, so a host
 /// without its own state still updates.
@@ -136,18 +225,12 @@ Future<void> toggleDiscoveryFavorite(
   CatalogCandidate candidate,
   FavoriteToggle? onToggleFavorite,
 ) async {
-  final cubit = context.read<DiscoveryCubit>();
-  bool? shown() => cubit.state.candidates
-      .where((item) => item.id == candidate.id)
-      .firstOrNull
-      ?.favorite;
-  final before = shown();
-  final succeeded = await onToggleFavorite?.call(candidate) ?? false;
-  if (succeeded) {
-    if (shown() == before) {
-      await cubit.updateCandidate(candidate.copyWith(favorite: before != true));
-    }
-  } else if (context.mounted) {
+  final succeeded = await applyDiscoveryFavoriteToggle(
+    context.read<DiscoveryCubit>(),
+    candidate,
+    onToggleFavorite,
+  );
+  if (!succeeded && context.mounted) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -156,6 +239,25 @@ Future<void> toggleDiscoveryFavorite(
         ),
       );
   }
+}
+
+/// Flips [candidate]'s favorite through [onToggleFavorite] and mirrors a
+/// confirmed change into [cubit]. Returns whether Jellyfin accepted it.
+Future<bool> applyDiscoveryFavoriteToggle(
+  DiscoveryCubit cubit,
+  CatalogCandidate candidate,
+  FavoriteToggle? onToggleFavorite,
+) async {
+  bool? shown() => cubit.state.candidates
+      .where((item) => item.id == candidate.id)
+      .firstOrNull
+      ?.favorite;
+  final before = shown();
+  final succeeded = await onToggleFavorite?.call(candidate) ?? false;
+  if (succeeded && shown() == before) {
+    await cubit.updateCandidate(candidate.copyWith(favorite: before != true));
+  }
+  return succeeded;
 }
 
 /// Dims a watched title's poster and marks it, when "Fade watched" is on.

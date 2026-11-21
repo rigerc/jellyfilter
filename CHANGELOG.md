@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.36 — 2026-11-21
+
+- Long-press a movie in Browse to select several at once, in both the grid and the list.
+- Add the selected movies to your shortlist, your favorites, or a Jellyfin playlist in one go, or remove them again.
+- Open Playlists & tags for a single movie from its details, now that a long-press in Browse starts selecting.
+
 ## 1.0.35 — 2026-11-21
 
 - The Grid tab is now called Browse.

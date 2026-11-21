@@ -14,6 +14,7 @@ import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_de
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_empty_state.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_load_more.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_selection.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Browse as a list: compact rows on phones, and table-like columns under a
@@ -153,6 +154,9 @@ final class _RowStyles {
   static const thumbnailWidth = 56.0;
   static const thumbnailHeight = 84.0;
   static const verticalPadding = 8.0;
+
+  /// Room around the row so its selected highlight clears the poster.
+  static const horizontalPadding = 6.0;
   static const lineGap = 2.0;
   static const iconSize = 14.0;
   static const ratedWidth = 72.0;
@@ -211,7 +215,10 @@ final class _DiscoveryListHeader extends StatelessWidget {
     return ExcludeSemantics(
       child: Padding(
         key: WidgetKeys.discoveryListHeader,
-        padding: const EdgeInsets.symmetric(vertical: CandySpacing.compact / 2),
+        padding: const EdgeInsets.symmetric(
+          vertical: CandySpacing.compact / 2,
+          horizontal: _RowStyles.horizontalPadding,
+        ),
         child: Row(
           spacing: CandySpacing.compact,
           children: <Widget>[
@@ -399,25 +406,37 @@ final class _DiscoveryListRow extends StatelessWidget {
       );
     }
 
+    final press = DiscoverySelectablePress.of(
+      context,
+      candidate,
+      onOpen: () => showDiscoveryDetails(
+        context,
+        candidate,
+        onLoadDetails: onLoadDetails,
+        onOpenTrailer: onOpenTrailer,
+        imageHeaders: imageHeaders,
+      ),
+    );
+    final duration = reduceMotion ? Duration.zero : CandyMotion.quick;
     return Semantics(
       label: localization.discoveryDetailsLabel(candidate.name),
+      selected: press.selecting ? press.selected : null,
+      onLongPressHint: press.longPressHint,
       child: CandyBounce(
         key: WidgetKeys.discoveryCandidate(candidate.id),
-        onPressed: () => showDiscoveryDetails(
-          context,
-          candidate,
-          onLoadDetails: onLoadDetails,
-          onOpenTrailer: onOpenTrailer,
-          imageHeaders: imageHeaders,
-        ),
-        // Long press: straight to playlists & tags, as in the grid.
-        onLongPress: switch (DiscoveryOrganizerScope.maybeOf(context)) {
-          final organize? => () => unawaited(organize(context, candidate)),
-          null => null,
-        },
-        child: Padding(
+        onPressed: press.onPressed,
+        onLongPress: press.onLongPress,
+        child: AnimatedContainer(
+          duration: duration,
+          decoration: BoxDecoration(
+            color: press.selected
+                ? CandyColors.primaryContainer
+                : CandyColors.primaryContainer.withValues(alpha: 0),
+            borderRadius: BorderRadius.circular(CandyShapes.compact),
+          ),
           padding: const EdgeInsets.symmetric(
             vertical: _RowStyles.verticalPadding,
+            horizontal: _RowStyles.horizontalPadding,
           ),
           child: Row(
             spacing: CandySpacing.compact,
@@ -429,23 +448,47 @@ final class _DiscoveryListRow extends StatelessWidget {
                   child: Row(
                     spacing: CandySpacing.compact,
                     children: <Widget>[
-                      _Thumbnail(candidate: candidate, headers: imageHeaders),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: <Widget>[
+                          _Thumbnail(
+                            candidate: candidate,
+                            headers: imageHeaders,
+                          ),
+                          if (press.selecting)
+                            PositionedDirectional(
+                              top: -4,
+                              start: -4,
+                              child: DiscoverySelectionMark(
+                                id: candidate.id,
+                                selected: press.selected,
+                              ),
+                            ),
+                        ],
+                      ),
                       Expanded(child: details),
                     ],
                   ),
                 ),
               ),
-              SizedBox(
-                width: _RowStyles.actionsWidth,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    DiscoveryShortlistButton(candidate: candidate),
-                    DiscoveryFavoriteButton(
-                      candidate: candidate,
-                      onToggleFavorite: onToggleFavorite,
+              IgnorePointer(
+                ignoring: press.selecting,
+                child: AnimatedOpacity(
+                  opacity: press.selecting ? 0.4 : 1,
+                  duration: duration,
+                  child: SizedBox(
+                    width: _RowStyles.actionsWidth,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: <Widget>[
+                        DiscoveryShortlistButton(candidate: candidate),
+                        DiscoveryFavoriteButton(
+                          candidate: candidate,
+                          onToggleFavorite: onToggleFavorite,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],

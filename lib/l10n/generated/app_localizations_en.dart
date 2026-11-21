@@ -127,6 +127,146 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryBrowseLabel => 'Browse';
 
   @override
+  String discoverySelectionCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get discoverySelectionCancelLabel => 'Cancel selection';
+
+  @override
+  String get discoverySelectAllLabel => 'Select all';
+
+  @override
+  String get discoverySelectHint => 'Select';
+
+  @override
+  String get discoveryBulkShortlistLabel => 'Shortlist';
+
+  @override
+  String get discoveryBulkUnshortlistLabel => 'Unsave';
+
+  @override
+  String get discoveryBulkShortlistTooltip => 'Add to shortlist';
+
+  @override
+  String get discoveryBulkUnshortlistTooltip => 'Remove from shortlist';
+
+  @override
+  String get discoveryBulkFavoriteLabel => 'Favorite';
+
+  @override
+  String get discoveryBulkUnfavoriteLabel => 'Unfavorite';
+
+  @override
+  String get discoveryBulkFavoriteTooltip => 'Add to favorites';
+
+  @override
+  String get discoveryBulkUnfavoriteTooltip => 'Remove from favorites';
+
+  @override
+  String get discoveryBulkPlaylistLabel => 'Playlist';
+
+  @override
+  String get discoveryBulkPlaylistTooltip => 'Add to a playlist';
+
+  @override
+  String discoveryBulkShortlistAdded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Added $count movies to your shortlist',
+      one: 'Added 1 movie to your shortlist',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryBulkShortlistRemoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Removed $count movies from your shortlist',
+      one: 'Removed 1 movie from your shortlist',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryBulkFavorited(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Added $count movies to favorites',
+      one: 'Added 1 movie to favorites',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryBulkUnfavorited(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Removed $count movies from favorites',
+      one: 'Removed 1 movie from favorites',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryBulkFavoriteFailed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Couldn’t update $count movies. Try again.',
+      one: 'Couldn’t update 1 movie. Try again.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryBulkPlaylistTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Add $count movies to a playlist',
+      one: 'Add 1 movie to a playlist',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryBulkPlaylistAdded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Added $count',
+      one: 'Added 1',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryBulkPlaylistPartial(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Couldn’t add $count movies. Try again.',
+      one: 'Couldn’t add 1 movie. Try again.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get discoveryBulkNoPlaylists =>
+      'No playlists yet. Name one below to create it with these movies.';
+
+  @override
+  String get discoveryBulkCreatePlaylistLabel =>
+      'Create playlist with these movies';
+
+  @override
   String get discoveryShowAsListLabel => 'Show as list';
 
   @override

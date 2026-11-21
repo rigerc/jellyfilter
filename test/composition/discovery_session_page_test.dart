@@ -204,10 +204,13 @@ void main() {
       });
       await tester.pumpWidget(_app(client));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(WidgetKeys.discoveryCandidate('suggested')));
+      await tester.pumpAndSettle();
       final before = client.requests.length;
-      await tester.longPress(
-        find.byKey(WidgetKeys.discoveryCandidate('suggested')),
+      await tester.ensureVisible(
+        find.byKey(WidgetKeys.discoveryOrganizeButton),
       );
+      await tester.tap(find.byKey(WidgetKeys.discoveryOrganizeButton));
       await tester.pumpAndSettle();
       expect(find.byKey(WidgetKeys.discoveryOrganizer), findsOneWidget);
       final extra = client.requests.skip(before).toList();
