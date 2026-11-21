@@ -1,0 +1,151 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { HOME_PATH } from "@/consts";
+
+interface Props {
+  tour: CollectionEntry<"project">["data"]["tour"];
+}
+const { tour } = Astro.props;
+const media = `${HOME_PATH}media/`;
+---
+
+<section class="tour" aria-labelledby="tour-title">
+  <div class="tour-copy">
+    <h2 id="tour-title">{tour.title}</h2>
+    <p>{tour.intro}</p>
+    <ol>{tour.steps.map((step) => <li>{step}</li>)}</ol>
+  </div>
+  <figure class="tour-player">
+    <video
+      class="tour-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="metadata"
+      width="720"
+      height="1382"
+      poster={`${media}tour-poster.webp`}
+      aria-label={tour.label}
+    >
+      <source src={`${media}tour.webm`} type="video/webm" />
+      <source src={`${media}tour.mp4`} type="video/mp4" />
+    </video>
+    <figcaption>
+      <button class="tour-toggle" type="button" aria-pressed="false">
+        Pause
+      </button>
+      <span>{tour.note}</span>
+    </figcaption>
+  </figure>
+</section>
+
+<script>
+  // Autoplay only when motion is welcome, and always offer a pause button.
+  for (const player of document.querySelectorAll<HTMLElement>(".tour-player")) {
+    const video = player.querySelector("video");
+    const toggle = player.querySelector<HTMLButtonElement>(".tour-toggle");
+    if (!video || !toggle) continue;
+    const show = (paused: boolean) => {
+      toggle.textContent = paused ? "Play" : "Pause";
+      toggle.setAttribute("aria-pressed", String(paused));
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      video.removeAttribute("autoplay");
+      video.pause();
+    }
+    video.addEventListener("play", () => show(false));
+    video.addEventListener("pause", () => show(true));
+    show(video.paused);
+    toggle.addEventListener("click", () => {
+      if (video.paused) void video.play();
+      else video.pause();
+    });
+  }
+</script>
+
+<style>
+  .tour {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+    align-items: center;
+    gap: clamp(2rem, 6vw, 5rem);
+    margin: 0 0 clamp(2.5rem, 6vw, 5rem);
+  }
+
+  .tour-copy p {
+    max-inline-size: 40ch;
+    margin: 0.75rem 0 1rem;
+    color: var(--muted);
+  }
+
+  .tour-copy ol {
+    display: grid;
+    gap: 0.5rem;
+    max-inline-size: 44ch;
+    margin: 0;
+    padding-inline-start: 1.25rem;
+    color: var(--muted);
+  }
+
+  .tour-copy li::marker {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .tour-player {
+    margin: 0;
+  }
+
+  .tour-video {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    border: 1px solid var(--rule);
+    border-radius: 1.25rem;
+    background: #110f0d;
+  }
+
+  .tour-player figcaption {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  .tour-toggle {
+    flex: none;
+    min-block-size: 2.75rem;
+    padding: 0 1rem;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .tour-toggle:hover {
+    border-color: var(--muted);
+  }
+
+  .tour-toggle:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (width < 45rem) {
+    .tour {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .tour-player {
+      inline-size: min(100%, 20rem);
+      justify-self: center;
+    }
+  }
+</style>

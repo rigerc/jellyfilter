@@ -25,7 +25,7 @@ The static site is built into `dist/`. GitHub Actions publishes it to GitHub Pag
 
 ## Poster credits
 
-The screenshots are rendered from the app's own widgets with a sample library. To refresh them after a UI change, run `tool/website_screenshots.sh` from the repository root (it needs Flutter, curl, and ImageMagick), then regenerate the social card. The theatrical posters come from Wikimedia Commons.
+The screenshots and the tour video in `public/media/` are rendered from the app's own widgets with a sample library; the video advances one 60 fps frame of app time at a time, with a touch mark drawn where each tap or swipe lands. To refresh them after a UI change, run `tool/website_media.sh` from the repository root (use `screenshots` or `video` to render only one; it needs Flutter, curl, ImageMagick, and ffmpeg), then regenerate the social card. The theatrical posters come from Wikimedia Commons.
 
 - [The General (1926)](https://commons.wikimedia.org/wiki/File:The_General_(1926)_-_Movie_Poster_2.png)
 - [The Gold Rush (1925)](https://commons.wikimedia.org/wiki/File:Gold_rush_poster.jpg)

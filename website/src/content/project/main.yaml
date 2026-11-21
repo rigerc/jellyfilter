@@ -22,6 +22,16 @@ screenshots:
     label: Shuffle
     description: Spin from your filtered movies, For you, or your shortlist.
     alt: Jellyfilter's Shuffle tab after landing on The Phantom of the Opera, with choices to spin from filtered titles, For you, or the shortlist.
+tour:
+  title: See it in motion
+  intro: A twenty-second walk through Jellyfilter with a sample library.
+  steps:
+    - Scroll the poster grid, then switch Browse to a list.
+    - Long-press to select movies for the shortlist, favorites, or a playlist.
+    - Swipe right to like a movie and left to pass.
+    - Spin Shuffle and let the reel land on a pick.
+  label: Jellyfilter tour. The Browse grid scrolls and switches to a list, two movies are selected, a movie is liked and another passed in Swipe, and Shuffle spins and lands on Sherlock Jr.
+  note: Recorded from the app with a sample library. No sound.
 seo:
   image: /og-image.jpg
   imageAlt: Jellyfilter. Find a movie to watch. Beside the text is Jellyfilter's Browse tab with a grid of movie posters.
