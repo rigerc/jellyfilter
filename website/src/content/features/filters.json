@@ -1,5 +1,5 @@
 {
   "title": "Filters and presets",
-  "description": "Include or exclude genres, tags, decades, and ratings. Save combinations you use often.",
+  "description": "Require or exclude genres, tags, decades, and content ratings, and narrow by runtime, score, or watched state. Save combinations you use often.",
   "order": 1
 }

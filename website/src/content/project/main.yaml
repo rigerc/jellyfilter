@@ -1,25 +1,29 @@
 name: Jellyfilter
-description: Jellyfilter helps you choose a movie from your Jellyfin library. Browse the poster grid, swipe through titles, or shuffle for a pick.
+description: Jellyfilter helps you choose a movie from your Jellyfin library. Browse posters or a list, swipe through titles, or let Shuffle pick one.
 repository: https://github.com/rigerc/jellyfilter
 docs: https://github.com/rigerc/jellyfilter#readme
 download: https://github.com/rigerc/jellyfilter/releases/latest
 headline: Find a movie to watch.
-intro: Browse the movies on your Jellyfin server, swipe to make a shortlist, or shuffle for a pick.
+intro: Browse your Jellyfin movies as posters or a list, swipe to build a shortlist, or let Shuffle pick one for you.
 screenshots:
-  - image: ../../assets/screenshots/grid.webp
-    label: Grid
-    description: Browse and sort your poster library.
-    alt: Jellyfilter Grid mode showing a two-column library of movie posters.
+  - image: ../../assets/screenshots/browse.webp
+    label: Browse
+    description: Scroll your posters and sort them your way.
+    alt: Jellyfilter's Browse tab showing a two-column grid of movie posters with each title, year, and runtime.
+  - image: ../../assets/screenshots/browse-list.webp
+    label: List
+    description: Compare ratings, runtime, and genres at a glance.
+    alt: Jellyfilter's Browse tab as a list, with a small poster, year, runtime, content rating, scores, and genres for each movie.
   - image: ../../assets/screenshots/swipe.webp
     label: Swipe
     description: Like, pass, or save a movie to your shortlist.
-    alt: Jellyfilter Swipe mode showing a movie card and controls to pass, open details, or like.
+    alt: Jellyfilter's Swipe tab showing a movie card with buttons to pass, open details, add to a playlist, or like.
   - image: ../../assets/screenshots/shuffle.webp
     label: Shuffle
-    description: Pick from your filtered movies, shortlist, or recommendations.
-    alt: Jellyfilter Shuffle mode showing the movie selected by the reel.
+    description: Spin from your filtered movies, For you, or your shortlist.
+    alt: Jellyfilter's Shuffle tab after landing on The Phantom of the Opera, with choices to spin from filtered titles, For you, or the shortlist.
 seo:
   image: /og-image.jpg
-  imageAlt: Jellyfilter. Find a movie to watch. Beside the text is Jellyfilter’s poster grid.
+  imageAlt: Jellyfilter. Find a movie to watch. Beside the text is Jellyfilter's Browse tab with a grid of movie posters.
   imageWidth: 1200
   imageHeight: 630

@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the URL printed by Astro. Edit the landing page copy in `src/content/`. The hero screenshots are in `src/assets/screenshots/`. If you change the name, palette, or hero copy, regenerate the social card with `npm run og:generate`.
+Open the URL printed by Astro. Edit the landing page copy in `src/content/`. The screenshots are in `src/assets/screenshots/`. If you change the name, palette, or hero copy, regenerate the social card with `npm run og:generate`.
 
 ## Build and deploy
 
@@ -25,7 +25,7 @@ The static site is built into `dist/`. GitHub Actions publishes it to GitHub Pag
 
 ## Poster credits
 
-The Grid, Swipe, and Shuffle images are captures of the actual Flutter app with a sample library. The theatrical posters come from Wikimedia Commons.
+The screenshots are rendered from the app's own widgets with a sample library. To refresh them after a UI change, run `tool/website_screenshots.sh` from the repository root (it needs Flutter, curl, and ImageMagick), then regenerate the social card. The theatrical posters come from Wikimedia Commons.
 
 - [The General (1926)](https://commons.wikimedia.org/wiki/File:The_General_(1926)_-_Movie_Poster_2.png)
 - [The Gold Rush (1925)](https://commons.wikimedia.org/wiki/File:Gold_rush_poster.jpg)
