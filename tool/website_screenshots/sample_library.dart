@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:jellyfilter/composition/discovery_session_page.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/connection/domain/entities/stored_session.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
@@ -108,6 +109,136 @@ const _movies = <_Movie>[
   ),
 ];
 
+typedef _Show = ({
+  String id,
+  String name,
+  int year,
+  int endYear,
+  List<int> seasons,
+  int watched,
+  int minutes,
+  List<String> genres,
+  double community,
+  bool favorite,
+  ({String name, int season, int episode})? nextUp,
+  String overview,
+});
+
+/// Real season and episode counts; the user's progress is invented.
+const _shows = <_Show>[
+  (
+    id: 'startrek',
+    name: 'Star Trek',
+    year: 1966,
+    endYear: 1969,
+    seasons: [29, 26, 24],
+    watched: 32,
+    minutes: 50,
+    genres: ['Sci-Fi & Fantasy', 'Action & Adventure'],
+    community: 8.4,
+    favorite: true,
+    nextUp: (name: 'Mirror, Mirror', season: 2, episode: 4),
+    overview:
+        'The crew of the starship Enterprise explores the galaxy on a five-year mission.',
+  ),
+  (
+    id: 'twilight',
+    name: 'The Twilight Zone',
+    year: 1959,
+    endYear: 1964,
+    seasons: [36, 29, 37, 18, 36],
+    watched: 36,
+    minutes: 25,
+    genres: ['Sci-Fi & Fantasy', 'Mystery', 'Drama'],
+    community: 8.9,
+    favorite: false,
+    nextUp: (name: 'King Nine Will Not Return', season: 2, episode: 1),
+    overview:
+        'Rod Serling hosts an anthology of eerie, twist-ending tales of the strange and the uncanny.',
+  ),
+  (
+    id: 'addams',
+    name: 'The Addams Family',
+    year: 1964,
+    endYear: 1966,
+    seasons: [34, 30],
+    watched: 0,
+    minutes: 25,
+    genres: ['Comedy', 'Family'],
+    community: 8.0,
+    favorite: false,
+    nextUp: null,
+    overview:
+        'A wealthy, ghoulish family lives happily by its own macabre rules.',
+  ),
+  (
+    id: 'lucy',
+    name: 'I Love Lucy',
+    year: 1951,
+    endYear: 1957,
+    seasons: [35, 31, 31, 30, 26, 27],
+    watched: 180,
+    minutes: 25,
+    genres: ['Comedy'],
+    community: 8.5,
+    favorite: true,
+    nextUp: null,
+    overview:
+        "Lucy Ricardo schemes to break into show business, much to her bandleader husband's dismay.",
+  ),
+  (
+    id: 'munsters',
+    name: 'The Munsters',
+    year: 1964,
+    endYear: 1966,
+    seasons: [38, 32],
+    watched: 0,
+    minutes: 25,
+    genres: ['Comedy', 'Family', 'Sci-Fi & Fantasy'],
+    community: 7.5,
+    favorite: false,
+    nextUp: null,
+    overview:
+        'A family of friendly monsters tries to fit in on a suburban street.',
+  ),
+  (
+    id: 'griffith',
+    name: 'The Andy Griffith Show',
+    year: 1960,
+    endYear: 1968,
+    seasons: [32, 31, 32, 32, 32, 30, 30, 30],
+    watched: 0,
+    minutes: 25,
+    genres: ['Comedy', 'Family'],
+    community: 8.0,
+    favorite: false,
+    nextUp: null,
+    overview:
+        'Sheriff Andy Taylor keeps the peace in the small town of Mayberry.',
+  ),
+  (
+    id: 'dragnet',
+    name: 'Dragnet',
+    year: 1951,
+    endYear: 1959,
+    seasons: [35, 35, 35, 35, 34, 34, 34, 34],
+    watched: 0,
+    minutes: 30,
+    genres: ['Crime', 'Drama'],
+    community: 7.6,
+    favorite: false,
+    nextUp: null,
+    overview:
+        'Sergeant Joe Friday works cases with the Los Angeles police, just the facts.',
+  ),
+];
+
+/// Every title with artwork, for warming the image cache.
+List<String> get samplePosterIds => <String>[
+  for (final movie in _movies) movie.id,
+  for (final show in _shows) show.id,
+];
+
 /// Lets the catalog arrive, then gives real time to fetch and decode
 /// posters, which fake test time never does.
 Future<void> settleWithImages(WidgetTester tester) async {
@@ -150,17 +281,30 @@ Future<http.Response> _catalog(http.Request request) async {
   final path = request.url.path;
   final query = request.url.queryParameters;
   if (path == '/UserViews') {
-    return _json({'Items': <Object?>[]});
+    return _json({
+      'Items': [
+        {'Id': 'movies', 'Name': 'Movies', 'CollectionType': 'movies'},
+        {'Id': 'shows', 'Name': 'Shows', 'CollectionType': 'tvshows'},
+      ],
+    });
+  }
+  if (path.startsWith('/Shows/')) {
+    return _json({'Items': _episodes(path, query)});
   }
   if (path.startsWith('/Items/Filters')) {
     return _json(<String, Object?>{});
   }
   if (path == '/Items') {
     final favoritesOnly = query['isFavorite'] == 'true';
-    final items = [
-      for (final movie in _movies)
-        if (!favoritesOnly || movie.favorite) _item(movie),
-    ];
+    final items = query['includeItemTypes'] == 'Series'
+        ? [
+            for (final show in _shows)
+              if (!favoritesOnly || show.favorite) _series(show),
+          ]
+        : [
+            for (final movie in _movies)
+              if (!favoritesOnly || movie.favorite) _item(movie),
+          ];
     return _json({
       'Items': items,
       'StartIndex': 0,
@@ -185,6 +329,73 @@ Map<String, Object?> _item(_Movie movie) => <String, Object?>{
   'UserData': {'Played': movie.played, 'IsFavorite': movie.favorite},
 };
 
+int _total(_Show show) => show.seasons.fold(0, (sum, count) => sum + count);
+
+Map<String, Object?> _series(_Show show) => <String, Object?>{
+  'Id': show.id,
+  'Name': show.name,
+  'Type': 'Series',
+  'ProductionYear': show.year,
+  'EndDate': '${show.endYear}-06-01T00:00:00Z',
+  'Status': 'Ended',
+  'ChildCount': show.seasons.length,
+  'RecursiveItemCount': _total(show),
+  'RunTimeTicks': show.minutes * 60 * 10000000,
+  'Genres': show.genres,
+  'CommunityRating': show.community,
+  'OfficialRating': 'TV-PG',
+  'Overview': show.overview,
+  'PrimaryImageAspectRatio': 0.68,
+  'ImageTags': {'Primary': 'poster-${show.id}'},
+  'UserData': {
+    'Played': show.watched == _total(show),
+    'IsFavorite': show.favorite,
+    'UnplayedItemCount': _total(show) - show.watched,
+  },
+};
+
+/// Seasons from `/Shows/<id>/Seasons`, or next up from `/Shows/NextUp`.
+List<Object?> _episodes(String path, Map<String, String> query) {
+  final segments = path.split('/');
+  final id = segments.length > 2 && segments[2] != 'NextUp'
+      ? segments[2]
+      : query['seriesId'];
+  final show = _shows.where((show) => show.id == id).firstOrNull;
+  if (show == null) {
+    return const <Object?>[];
+  }
+  if (segments.last == 'NextUp') {
+    final next = show.nextUp;
+    return [
+      if (next != null)
+        {
+          'Id': '${show.id}-next',
+          'Name': next.name,
+          'Type': 'Episode',
+          'ParentIndexNumber': next.season,
+          'IndexNumber': next.episode,
+          'RunTimeTicks': show.minutes * 60 * 10000000,
+        },
+    ];
+  }
+  var watched = show.watched;
+  return [
+    for (final (index, count) in show.seasons.indexed)
+      () {
+        final played = watched.clamp(0, count);
+        watched -= played;
+        return {
+          'Id': '${show.id}-season-${index + 1}',
+          'Name': 'Season ${index + 1}',
+          'Type': 'Season',
+          'IndexNumber': index + 1,
+          'RecursiveItemCount': count,
+          'UserData': {'UnplayedItemCount': count - played},
+        };
+      }(),
+  ];
+}
+
 http.Response _json(Object value) => http.Response(
   jsonEncode(value),
   200,
@@ -192,10 +403,14 @@ http.Response _json(Object value) => http.Response(
 );
 
 final class SampleShortlistStore implements ShortlistStore {
-  List<ShortlistEntry> _entries = const [
-    (id: 'goldrush', title: 'The Gold Rush'),
-    (id: 'sherlockjr', title: 'Sherlock Jr.'),
-  ];
+  SampleShortlistStore([
+    this._entries = const [
+      (id: 'goldrush', title: 'The Gold Rush'),
+      (id: 'sherlockjr', title: 'Sherlock Jr.'),
+    ],
+  ]);
+
+  List<ShortlistEntry> _entries;
 
   @override
   Future<List<ShortlistEntry>> read() async => _entries;
@@ -296,8 +511,14 @@ final class _PosterResponse extends Stream<List<int>>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// The real discovery screen over the sample library, in dark theme.
-Widget sampleApp(DiscoverySnapshot snapshot) => MaterialApp(
+const _scope = 'https://jellyfin.example/user';
+
+/// The real discovery screen over the sample library, in dark theme, on
+/// [mediaType] with [snapshot] as that side's saved state.
+Widget sampleApp(
+  DiscoverySnapshot snapshot, {
+  CatalogMediaType mediaType = CatalogMediaType.movie,
+}) => MaterialApp(
   debugShowCheckedModeBanner: false,
   theme: buildCandyDarkTheme(),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -311,8 +532,16 @@ Widget sampleApp(DiscoverySnapshot snapshot) => MaterialApp(
       deviceId: 'device',
     ),
     client: MockClient(_catalog),
-    discoveryStore: ImmediateDiscoveryStore()..snapshot = snapshot,
+    discoveryStore: mediaType == CatalogMediaType.series
+        ? (ImmediateDiscoveryStore()
+            ..mediaType = mediaType
+            ..others['$_scope|series'] = snapshot)
+        : (ImmediateDiscoveryStore()..snapshot = snapshot),
     shortlistStore: SampleShortlistStore(),
+    seriesShortlistStore: SampleShortlistStore(const [
+      (id: 'twilight', title: 'The Twilight Zone'),
+      (id: 'lucy', title: 'I Love Lucy'),
+    ]),
   ),
 );
 

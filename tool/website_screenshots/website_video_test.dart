@@ -7,6 +7,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
@@ -68,43 +69,81 @@ void main() {
           1.6,
     );
 
-    // Back to Browse, where the tour began, so the video loops.
+    // Back to Browse, then over to TV shows.
     await tour.tap(find.byKey(WidgetKeys.discoveryGridMode));
-    await tour.wait(1.0);
+    await tour.wait(0.8);
+    await tour.tap(find.byKey(WidgetKeys.discoveryMediaTypeToggle));
+    await tour.wait(1.4);
+    await tour.drag(const Offset(200, 560), const Offset(200, 330), 0.5);
+    await tour.wait(0.8);
+    await tour.drag(const Offset(200, 330), const Offset(200, 620), 0.45);
+    await tour.wait(0.5);
+
+    // Open a show part-way through and look at its episodes.
+    await tour.tap(find.byKey(candidate('startrek')));
+    await tour.wait(1.1);
+    await tour.tap(find.byKey(WidgetKeys.discoveryDetailsTab(1)));
+    await tour.wait(2.2);
+    // Tap the dimmed header above the sheet to close it.
+    await tour.tapAt(const Offset(280, 40));
+    await tour.wait(0.7);
+
+    // Back to movies, where the tour began, so the video loops.
+    await tour.tap(find.byKey(WidgetKeys.discoveryMediaTypeToggle));
+    await tour.wait(1.2);
   });
 }
 
-/// Loads every poster size the tour shows, because fake time never lets a
-/// real download or decode finish mid-recording.
+/// Loads every poster size the tour shows, for movies and shows alike,
+/// because fake time never lets a real download or decode finish
+/// mid-recording.
 Future<void> _warmPosters(WidgetTester tester) async {
   final page = tester.widget<DiscoveryPage>(find.byType(DiscoveryPage));
   final context = tester.element(find.byType(DiscoveryPage));
-  const variants = <({int width, int quality, int? blur})>[
+  const variants = <({int width, int quality, int? blur, int cache})>[
     (
       width: CandyImages.posterDisplayNetworkWidth,
       quality: CandyImages.posterDisplayQuality,
       blur: null,
+      cache: CandyImages.posterCacheWidth,
     ),
     (
       width: CandyReel.posterNetworkWidth,
       quality: CandyReel.posterQuality,
       blur: null,
+      cache: CandyReel.posterNetworkWidth,
     ),
     (
       width: CandyImages.posterThumbnailNetworkWidth,
       quality: CandyImages.posterThumbnailQuality,
       blur: null,
+      cache: CandyImages.posterThumbnailNetworkWidth,
     ),
     (
       width: CandyImages.posterPreviewNetworkWidth,
       quality: CandyImages.posterPreviewQuality,
       blur: CandyImages.posterPreviewBlur,
+      cache: CandyImages.posterPreviewNetworkWidth,
+    ),
+    // The details sheet header.
+    (
+      width: 240,
+      quality: CandyImages.posterDisplayQuality,
+      blur: null,
+      cache: 240,
     ),
   ];
   await tester.runAsync(() async {
-    for (final movie in page.cubit.state.candidates) {
+    for (final id in samplePosterIds) {
+      final poster = CatalogImage(
+        uri: Uri.parse(
+          'https://jellyfin.example/Items/$id/Images/Primary',
+        ).replace(queryParameters: <String, String>{'tag': 'poster-$id'}),
+        isFallback: false,
+        aspectRatio: 0.68,
+      );
       for (final variant in variants) {
-        final uri = movie.poster.variantUri(
+        final uri = poster.variantUri(
           maxWidth: variant.width,
           quality: variant.quality,
           blur: variant.blur,
@@ -114,9 +153,7 @@ Future<void> _warmPosters(WidgetTester tester) async {
         }
         await precacheImage(
           ResizeImage.resizeIfNeeded(
-            variant.width == CandyImages.posterDisplayNetworkWidth
-                ? CandyImages.posterCacheWidth
-                : variant.width,
+            variant.cache,
             null,
             NetworkImage(uri.toString(), headers: page.imageHeaders),
           ),
@@ -239,8 +276,9 @@ final class _Recorder {
     return gesture;
   }
 
-  Future<void> tap(Finder finder) async {
-    final at = tester.getCenter(finder);
+  Future<void> tap(Finder finder) => tapAt(tester.getCenter(finder));
+
+  Future<void> tapAt(Offset at) async {
     touch.value = (position: at, strength: 0);
     await _fade(at, show: true);
     final gesture = await _down(at);

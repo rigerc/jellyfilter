@@ -22,8 +22,16 @@ screenshots:
     label: Shuffle
     description: Spin from your filtered movies, For you, or your shortlist.
     alt: Jellyfilter's Shuffle tab after landing on The Phantom of the Opera, with choices to spin from filtered titles, For you, or the shortlist.
+  - image: ../../assets/screenshots/shows.webp
+    label: Shows
+    description: Switch to TV shows and see how many episodes you have left.
+    alt: Jellyfilter's Browse tab switched to Shows, with Star Trek, The Twilight Zone, The Addams Family, and I Love Lucy. Started shows carry a badge with the episodes left and a progress bar.
+  - image: ../../assets/screenshots/show-episodes.webp
+    label: Episodes
+    description: Pick up with the next episode and track each season.
+    alt: Star Trek's details on the Episodes tab, with Mirror, Mirror as the next episode and Season 1 watched, Season 2 part-way, and Season 3 not started.
 tour:
-  label: Jellyfilter tour. The Browse grid scrolls and switches to a list, two movies are selected, a movie is liked and another passed in Swipe, and Shuffle spins and lands on Sherlock Jr.
+  label: Jellyfilter tour. The Browse grid scrolls and switches to a list, two movies are selected, a movie is liked and another passed in Swipe, and Shuffle spins and lands on a pick. Then the header switches to TV shows, and Star Trek's Episodes tab shows the next episode and progress for each season.
   note: Recorded from the app with a sample library. No sound.
 seo:
   image: /og-image.jpg

@@ -3,9 +3,10 @@
 #
 #   tool/website_media.sh [screenshots|video|all]   (default: all)
 #
-# Downloads the public-domain posters credited in website/README.md, renders
-# the scenes in tool/website_screenshots/, and writes WebP screenshots to
-# website/src/assets/screenshots/ and the tour video to website/public/media/.
+# Downloads the public-domain posters and TV publicity photos credited in
+# website/README.md, renders the scenes in tool/website_screenshots/, and
+# writes WebP screenshots to website/src/assets/screenshots/ and the tour
+# video to website/public/media/.
 # Needs curl, ImageMagick, and ffmpeg (for the video).
 
 set -euo pipefail
@@ -24,7 +25,9 @@ mkdir -p "$posters" "$frames" "$screens" "$media"
 while read -r id file; do
   target="$posters/$id.img"
   [[ -s "$target" ]] && continue
-  curl -fsSL -A "poster-fetch/1.0 (screenshot tooling)" -o "$target" \
+  # Commons rate-limits bursts; curl waits and retries on HTTP 429.
+  curl -fsSL --retry 5 --retry-delay 30 \
+    -A "poster-fetch/1.0 (screenshot tooling)" -o "$target" \
     "https://commons.wikimedia.org/wiki/Special:FilePath/$file?width=600"
 done <<'POSTERS'
 general The_General_(1926)_-_Movie_Poster_2.png
@@ -33,6 +36,13 @@ phantom The_Phantom_of_the_Opera_(1925_film).jpg
 lostworld The_Lost_World_(1925)_-_film_poster.jpg
 safetylast Safety_last_poster.jpg
 sherlockjr Sherlock_jr_poster.jpg
+startrek Leonard_Nimoy_William_Shatner_Star_Trek_1968.JPG
+twilight Rod_Serling_photo_portrait_1959.JPG
+addams Addams_Family_main_cast_1964.JPG
+lucy I_Love_Lucy_(TV_Guide,_December_25,_1954).jpg
+munsters The_Munsters_1964.JPG
+griffith Andy_Griffith_Andy_Griffith_Show_1960.jpg
+dragnet Dragnet_promo_card.jpg
 POSTERS
 
 render() {
