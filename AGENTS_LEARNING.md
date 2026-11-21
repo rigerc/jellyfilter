@@ -124,3 +124,13 @@ two cubits re-emit each other forever.
 A first `DiscoveryCubit` commit always writes, because nothing is marked as
 saved before hydration. Tests that check a field is never persisted must save
 something first and count writes after that.
+
+## TV shows: placeholders and setState
+
+Year placeholders in `app_en.arb` were first typed `int` with
+`decimalPattern`, which renders 2019 as "2,019". Pass years and other
+identifiers as `String` placeholders so they are never grouped.
+
+An arrow-bodied `setState(() => _future = load())` returns the future and
+trips Flutter's assertion. Start the work first, then assign it in a block
+body. Widget tests that tap Retry caught this; give retry paths a test.

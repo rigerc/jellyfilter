@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
+import 'package:jellyfilter/composition/media_session.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/core/media/entities/catalog_series_progress.dart';
 import 'package:jellyfilter/core/network/media_browser_authorization.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/catalog/application/catalog_cubit.dart';
@@ -42,7 +44,9 @@ final class DiscoverySessionPage extends StatefulWidget {
     this.onReconnect,
     this.discoveryStore,
     this.shortlistStore,
+    this.seriesShortlistStore,
     this.tasteRepository,
+    this.seriesTasteRepository,
     super.key,
   });
 
@@ -50,8 +54,15 @@ final class DiscoverySessionPage extends StatefulWidget {
   final http.Client client;
   final VoidCallback? onReconnect;
   final DiscoveryStore? discoveryStore;
+
+  /// Saved movies; the default keeps them on the device.
   final ShortlistStore? shortlistStore;
+
+  /// Saved shows, kept apart from movies; the default keeps them on the
+  /// device.
+  final ShortlistStore? seriesShortlistStore;
   final TasteRepository? tasteRepository;
+  final TasteRepository? seriesTasteRepository;
 
   @override
   State<DiscoverySessionPage> createState() => _DiscoverySessionPageState();
@@ -65,18 +76,21 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   /// Minimum gap between watch history refreshes on resume.
   static const _historyRefreshInterval = Duration(minutes: 5);
 
-  late final CatalogCubit _catalogCubit;
-  late final DiscoveryCubit _discoveryCubit;
-  late final ShortlistCubit _shortlistCubit;
+  late final String _scope;
+  late final DiscoveryBlobPreferences _preferences =
+      SharedPreferencesAsyncBlobPreferences();
+  late final DiscoveryStore _store;
   late final FavoriteCubit _favoriteCubit;
-  late final RecommendationCubit _recommendationCubit;
   late final LibraryActionsRepository _libraryActions;
-  StreamSubscription<DiscoveryState>? _discoverySubscription;
-  final List<StreamSubscription<Object?>> _recommendationFeeds =
-      <StreamSubscription<Object?>>[];
-  DateTime? _lastHistoryRefresh;
-  String? _loadedFilterFingerprint;
-  DiscoveryMode? _lastMode;
+  late final JellyfinCatalogRepository _movieCatalog;
+
+  /// One session per kind of title, created the first time it is shown.
+  final Map<CatalogMediaType, MediaSession> _sessions =
+      <CatalogMediaType, MediaSession>{};
+  late MediaSession _active;
+
+  /// The kinds the server holds; empty until Jellyfin says.
+  Set<CatalogMediaType> _available = const <CatalogMediaType>{};
   DateTime? _lastFavoriteSync;
   bool _syncingFavorites = false;
 
@@ -84,48 +98,11 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   void initState() {
     super.initState();
     final session = widget.session;
-    final scope = '${session.serverUrl}/${session.userId}';
-    late final preferences = SharedPreferencesAsyncBlobPreferences();
-    final catalog = JellyfinCatalogRepository(
-      client: widget.client,
-      serverUrl: session.serverUrl,
-      accessToken: session.accessToken,
-      deviceId: session.deviceId,
-      userId: session.userId,
-    );
-    _catalogCubit = CatalogCubit(catalog);
-    _discoveryCubit = DiscoveryCubit(
-      store:
-          widget.discoveryStore ?? SharedPreferencesDiscoveryStore(preferences),
-      scopeKey: scope,
-      selector: RandomDiscoverySelector(),
-    );
-    _shortlistCubit = ShortlistCubit(
-      store:
-          widget.shortlistStore ??
-          SharedPreferencesShortlistStore(preferences, scope),
-      loadMovies: catalog.loadMoviesByIds,
-      selector: RandomDiscoverySelector(),
-    );
-    unawaited(_shortlistCubit.hydrate());
-    _recommendationCubit = RecommendationCubit(
-      repository:
-          widget.tasteRepository ??
-          JellyfinTasteRepository(
-            client: widget.client,
-            serverUrl: session.serverUrl,
-            accessToken: session.accessToken,
-            deviceId: session.deviceId,
-            userId: session.userId,
-          ),
-    );
-    _recommendationFeeds.addAll(<StreamSubscription<Object?>>[
-      _catalogCubit.stream.listen((_) => _feedRecommendations()),
-      _shortlistCubit.stream.listen((_) => _feedRecommendations()),
-      _recommendationCubit.stream.listen(
-        (state) => unawaited(_discoveryCubit.updateAffinity(state.affinity)),
-      ),
-    ]);
+    _scope = '${session.serverUrl}/${session.userId}';
+    _store =
+        widget.discoveryStore ?? SharedPreferencesDiscoveryStore(_preferences);
+    _movieCatalog = _catalogRepository(CatalogMediaType.movie);
+    _active = _sessionFor(CatalogMediaType.movie);
     _favoriteCubit = FavoriteCubit(
       JellyfinFavoriteRepository(
         client: widget.client,
@@ -146,39 +123,123 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     unawaited(_start());
   }
 
+  JellyfinCatalogRepository _catalogRepository(CatalogMediaType type) {
+    final session = widget.session;
+    return JellyfinCatalogRepository(
+      client: widget.client,
+      serverUrl: session.serverUrl,
+      accessToken: session.accessToken,
+      deviceId: session.deviceId,
+      userId: session.userId,
+      mediaType: type,
+    );
+  }
+
+  /// The session for [type], built and wired on first use.
+  MediaSession _sessionFor(CatalogMediaType type) =>
+      _sessions[type] ??= _createSession(type);
+
+  MediaSession _createSession(CatalogMediaType type) {
+    final session = widget.session;
+    final movies = type == CatalogMediaType.movie;
+    // Movies keep the keys they always had, so nothing saved is lost.
+    final scope = movies ? _scope : '$_scope|${type.name}';
+    final catalog = movies ? _movieCatalog : _catalogRepository(type);
+    final shortlistStore = movies
+        ? widget.shortlistStore
+        : widget.seriesShortlistStore;
+    final tasteRepository = movies
+        ? widget.tasteRepository
+        : widget.seriesTasteRepository;
+    final media = MediaSession(
+      mediaType: type,
+      catalog: CatalogCubit(catalog),
+      discovery: DiscoveryCubit(
+        store: _store,
+        scopeKey: scope,
+        selector: RandomDiscoverySelector(),
+        mediaType: type,
+      ),
+      shortlist: ShortlistCubit(
+        store:
+            shortlistStore ??
+            SharedPreferencesShortlistStore(_preferences, scope),
+        loadMovies: catalog.loadByIds,
+        selector: RandomDiscoverySelector(),
+        mediaType: type,
+      ),
+      recommendations: RecommendationCubit(
+        repository:
+            tasteRepository ??
+            JellyfinTasteRepository(
+              client: widget.client,
+              serverUrl: session.serverUrl,
+              accessToken: session.accessToken,
+              deviceId: session.deviceId,
+              userId: session.userId,
+              mediaType: type,
+            ),
+      ),
+    );
+    unawaited(media.shortlist.hydrate());
+    CatalogState? previous;
+    media.subscriptions.addAll(<StreamSubscription<Object?>>[
+      // Every loaded page reaches discovery, even while the other kind of
+      // title is on screen, so switching back shows a complete catalog.
+      media.catalog.stream.listen((state) {
+        final before = previous;
+        previous = state;
+        if (state is! CatalogLoaded) {
+          return;
+        }
+        if (before is CatalogLoaded &&
+            identical(before.candidates, state.candidates)) {
+          return;
+        }
+        unawaited(media.discovery.replaceCandidates(state.candidates));
+      }),
+      media.catalog.stream.listen((_) => _feedRecommendations(media)),
+      media.shortlist.stream.listen((_) => _feedRecommendations(media)),
+      media.recommendations.stream.listen(
+        (state) => unawaited(media.discovery.updateAffinity(state.affinity)),
+      ),
+    ]);
+    return media;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Favorites may have changed in another Jellyfin app while we were away.
     if (state == AppLifecycleState.resumed) {
       unawaited(_syncFavorites());
-      _refreshHistory();
+      _refreshHistory(_active);
     }
   }
 
-  void _refreshHistory() {
-    final last = _lastHistoryRefresh;
+  void _refreshHistory(MediaSession media) {
+    final last = media.lastHistoryRefresh;
     final now = DateTime.now();
     if (last != null && now.difference(last) < _historyRefreshInterval) {
       return;
     }
-    _lastHistoryRefresh = now;
-    unawaited(_recommendationCubit.refreshHistory());
+    media.lastHistoryRefresh = now;
+    unawaited(media.recommendations.refreshHistory());
   }
 
   /// Hands the catalog and the user's choices to recommendations, and
   /// starts learning once a For you view is in use.
-  void _feedRecommendations() {
-    final discovery = _discoveryCubit.state;
-    final catalog = _catalogCubit.state;
+  void _feedRecommendations(MediaSession media) {
+    final discovery = media.discovery.state;
+    final catalog = media.catalog.state;
     unawaited(
-      _recommendationCubit.update(
+      media.recommendations.update(
         candidates: catalog is CatalogLoaded
             ? catalog.candidates
             : const <CatalogCandidate>[],
         choices: LocalTasteChoices(
           likedIds: discovery.likedIds,
           rejectedIds: discovery.rejectedIds,
-          shortlistedIds: _shortlistCubit.state.entries
+          shortlistedIds: media.shortlist.state.entries
               .map((entry) => entry.id)
               .toSet(),
         ),
@@ -186,8 +247,8 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     );
     if (discovery.filter.sort == CatalogSort.forYou ||
         discovery.shuffleForYou) {
-      _lastHistoryRefresh ??= DateTime.now();
-      unawaited(_recommendationCubit.activate());
+      media.lastHistoryRefresh ??= DateTime.now();
+      unawaited(media.recommendations.activate());
     }
   }
 
@@ -201,39 +262,104 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
     _syncingFavorites = true;
     _lastFavoriteSync = now;
     try {
-      await _catalogCubit.syncFavorites();
+      await _active.catalog.syncFavorites();
     } finally {
       _syncingFavorites = false;
     }
   }
 
   Future<void> _start() async {
-    await _discoveryCubit.hydrate();
-    _lastMode = _discoveryCubit.state.mode;
-    _discoverySubscription = _discoveryCubit.stream.listen(
-      _reloadWhenDiscoveryChanges,
-    );
-    _feedRecommendations();
-    await _loadCatalog(_discoveryCubit.state);
-  }
-
-  void _reloadWhenDiscoveryChanges(DiscoveryState state) {
-    _feedRecommendations();
-    final modeChanged = state.mode != _lastMode;
-    _lastMode = state.mode;
-    final fingerprint = _fingerprint(state);
-    if (fingerprint != _loadedFilterFingerprint) {
-      unawaited(_loadCatalog(state));
+    unawaited(_checkAvailability());
+    CatalogMediaType? stored;
+    try {
+      stored = await _store.readMediaType(_scope);
+    } on Object catch (_) {
+      // A missing choice just means movies, as before shows existed.
+    }
+    if (!mounted) {
       return;
     }
-    if (modeChanged) {
+    if (stored != null && stored != _active.mediaType) {
+      setState(() => _active = _sessionFor(stored!));
+    }
+    await _show(_active);
+  }
+
+  /// Learns which kinds of title the server holds. Shows the switch when
+  /// there are both, and leaves a kind the server no longer has.
+  Future<void> _checkAvailability() async {
+    final types = await _movieCatalog.loadAvailableMediaTypes();
+    if (!mounted || types == null) {
+      return;
+    }
+    setState(() => _available = types);
+    if (types.isEmpty || types.contains(_active.mediaType)) {
+      return;
+    }
+    await _switchTo(
+      types.contains(CatalogMediaType.movie)
+          ? CatalogMediaType.movie
+          : types.first,
+    );
+  }
+
+  Future<void> _switchTo(CatalogMediaType type) async {
+    if (!mounted || type == _active.mediaType) {
+      return;
+    }
+    final from = _active;
+    final to = _sessionFor(type);
+    setState(() => _active = to);
+    try {
+      await _store.writeMediaType(_scope, type);
+    } on Object catch (_) {
+      // Only the choice for next launch is lost.
+    }
+    await _show(to, adoptFrom: from.discovery.state);
+  }
+
+  /// Restores [media]'s saved state, takes on the tab and layout the user
+  /// was just using, and loads its catalog the first time.
+  Future<void> _show(MediaSession media, {DiscoveryState? adoptFrom}) async {
+    await (media.hydration ??= media.discovery.hydrate());
+    if (!mounted) {
+      return;
+    }
+    if (adoptFrom != null) {
+      await media.discovery.adoptPresentation(adoptFrom);
+    }
+    if (media.listening) {
+      unawaited(_syncFavorites());
+      return;
+    }
+    media.listening = true;
+    media.lastMode = media.discovery.state.mode;
+    media.subscriptions.add(
+      media.discovery.stream.listen(
+        (state) => _reloadWhenDiscoveryChanges(media, state),
+      ),
+    );
+    _feedRecommendations(media);
+    await _loadCatalog(media, media.discovery.state);
+  }
+
+  void _reloadWhenDiscoveryChanges(MediaSession media, DiscoveryState state) {
+    _feedRecommendations(media);
+    final modeChanged = state.mode != media.lastMode;
+    media.lastMode = state.mode;
+    final fingerprint = _fingerprint(state);
+    if (fingerprint != media.loadedFilterFingerprint) {
+      unawaited(_loadCatalog(media, state));
+      return;
+    }
+    if (modeChanged && identical(media, _active)) {
       unawaited(_syncFavorites());
     }
   }
 
-  Future<void> _loadCatalog(DiscoveryState state) async {
-    _loadedFilterFingerprint = _fingerprint(state);
-    await _catalogCubit.load(filter: state.filter, loadAllPages: true);
+  Future<void> _loadCatalog(MediaSession media, DiscoveryState state) async {
+    media.loadedFilterFingerprint = _fingerprint(state);
+    await media.catalog.load(filter: state.filter, loadAllPages: true);
   }
 
   String _fingerprint(DiscoveryState state) =>
@@ -242,120 +368,128 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_catalogCubit.close());
-    unawaited(_discoveryCubit.close());
-    unawaited(_shortlistCubit.close());
     unawaited(_favoriteCubit.close());
-    for (final subscription in _recommendationFeeds) {
-      unawaited(subscription.cancel());
+    for (final media in _sessions.values) {
+      unawaited(media.close());
     }
-    unawaited(_recommendationCubit.close());
-    unawaited(_discoverySubscription?.cancel());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final session = widget.session;
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider<CatalogCubit>.value(value: _catalogCubit),
-        BlocProvider<DiscoveryCubit>.value(value: _discoveryCubit),
-        BlocProvider<FavoriteCubit>.value(value: _favoriteCubit),
-        BlocProvider<ShortlistCubit>.value(value: _shortlistCubit),
-      ],
-      child: BlocConsumer<CatalogCubit, CatalogState>(
-        listenWhen: (previous, current) => switch ((previous, current)) {
-          (
-            CatalogLoaded(candidates: final before),
-            CatalogLoaded(candidates: final after),
-          ) =>
-            !identical(before, after),
-          (_, CatalogLoaded()) => true,
-          _ => false,
-        },
-        listener: (context, state) {
-          if (state case CatalogLoaded(:final candidates)) {
-            unawaited(_discoveryCubit.replaceCandidates(candidates));
-          }
-        },
-        builder: (context, state) {
-          final isShuffle = context.select(
-            (DiscoveryCubit cubit) => cubit.state.mode == DiscoveryMode.shuffle,
-          );
-          final useShortlist = context.select(
-            (ShortlistCubit cubit) => cubit.state.useShortlist,
-          );
-          final loading = switch (state) {
-            CatalogLoading() || CatalogLoaded(loadingMore: true) => true,
-            _ => false,
-          };
-          final failedWithoutCandidates = switch (state) {
-            CatalogLoaded(candidates: final values, failure: final failure) =>
-              values.isEmpty &&
-                  failure != null &&
-                  failure is! NoCatalogMatchFailure,
-            _ => false,
-          };
-          if (failedWithoutCandidates && !isShuffle) {
-            return _CatalogError(onReconnect: widget.onReconnect ?? _retry);
-          }
-          if (!isShuffle &&
-              state is CatalogLoading &&
-              _discoveryCubit.state.candidates.isEmpty) {
-            return const _CatalogLoading();
-          }
-          return Stack(
-            children: <Widget>[
-              DiscoveryPage(
-                onOrganize: (context, candidate) => showDiscoveryOrganizer(
-                  context,
-                  candidate,
-                  repository: _libraryActions,
-                  initialTags: candidate.tags.toList(),
-                  knownTags: state is CatalogLoaded
-                      ? state.facets.tags
-                      : const <String>[],
-                  onTagsSaved: _catalogCubit.setTags,
-                ),
-                onAddToPlaylist: (context, movies) => showDiscoveryBulkPlaylist(
-                  context,
-                  movies,
-                  repository: _libraryActions,
-                ),
-                cubit: _discoveryCubit,
-                libraries: state is CatalogLoaded ? state.libraries : const [],
-                facets: state is CatalogLoaded
-                    ? state.facets
-                    : const CatalogFacets(),
-                onLoadMore: _catalogCubit.loadMore,
-                onLoadDetails: _loadDetails,
-                onOpenTrailer: _openTrailer,
-                imageHeaders: <String, String>{
-                  'Authorization': MediaBrowserAuthorization.value(
-                    deviceId: session.deviceId,
-                    token: session.accessToken,
-                  ),
-                },
-                onToggleFavorite: _toggleFavorite,
-                onRetryCatalog: failedWithoutCandidates
-                    ? (widget.onReconnect ?? _retry)
-                    : null,
-              ),
-              if (loading && !(isShuffle && useShortlist))
-                const LinearProgressIndicator(),
-            ],
-          );
-        },
+    final media = _active;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return AnimatedSwitcher(
+      duration: reduceMotion ? Duration.zero : CandyMotion.standard,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: KeyedSubtree(
+        key: ValueKey<CatalogMediaType>(media.mediaType),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<CatalogCubit>.value(value: media.catalog),
+            BlocProvider<DiscoveryCubit>.value(value: media.discovery),
+            BlocProvider<FavoriteCubit>.value(value: _favoriteCubit),
+            BlocProvider<ShortlistCubit>.value(value: media.shortlist),
+          ],
+          child: BlocBuilder<CatalogCubit, CatalogState>(
+            bloc: media.catalog,
+            builder: (context, state) => _page(context, media, state),
+          ),
+        ),
       ),
     );
   }
 
+  Widget _page(BuildContext context, MediaSession media, CatalogState state) {
+    final session = widget.session;
+    final isShuffle = context.select(
+      (DiscoveryCubit cubit) => cubit.state.mode == DiscoveryMode.shuffle,
+    );
+    final useShortlist = context.select(
+      (ShortlistCubit cubit) => cubit.state.useShortlist,
+    );
+    final loading = switch (state) {
+      CatalogLoading() || CatalogLoaded(loadingMore: true) => true,
+      _ => false,
+    };
+    final failedWithoutCandidates = switch (state) {
+      CatalogLoaded(candidates: final values, failure: final failure) =>
+        values.isEmpty && failure != null && failure is! NoCatalogMatchFailure,
+      _ => false,
+    };
+    final other = _available
+        .where((type) => type != media.mediaType)
+        .firstOrNull;
+    if (failedWithoutCandidates && !isShuffle) {
+      return _CatalogError(
+        onReconnect: widget.onReconnect ?? _retry,
+        switchTo: other,
+        onSwitch: other == null ? null : () => unawaited(_switchTo(other)),
+      );
+    }
+    if (!isShuffle &&
+        state is CatalogLoading &&
+        media.discovery.state.candidates.isEmpty) {
+      return const _CatalogLoading();
+    }
+    return Stack(
+      children: <Widget>[
+        DiscoveryPage(
+          onOrganize: (context, candidate) => showDiscoveryOrganizer(
+            context,
+            candidate,
+            repository: _libraryActions,
+            initialTags: candidate.tags.toList(),
+            knownTags: state is CatalogLoaded
+                ? state.facets.tags
+                : const <String>[],
+            onTagsSaved: media.catalog.setTags,
+          ),
+          // Jellyfin would add every episode of a show to a playlist.
+          onAddToPlaylist: media.mediaType == CatalogMediaType.movie
+              ? (context, movies) => showDiscoveryBulkPlaylist(
+                  context,
+                  movies,
+                  repository: _libraryActions,
+                )
+              : null,
+          cubit: media.discovery,
+          mediaTypes: _available,
+          onMediaTypeChanged: (type) => unawaited(_switchTo(type)),
+          onLoadSeriesProgress: _loadSeriesProgress,
+          libraries: state is CatalogLoaded ? state.libraries : const [],
+          facets: state is CatalogLoaded ? state.facets : const CatalogFacets(),
+          onLoadMore: media.catalog.loadMore,
+          onLoadDetails: _loadDetails,
+          onOpenTrailer: _openTrailer,
+          imageHeaders: <String, String>{
+            'Authorization': MediaBrowserAuthorization.value(
+              deviceId: session.deviceId,
+              token: session.accessToken,
+            ),
+          },
+          onToggleFavorite: _toggleFavorite,
+          onRetryCatalog: failedWithoutCandidates
+              ? (widget.onReconnect ?? _retry)
+              : null,
+        ),
+        if (loading && !(isShuffle && useShortlist))
+          const LinearProgressIndicator(),
+      ],
+    );
+  }
+
+  /// The session that holds [candidate]'s kind of title.
+  MediaSession _owner(CatalogCandidate candidate) =>
+      _sessions[candidate.mediaType] ?? _active;
+
   /// Flips a favorite instantly, confirms it with Jellyfin, and rolls back
   /// on failure. A newer tap on the same title owns the final outcome.
   Future<bool> _toggleFavorite(CatalogCandidate candidate) async {
+    final catalog = _owner(candidate).catalog;
     final current =
-        _catalogCubit.favoriteOf(candidate.id) ?? candidate.favorite == true;
+        catalog.favoriteOf(candidate.id) ?? candidate.favorite == true;
     final requested = !current;
     _showFavorite(candidate, requested);
     await _favoriteCubit.setFavorite(
@@ -378,22 +512,32 @@ final class _DiscoverySessionPageState extends State<DiscoverySessionPage>
   }
 
   void _showFavorite(CatalogCandidate candidate, bool favorite) {
+    final media = _owner(candidate);
     // The catalog is the source of truth; the discovery list mirrors it, and
     // is patched directly too in case the catalog is mid-reload.
-    _catalogCubit.setFavorite(candidate.id, favorite);
-    _shortlistCubit.setFavorite(candidate.id, favorite);
+    media.catalog.setFavorite(candidate.id, favorite);
+    media.shortlist.setFavorite(candidate.id, favorite);
     unawaited(
-      _discoveryCubit.updateCandidate(candidate.copyWith(favorite: favorite)),
+      media.discovery.updateCandidate(candidate.copyWith(favorite: favorite)),
     );
   }
 
   Future<CatalogCandidate?> _loadDetails(CatalogCandidate candidate) async =>
-      (await _catalogCubit.loadDetails(candidate.id)).value;
+      (await _owner(candidate).catalog.loadDetails(candidate.id)).value;
+
+  Future<CatalogSeriesProgress?> _loadSeriesProgress(
+    CatalogCandidate series,
+  ) async => (await _owner(series).catalog.loadSeriesProgress(series.id)).value;
 
   Future<bool> _openTrailer(Uri uri) =>
       launchUrl(uri, mode: LaunchMode.externalApplication);
 
-  void _retry() => unawaited(_loadCatalog(_discoveryCubit.state));
+  void _retry() {
+    if (_available.isEmpty) {
+      unawaited(_checkAvailability());
+    }
+    unawaited(_loadCatalog(_active, _active.discovery.state));
+  }
 }
 
 final class _CatalogLoading extends StatelessWidget {
@@ -414,9 +558,17 @@ final class _CatalogLoading extends StatelessWidget {
 }
 
 final class _CatalogError extends StatelessWidget {
-  const _CatalogError({required this.onReconnect});
+  const _CatalogError({
+    required this.onReconnect,
+    this.switchTo,
+    this.onSwitch,
+  });
 
   final VoidCallback onReconnect;
+
+  /// The other kind of title, offered so a failing one is not a dead end.
+  final CatalogMediaType? switchTo;
+  final VoidCallback? onSwitch;
 
   @override
   Widget build(BuildContext context) {
@@ -445,6 +597,15 @@ final class _CatalogError extends StatelessWidget {
                   icon: const Icon(Icons.refresh_rounded),
                   label: Text(localization.catalogReconnectLabel),
                 ),
+                if ((switchTo, onSwitch) case (final type?, final onTap?))
+                  TextButton(
+                    onPressed: onTap,
+                    child: Text(
+                      type == CatalogMediaType.series
+                          ? localization.discoveryShowShowsTooltip
+                          : localization.discoveryShowMoviesTooltip,
+                    ),
+                  ),
               ],
             ),
           ),

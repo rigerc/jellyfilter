@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:jellyfilter/core/media/entities/catalog_series_progress.dart';
 import 'package:jellyfilter/core/network/media_browser_authorization.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
@@ -21,6 +22,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
     required this.accessToken,
     required this.deviceId,
     required this.userId,
+    this.mediaType = CatalogMediaType.movie,
     this.pageSize = 50,
     this.timeout = const Duration(seconds: 10),
     DateTime Function()? now,
@@ -39,12 +41,68 @@ final class JellyfinCatalogRepository implements CatalogRepository {
   final String accessToken;
   final String deviceId;
   final String userId;
+
+  /// The kind of title this repository reads: movies or TV series.
+  final CatalogMediaType mediaType;
   final int pageSize;
   final Duration timeout;
   final DateTime Function() _clock;
 
-  /// Resolves an explicit set of movie IDs independently of discovery filters.
-  Future<List<CatalogCandidate>> loadMoviesByIds(Set<String> ids) async {
+  bool get _series => mediaType == CatalogMediaType.series;
+
+  /// Jellyfin's item type for [mediaType].
+  String get _itemType => _series ? 'Series' : 'Movie';
+
+  /// Jellyfin's library collection type for [mediaType].
+  String get _collectionType => _series ? 'tvshows' : 'movies';
+
+  /// Item fields every catalog page asks for.
+  String get _fields => _series
+      ? 'Genres,Tags,Studios,PrimaryImageAspectRatio,DateCreated,'
+            'ChildCount,RecursiveItemCount,DateLastMediaAdded'
+      : 'Genres,Tags,Studios,PrimaryImageAspectRatio,DateCreated';
+
+  /// Which kinds of title the user's libraries hold, read from their
+  /// library types. Null when the server cannot say.
+  Future<Set<CatalogMediaType>?> loadAvailableMediaTypes() async {
+    final baseUrl = Uri.tryParse(serverUrl);
+    if (baseUrl == null || baseUrl.host.isEmpty) {
+      return null;
+    }
+    final uri = _endpoint(baseUrl, <String>[
+      'UserViews',
+    ]).replace(queryParameters: <String, String>{'userId': userId});
+    final response = (await _get(uri)).response;
+    if (response == null || _responseFailure(response) != null) {
+      return null;
+    }
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map || decoded['Items'] is! List) {
+      return null;
+    }
+    final types = (decoded['Items'] as List)
+        .whereType<Map>()
+        .map((item) => item['CollectionType'])
+        .whereType<String>()
+        .map(
+          (type) => switch (type.toLowerCase()) {
+            'movies' => CatalogMediaType.movie,
+            'tvshows' => CatalogMediaType.series,
+            _ => null,
+          },
+        )
+        .whereType<CatalogMediaType>()
+        .toSet();
+    return Set<CatalogMediaType>.unmodifiable(types);
+  }
+
+  /// Resolves an explicit set of title IDs independently of discovery filters.
+  Future<List<CatalogCandidate>> loadByIds(Set<String> ids) async {
     final movies = <CatalogCandidate>[];
     final requestedIds = ids.toList(growable: false);
     for (var offset = 0; offset < requestedIds.length; offset += pageSize) {
@@ -190,7 +248,10 @@ final class JellyfinCatalogRepository implements CatalogRepository {
           .whereType<Map>()
           .map(_parseLibrary)
           .whereType<CatalogLibrary>()
-          .where((library) => library.collectionType.toLowerCase() == 'movies')
+          .where(
+            (library) =>
+                library.collectionType.toLowerCase() == _collectionType,
+          )
           .toList(growable: false);
       return CatalogResult<List<CatalogLibrary>>.success(
         List<CatalogLibrary>.unmodifiable(libraries),
@@ -224,10 +285,11 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       final uri = _endpoint(baseUrl, <String>['Items']).replace(
         queryParameters: <String, String>{
           'userId': userId,
-          'includeItemTypes': 'Movie',
+          'includeItemTypes': _itemType,
           'recursive': 'true',
           'isFavorite': 'true',
-          'filters': 'IsNotFolder',
+          // A series is a folder, so only movies can ask for non-folders.
+          if (!_series) 'filters': 'IsNotFolder',
           'enableImages': 'false',
           'enableUserData': 'false',
           'enableTotalRecordCount': 'true',
@@ -285,7 +347,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
     }
     final parameters = <String, String>{
       'userId': userId,
-      'includeItemTypes': 'Movie',
+      'includeItemTypes': _itemType,
       if (parentId != null && parentId.isNotEmpty) 'parentId': parentId,
     };
     final legacyRequest = _get(
@@ -383,6 +445,139 @@ final class JellyfinCatalogRepository implements CatalogRepository {
   }
 
   @override
+  Future<CatalogResult<CatalogSeriesProgress>> loadSeriesProgress(
+    String seriesId,
+  ) async {
+    final baseUrl = Uri.tryParse(serverUrl);
+    final id = seriesId.trim();
+    if (baseUrl == null || baseUrl.host.isEmpty || id.isEmpty) {
+      return const CatalogResult<CatalogSeriesProgress>.failure(
+        IncompatibleCatalogFailure(),
+      );
+    }
+    final seasonsRequest = _getItemList(
+      _endpoint(baseUrl, <String>['Shows', id, 'Seasons']).replace(
+        queryParameters: <String, String>{
+          'userId': userId,
+          'fields': 'ChildCount,RecursiveItemCount',
+          'enableUserData': 'true',
+          'enableImages': 'false',
+        },
+      ),
+    );
+    final nextUpRequest = _getItemList(
+      _endpoint(baseUrl, <String>['Shows', 'NextUp']).replace(
+        queryParameters: <String, String>{
+          'userId': userId,
+          'seriesId': id,
+          'limit': '1',
+          'fields': '',
+          'enableUserData': 'false',
+          'enableImages': 'false',
+        },
+      ),
+    );
+    final seasons = await seasonsRequest;
+    final nextUp = await nextUpRequest;
+    final seasonItems = seasons.value;
+    if (seasonItems == null) {
+      return CatalogResult<CatalogSeriesProgress>.failure(seasons.failure);
+    }
+    return CatalogResult<CatalogSeriesProgress>.success(
+      CatalogSeriesProgress(
+        seasons: seasonItems
+            .map(_parseSeason)
+            .whereType<CatalogSeason>()
+            .toList(growable: false),
+        // Next up is a bonus: the seasons still help when it fails.
+        nextUp: nextUp.value
+            ?.map(_parseEpisode)
+            .whereType<CatalogEpisode>()
+            .firstOrNull,
+      ),
+    );
+  }
+
+  Future<CatalogResult<List<Map<String, Object?>>>> _getItemList(
+    Uri uri,
+  ) async {
+    final request = await _get(uri);
+    final response = request.response;
+    if (response == null) {
+      return CatalogResult<List<Map<String, Object?>>>.failure(request.failure);
+    }
+    final failure = _responseFailure(response);
+    if (failure != null) {
+      return CatalogResult<List<Map<String, Object?>>>.failure(failure);
+    }
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map || decoded['Items'] is! List) {
+        return const CatalogResult<List<Map<String, Object?>>>.failure(
+          IncompatibleCatalogFailure(),
+        );
+      }
+      return CatalogResult<List<Map<String, Object?>>>.success(
+        (decoded['Items'] as List)
+            .whereType<Map>()
+            .map(
+              (item) => item.map<String, Object?>(
+                (key, value) => MapEntry('$key', value),
+              ),
+            )
+            .toList(growable: false),
+      );
+    } on FormatException {
+      return const CatalogResult<List<Map<String, Object?>>>.failure(
+        IncompatibleCatalogFailure(),
+      );
+    }
+  }
+
+  CatalogSeason? _parseSeason(Map<String, Object?> item) {
+    final id = _string(item['Id']);
+    final name = _string(item['Name']);
+    if (item['Type'] != 'Season' ||
+        id == null ||
+        id.isEmpty ||
+        name == null ||
+        name.isEmpty) {
+      return null;
+    }
+    final userData = item['UserData'];
+    return CatalogSeason(
+      id: id,
+      name: name,
+      number: _nonNegativeInt(item['IndexNumber']),
+      episodeCount:
+          _nonNegativeInt(item['RecursiveItemCount']) ??
+          _nonNegativeInt(item['ChildCount']),
+      unplayedEpisodeCount: userData is Map
+          ? _nonNegativeInt(userData['UnplayedItemCount'])
+          : null,
+    );
+  }
+
+  CatalogEpisode? _parseEpisode(Map<String, Object?> item) {
+    final id = _string(item['Id']);
+    final name = _string(item['Name']);
+    if (item['Type'] != 'Episode' ||
+        id == null ||
+        id.isEmpty ||
+        name == null ||
+        name.isEmpty) {
+      return null;
+    }
+    return CatalogEpisode(
+      id: id,
+      name: name,
+      seasonNumber: _nonNegativeInt(item['ParentIndexNumber']),
+      episodeNumber: _nonNegativeInt(item['IndexNumber']),
+      runtimeMinutes: _runtimeMinutes(item['RunTimeTicks']),
+    );
+  }
+
+  @override
   Stream<CatalogPage> streamPages({
     CatalogFilter filter = const CatalogFilter(),
   }) async* {
@@ -473,7 +668,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       }
       previousPageFingerprint = fingerprint;
       final mediaItems = decoded.rawItems.where(
-        (item) => item['Type'] == 'Movie',
+        (item) => item['Type'] == _itemType,
       );
       final parsedItems = mediaItems
           .map(_parseCandidate)
@@ -589,7 +784,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
     bool narrowed = false,
   }) {
     final mediaItems = decoded.rawItems.where(
-      (item) => item['Type'] == 'Movie',
+      (item) => item['Type'] == _itemType,
     );
     final parsedItems = mediaItems.map(_parseCandidate).toList(growable: false);
     final candidates = parsedItems
@@ -683,15 +878,15 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       queryParameters: <String, String>{
         'userId': userId,
         'parentId': ?filter.libraryId,
-        'includeItemTypes': 'Movie',
+        'includeItemTypes': _itemType,
         'recursive': 'true',
-        'fields': 'Genres,Tags,Studios,PrimaryImageAspectRatio,DateCreated',
+        'fields': _fields,
         'enableUserData': 'true',
         'enableImages': 'true',
         'enableImageTypes': 'Primary,Backdrop',
         'imageTypeLimit': '1',
         'enableTotalRecordCount': 'true',
-        'filters': 'IsNotFolder',
+        if (!_series) 'filters': 'IsNotFolder',
         if (filter.searchTerm.trim().isNotEmpty)
           'searchTerm': filter.searchTerm.trim(),
         if (filter.watched != null) 'isPlayed': '${filter.watched}',
@@ -772,7 +967,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
   CatalogCandidate? _parseCandidate(Map<String, Object?> item) {
     final id = item['Id'];
     final name = item['Name'];
-    final mediaType = item['Type'] == 'Movie' ? CatalogMediaType.movie : null;
+    final mediaType = item['Type'] == _itemType ? this.mediaType : null;
     if (id is! String ||
         id.isEmpty ||
         name is! String ||
@@ -846,6 +1041,7 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       lastPlayed: _dateTime(userData['LastPlayedDate']),
       likes: _bool(userData['Likes']),
       userRating: _number(userData['Rating']),
+      series: _series ? _seriesFacts(item, userData) : null,
       poster: _image(
         baseUrl: Uri.parse(serverUrl),
         id: id,
@@ -866,6 +1062,19 @@ final class JellyfinCatalogRepository implements CatalogRepository {
       ),
     );
   }
+
+  CatalogSeriesFacts _seriesFacts(
+    Map<String, Object?> item,
+    Map<String, Object?> userData,
+  ) => CatalogSeriesFacts(
+    seasonCount: _nonNegativeInt(item['ChildCount']),
+    episodeCount: _nonNegativeInt(item['RecursiveItemCount']),
+    unplayedEpisodeCount: _nonNegativeInt(userData['UnplayedItemCount']),
+    endYear: _string(item['Status'])?.toLowerCase() == 'ended'
+        ? _dateTime(item['EndDate'])?.year
+        : null,
+    lastEpisodeAdded: _dateTime(item['DateLastMediaAdded']),
+  );
 
   List<CatalogTrailer> _trailers(Object? value) {
     if (value is! List) {
@@ -1098,6 +1307,10 @@ final class JellyfinCatalogRepository implements CatalogRepository {
         CatalogSort.runtime => const <String, String>{
           'sortBy': 'Runtime',
           'sortOrder': 'Ascending',
+        },
+        CatalogSort.newEpisodes => const <String, String>{
+          'sortBy': 'DateLastContentAdded,SortName',
+          'sortOrder': 'Descending,Ascending',
         },
       };
 

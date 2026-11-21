@@ -380,7 +380,7 @@ void main() {
     );
   });
 
-  test('should reject a series even when no filters are active', () {
+  test('should match a series unless the filter names other media types', () {
     const series = CatalogCandidate(
       id: 'series',
       name: 'Series',
@@ -389,7 +389,13 @@ void main() {
       backdrop: CatalogImage.fallback(),
     );
 
-    expect(const CatalogFilter().matches(series), isFalse);
+    expect(const CatalogFilter().matches(series), isTrue);
+    expect(
+      const CatalogFilter(
+        mediaTypes: <CatalogMediaType>{CatalogMediaType.movie},
+      ).matches(series),
+      isFalse,
+    );
   });
 
   test('should clear nullable constraints when copying a filter', () {
@@ -408,5 +414,108 @@ void main() {
     expect(cleared.addedWithin, isNull);
     expect(cleared.minimumRuntimeMinutes, isNull);
     expect(cleared.watched, isNull);
+  });
+
+  group('series constraints', () {
+    CatalogCandidate show({
+      int? seasons,
+      int? episodes,
+      int? unplayed,
+      bool? watched,
+    }) => CatalogCandidate(
+      id: 'show',
+      name: 'Show',
+      mediaType: CatalogMediaType.series,
+      watched: watched,
+      series: CatalogSeriesFacts(
+        seasonCount: seasons,
+        episodeCount: episodes,
+        unplayedEpisodeCount: unplayed,
+      ),
+      poster: const CatalogImage.fallback(),
+      backdrop: const CatalogImage.fallback(),
+    );
+
+    test('should match any chosen length by season count', () {
+      const filter = CatalogFilter(
+        seriesLengths: <CatalogSeriesLength>{
+          CatalogSeriesLength.miniseries,
+          CatalogSeriesLength.long,
+        },
+      );
+
+      expect(filter.matches(show(seasons: 1)), isTrue);
+      expect(filter.matches(show(seasons: 3)), isFalse);
+      expect(filter.matches(show(seasons: 5)), isTrue);
+      expect(filter.matches(show()), isFalse);
+    });
+
+    test('should tell how far through a show the user is', () {
+      expect(
+        CatalogFilter.watchProgressOf(show(episodes: 10, unplayed: 10)),
+        CatalogWatchProgress.notStarted,
+      );
+      expect(
+        CatalogFilter.watchProgressOf(show(episodes: 10, unplayed: 4)),
+        CatalogWatchProgress.inProgress,
+      );
+      expect(
+        CatalogFilter.watchProgressOf(show(episodes: 10, unplayed: 0)),
+        CatalogWatchProgress.finished,
+      );
+      expect(
+        CatalogFilter.watchProgressOf(show(watched: true)),
+        CatalogWatchProgress.finished,
+      );
+      expect(
+        CatalogFilter.watchProgressOf(show()),
+        CatalogWatchProgress.notStarted,
+      );
+    });
+
+    test('should match shows in progress only when asked', () {
+      const filter = CatalogFilter(
+        watchProgress: <CatalogWatchProgress>{CatalogWatchProgress.inProgress},
+      );
+
+      expect(filter.isActive, isTrue);
+      expect(filter.matches(show(episodes: 10, unplayed: 4)), isTrue);
+      expect(filter.matches(show(episodes: 10, unplayed: 10)), isFalse);
+    });
+
+    test('should drop show-only constraints from a movie filter', () {
+      const filter = CatalogFilter(
+        mediaTypes: <CatalogMediaType>{CatalogMediaType.series},
+        sort: CatalogSort.newEpisodes,
+        seriesStatuses: <CatalogSeriesStatus>{CatalogSeriesStatus.ended},
+        seriesLengths: <CatalogSeriesLength>{CatalogSeriesLength.short},
+        watchProgress: <CatalogWatchProgress>{CatalogWatchProgress.finished},
+        genres: <String>{'drama'},
+      );
+
+      final movies = filter.forMediaType(CatalogMediaType.movie);
+      final shows = filter.forMediaType(CatalogMediaType.series);
+
+      expect(movies.mediaTypes, isEmpty);
+      expect(movies.sort, CatalogSort.defaultOrder);
+      expect(movies.seriesStatuses, isEmpty);
+      expect(movies.seriesLengths, isEmpty);
+      expect(movies.watchProgress, isEmpty);
+      expect(movies.genres, {'drama'});
+      expect(shows.mediaTypes, isEmpty);
+      expect(shows.sort, CatalogSort.newEpisodes);
+      expect(shows.seriesStatuses, {CatalogSeriesStatus.ended});
+      expect(shows.seriesLengths, {CatalogSeriesLength.short});
+      expect(shows.watchProgress, {CatalogWatchProgress.finished});
+    });
+
+    test('should keep a filter that already fits its media type', () {
+      const filter = CatalogFilter(genres: <String>{'drama'});
+
+      expect(
+        identical(filter.forMediaType(CatalogMediaType.movie), filter),
+        isTrue,
+      );
+    });
   });
 }

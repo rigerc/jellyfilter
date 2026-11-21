@@ -64,8 +64,11 @@ final class ShortlistCubit extends Cubit<ShortlistState> {
     required this.store,
     required this.loadMovies,
     required this.selector,
+    this.mediaType = CatalogMediaType.movie,
   }) : super(ShortlistState());
 
+  /// The kind of title this shortlist holds; others are turned away.
+  final CatalogMediaType mediaType;
   final ShortlistStore store;
   final Future<List<CatalogCandidate>> Function(Set<String>) loadMovies;
   final DiscoverySelector selector;
@@ -96,7 +99,7 @@ final class ShortlistCubit extends Cubit<ShortlistState> {
   }
 
   Future<bool> toggle(CatalogCandidate movie) {
-    if (movie.mediaType != CatalogMediaType.movie) {
+    if (movie.mediaType != mediaType) {
       return Future<bool>.value(false);
     }
     return _edit((entries) {
@@ -107,8 +110,7 @@ final class ShortlistCubit extends Cubit<ShortlistState> {
     });
   }
 
-  Future<bool> add(CatalogCandidate movie) =>
-      movie.mediaType == CatalogMediaType.movie
+  Future<bool> add(CatalogCandidate movie) => movie.mediaType == mediaType
       ? restore((id: movie.id, title: movie.name), 0)
       : Future<bool>.value(false);
 
@@ -118,7 +120,7 @@ final class ShortlistCubit extends Cubit<ShortlistState> {
     final saved = entries.map((entry) => entry.id).toSet();
     final added = <ShortlistEntry>[
       for (final movie in movies)
-        if (movie.mediaType == CatalogMediaType.movie && saved.add(movie.id))
+        if (movie.mediaType == mediaType && saved.add(movie.id))
           (id: movie.id, title: movie.name),
     ];
     return added.isEmpty ? entries : <ShortlistEntry>[...added, ...entries];
@@ -219,8 +221,7 @@ final class ShortlistCubit extends Cubit<ShortlistState> {
       }
       final movies = <String, CatalogCandidate>{
         for (final movie in results)
-          if (movie.mediaType == CatalogMediaType.movie &&
-              ids.contains(movie.id))
+          if (movie.mediaType == mediaType && ids.contains(movie.id))
             movie.id: movie,
       };
       emit(

@@ -80,7 +80,10 @@ final class DiscoveryShortlistStrip extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              l10n.discoveryShortlistCount(entries.length),
+                              l10n.discoveryShortlistCount(
+                                entries.length,
+                                context.read<ShortlistCubit>().mediaType.name,
+                              ),
                               style: theme.textTheme.labelLarge,
                             ),
                             Text(
@@ -242,7 +245,9 @@ final class _ShortlistSheetState extends State<_ShortlistSheet> {
                           (false, ShortlistLookup.failed) =>
                             l10n.discoveryShortlistLookupError,
                           (false, _) => l10n.discoveryShortlistLoading,
-                          _ => l10n.discoveryShortlistEmpty,
+                          _ => l10n.discoveryShortlistEmpty(
+                            context.read<ShortlistCubit>().mediaType.name,
+                          ),
                         }, textAlign: TextAlign.center),
                       ),
                     )

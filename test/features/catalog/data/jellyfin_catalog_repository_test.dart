@@ -39,11 +39,7 @@ void main() {
       pageSize: 2,
     );
 
-    final movies = await repository.loadMoviesByIds({
-      'first',
-      'second',
-      'missing',
-    });
+    final movies = await repository.loadByIds({'first', 'second', 'missing'});
 
     expect(movies.map((movie) => movie.id), ['first', 'second']);
     expect(

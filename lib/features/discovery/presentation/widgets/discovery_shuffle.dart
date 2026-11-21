@@ -542,7 +542,9 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
                   spinning
                       ? localization.discoverySpinningLabel
                       : directReveal
-                      ? localization.discoveryShortlistRevealLabel
+                      ? localization.discoveryShortlistRevealLabel(
+                          widget.state.mediaType.name,
+                        )
                       : candidate == null
                       ? localization.discoveryRevealLabel
                       : localization.discoverySpinAgainLabel,
@@ -598,14 +600,15 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
 
   Widget _shortlistStatus(BuildContext context, ShortlistState shortlist) {
     final l10n = AppLocalizations.of(context);
+    final kind = widget.state.mediaType.name;
     if (shortlist.isHydrated && shortlist.entries.isEmpty) {
       return _ShuffleMessage(
-        message: l10n.discoveryShortlistEmpty,
+        message: l10n.discoveryShortlistEmpty(kind),
         action: TextButton(
           key: WidgetKeys.discoveryShortlistBrowse,
           onPressed: () =>
               context.read<DiscoveryCubit>().setMode(DiscoveryMode.grid),
-          child: Text(l10n.discoveryShortlistBrowseLabel),
+          child: Text(l10n.discoveryShortlistBrowseLabel(kind)),
         ),
       );
     }
@@ -626,7 +629,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
         ),
       ),
       ShortlistLookup.ready => _ShuffleMessage(
-        message: l10n.discoveryShortlistNoneAvailable,
+        message: l10n.discoveryShortlistNoneAvailable(kind),
       ),
     };
   }

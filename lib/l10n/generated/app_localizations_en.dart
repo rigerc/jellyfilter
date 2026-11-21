@@ -113,14 +113,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryTitle => 'Jellyfilter';
 
   @override
-  String discoveryCandidateCount(int count) {
+  String discoveryCandidateCount(int count, String kind) {
     String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count shows',
+      one: '1 show',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count titles',
       one: '1 title',
     );
-    return '$_temp0';
+    String _temp2 = intl.Intl.selectLogic(kind, {
+      'series': '$_temp0',
+      'other': '$_temp1',
+    });
+    return '$_temp2';
   }
 
   @override
@@ -171,58 +181,108 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryBulkPlaylistTooltip => 'Add to a playlist';
 
   @override
-  String discoveryBulkShortlistAdded(int count) {
+  String discoveryBulkShortlistAdded(int count, String kind) {
     String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Added $count shows to your shortlist',
+      one: 'Added 1 show to your shortlist',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: 'Added $count movies to your shortlist',
       one: 'Added 1 movie to your shortlist',
     );
-    return '$_temp0';
+    String _temp2 = intl.Intl.selectLogic(kind, {
+      'series': '$_temp0',
+      'other': '$_temp1',
+    });
+    return '$_temp2';
   }
 
   @override
-  String discoveryBulkShortlistRemoved(int count) {
+  String discoveryBulkShortlistRemoved(int count, String kind) {
     String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Removed $count shows from your shortlist',
+      one: 'Removed 1 show from your shortlist',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: 'Removed $count movies from your shortlist',
       one: 'Removed 1 movie from your shortlist',
     );
-    return '$_temp0';
+    String _temp2 = intl.Intl.selectLogic(kind, {
+      'series': '$_temp0',
+      'other': '$_temp1',
+    });
+    return '$_temp2';
   }
 
   @override
-  String discoveryBulkFavorited(int count) {
+  String discoveryBulkFavorited(int count, String kind) {
     String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Added $count shows to favorites',
+      one: 'Added 1 show to favorites',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: 'Added $count movies to favorites',
       one: 'Added 1 movie to favorites',
     );
-    return '$_temp0';
+    String _temp2 = intl.Intl.selectLogic(kind, {
+      'series': '$_temp0',
+      'other': '$_temp1',
+    });
+    return '$_temp2';
   }
 
   @override
-  String discoveryBulkUnfavorited(int count) {
+  String discoveryBulkUnfavorited(int count, String kind) {
     String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Removed $count shows from favorites',
+      one: 'Removed 1 show from favorites',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: 'Removed $count movies from favorites',
       one: 'Removed 1 movie from favorites',
     );
-    return '$_temp0';
+    String _temp2 = intl.Intl.selectLogic(kind, {
+      'series': '$_temp0',
+      'other': '$_temp1',
+    });
+    return '$_temp2';
   }
 
   @override
-  String discoveryBulkFavoriteFailed(int count) {
+  String discoveryBulkFavoriteFailed(int count, String kind) {
     String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Couldn’t update $count shows. Try again.',
+      one: 'Couldn’t update 1 show. Try again.',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: 'Couldn’t update $count movies. Try again.',
       one: 'Couldn’t update 1 movie. Try again.',
     );
-    return '$_temp0';
+    String _temp2 = intl.Intl.selectLogic(kind, {
+      'series': '$_temp0',
+      'other': '$_temp1',
+    });
+    return '$_temp2';
   }
 
   @override
@@ -299,6 +359,153 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryShortlistLabel => 'Shortlist';
 
   @override
+  String get discoveryMoviesLabel => 'Movies';
+
+  @override
+  String get discoveryShowsLabel => 'Shows';
+
+  @override
+  String get discoveryShowMoviesTooltip => 'Discover movies';
+
+  @override
+  String get discoveryShowShowsTooltip => 'Discover TV shows';
+
+  @override
+  String discoverySeasonCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seasons',
+      one: '1 season',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryEpisodeCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count episodes',
+      one: '1 episode',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryAiredRange(String start, String end) {
+    return '$start–$end';
+  }
+
+  @override
+  String discoveryAiredSince(String start) {
+    return '$start–';
+  }
+
+  @override
+  String discoveryEpisodesLeftBadge(int count) {
+    return '$count left';
+  }
+
+  @override
+  String discoveryEpisodesLeftLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unwatched episodes',
+      one: '1 unwatched episode',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String discoveryWatchedEpisodesLabel(int played, int total) {
+    return '$played of $total episodes watched';
+  }
+
+  @override
+  String get discoverySeriesContinuing => 'Continuing';
+
+  @override
+  String get discoverySeriesEnded => 'Ended';
+
+  @override
+  String get discoveryFilterTabShow => 'Show';
+
+  @override
+  String get discoverySeriesStatusTitle => 'Status';
+
+  @override
+  String get discoverySeriesLengthTitle => 'Length';
+
+  @override
+  String get discoverySeriesLengthMiniseries => 'Miniseries';
+
+  @override
+  String get discoverySeriesLengthShort => '2–4 seasons';
+
+  @override
+  String get discoverySeriesLengthLong => '5+ seasons';
+
+  @override
+  String get discoveryWatchProgressTitle => 'Your progress';
+
+  @override
+  String get discoveryWatchProgressNotStarted => 'Not started';
+
+  @override
+  String get discoveryWatchProgressInProgress => 'In progress';
+
+  @override
+  String get discoveryWatchProgressFinished => 'Finished';
+
+  @override
+  String get discoveryEpisodeLengthTitle => 'Episode length';
+
+  @override
+  String get discoverySortNewEpisodesLabel => 'New episodes';
+
+  @override
+  String get discoverySortFirstAiredLabel => 'First aired';
+
+  @override
+  String get discoveryPresetFinishStartedLabel => 'Finish what you started';
+
+  @override
+  String get discoveryPresetBingeableMinisLabel => 'Bingeable minis';
+
+  @override
+  String get discoveryPresetStillAiringLabel => 'Still airing';
+
+  @override
+  String get discoveryPresetUnstartedGemsLabel => 'Unstarted gems';
+
+  @override
+  String get discoveryTabEpisodes => 'Episodes';
+
+  @override
+  String get discoveryNextUpTitle => 'Next up';
+
+  @override
+  String discoveryEpisodeCode(int season, int episode) {
+    return 'S$season · E$episode';
+  }
+
+  @override
+  String get discoverySeasonsTitle => 'Seasons';
+
+  @override
+  String discoverySeasonProgress(int played, int total) {
+    return '$played of $total watched';
+  }
+
+  @override
+  String get discoveryNoSeasons => 'Jellyfin has no seasons for this show yet.';
+
+  @override
+  String get discoveryAiredTitle => 'Aired';
+
+  @override
   String discoveryShortlistAddLabel(String title) {
     return 'Add $title to shortlist';
   }
@@ -309,14 +516,24 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String discoveryShortlistCount(int count) {
+  String discoveryShortlistCount(int count, String kind) {
     String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count shows',
+      one: '1 show',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count movies',
       one: '1 movie',
     );
-    return 'Shortlist · $_temp0';
+    String _temp2 = intl.Intl.selectLogic(kind, {
+      'series': '$_temp0',
+      'other': '$_temp1',
+    });
+    return 'Shortlist · $_temp2';
   }
 
   @override
@@ -328,10 +545,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get discoveryShortlistEmpty => 'Bookmark movies to shuffle them here.';
+  String discoveryShortlistEmpty(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'series': 'Bookmark shows to shuffle them here.',
+      'other': 'Bookmark movies to shuffle them here.',
+    });
+    return '$_temp0';
+  }
 
   @override
-  String get discoveryShortlistBrowseLabel => 'Browse movies';
+  String discoveryShortlistBrowseLabel(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'series': 'Browse shows',
+      'other': 'Browse movies',
+    });
+    return '$_temp0';
+  }
 
   @override
   String get discoveryShortlistLoading => 'Loading shortlist…';
@@ -344,8 +573,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoveryShortlistUnavailable => 'Unavailable';
 
   @override
-  String get discoveryShortlistNoneAvailable =>
-      'None of your saved movies are available.';
+  String discoveryShortlistNoneAvailable(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'series': 'None of your saved shows are available.',
+      'other': 'None of your saved movies are available.',
+    });
+    return '$_temp0';
+  }
 
   @override
   String get discoveryShortlistLookupError => 'Couldn’t load your shortlist.';
@@ -355,7 +589,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn’t update your shortlist. Try again.';
 
   @override
-  String get discoveryShortlistRevealLabel => 'Reveal movie';
+  String discoveryShortlistRevealLabel(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'series': 'Reveal show',
+      'other': 'Reveal movie',
+    });
+    return '$_temp0';
+  }
 
   @override
   String discoveryShortlistRemoved(String title) {
@@ -949,8 +1189,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverySavePresetLabel => 'Save current filters';
 
   @override
-  String get discoveryClearConfirmation =>
-      'Clear filters, presets, recent picks, likes, and dismissals on this device? Your Jellyfin login stays connected.';
+  String discoveryClearConfirmation(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'series':
+          'Clear filters, presets, recent picks, likes, and dismissals for shows on this device? Your movies and Jellyfin login stay as they are.',
+      'other':
+          'Clear filters, presets, recent picks, likes, and dismissals on this device? Your Jellyfin login stays connected.',
+    });
+    return '$_temp0';
+  }
 
   @override
   String get discoveryCancelLabel => 'Cancel';

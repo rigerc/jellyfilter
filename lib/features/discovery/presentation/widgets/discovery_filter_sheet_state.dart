@@ -46,6 +46,12 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
   late DiscoveryTriState _favorite;
   late CatalogSort _sort;
   late CatalogAddedWindow? _addedWithin;
+  late Set<CatalogSeriesStatus> _seriesStatuses;
+  late Set<CatalogSeriesLength> _seriesLengths;
+  late Set<CatalogWatchProgress> _watchProgress;
+
+  /// Whether the sheet filters TV series, which adds the Show tab.
+  late final bool _series;
   late final List<CatalogCandidate> _candidateList;
 
   /// Every known tag, most used first. Libraries can hold thousands of tags
@@ -102,6 +108,11 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
     _favorite = _triState(filter.favorite);
     _sort = filter.sort;
     _addedWithin = filter.addedWithin;
+    _seriesStatuses = filter.seriesStatuses;
+    _seriesLengths = filter.seriesLengths;
+    _watchProgress = filter.watchProgress;
+    _series =
+        context.read<DiscoveryCubit>().mediaType == CatalogMediaType.series;
     // Keep the tab badges in step with typed search and genre text.
     _search.addListener(_refresh);
     _genresText.addListener(_refresh);
@@ -140,7 +151,34 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
               ? DiscoveryTriState.yes
               : DiscoveryTriState.any,
         ),
+        inProgress: _series
+            ? _watchProgress.contains(CatalogWatchProgress.inProgress)
+            : null,
+        onInProgressChanged: _series
+            ? (selected) => setState(
+                () => _watchProgress = selected
+                    ? <CatalogWatchProgress>{
+                        ..._watchProgress,
+                        CatalogWatchProgress.inProgress,
+                      }
+                    : (Set<CatalogWatchProgress>.of(_watchProgress)
+                        ..remove(CatalogWatchProgress.inProgress)),
+              )
+            : null,
       ),
+      series: _series
+          ? (
+              statuses: _seriesStatuses,
+              lengths: _seriesLengths,
+              progress: _watchProgress,
+              onStatusesChanged: (value) =>
+                  setState(() => _seriesStatuses = value),
+              onLengthsChanged: (value) =>
+                  setState(() => _seriesLengths = value),
+              onProgressChanged: (value) =>
+                  setState(() => _watchProgress = value),
+            )
+          : null,
       query: (
         searchController: _search,
         libraries: widget.libraries,
@@ -186,6 +224,7 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
         presets: state.presets,
         suggestedPresets: buildDiscoveryDefaultPresets(
           AppLocalizations.of(context),
+          mediaType: state.mediaType,
         ),
         onApply: _applyPreset,
         onApplySuggested: _applySuggested,
@@ -269,6 +308,9 @@ final class _DiscoveryFilterSheetState extends State<DiscoveryFilterSheet> {
       excludedOfficialRatings: _ratings.excluded,
       watched: _bool(_watched),
       favorite: _bool(_favorite),
+      seriesStatuses: _seriesStatuses,
+      seriesLengths: _seriesLengths,
+      watchProgress: _watchProgress,
     );
   }
 

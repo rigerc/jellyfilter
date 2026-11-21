@@ -114,4 +114,10 @@ final class _MemoryDiscoveryStore implements DiscoveryStore {
   Future<void> write(String scope, DiscoverySnapshot value) async {
     snapshot = value;
   }
+
+  @override
+  Future<CatalogMediaType?> readMediaType(String scope) async => null;
+
+  @override
+  Future<void> writeMediaType(String scope, CatalogMediaType value) async {}
 }

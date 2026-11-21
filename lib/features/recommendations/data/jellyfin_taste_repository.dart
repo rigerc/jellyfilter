@@ -3,12 +3,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/network/media_browser_authorization.dart';
 import 'package:jellyfilter/features/recommendations/domain/entities/taste_item.dart';
 import 'package:jellyfilter/features/recommendations/domain/failures/taste_failure.dart';
 import 'package:jellyfilter/features/recommendations/domain/repositories/taste_repository.dart';
 
 /// Reads taste data from Jellyfin without images, keeping downloads small.
+///
+/// It learns about one kind of title, movies or TV series, so each kind
+/// builds its own taste.
 final class JellyfinTasteRepository implements TasteRepository {
   JellyfinTasteRepository({
     required this.client,
@@ -16,8 +20,17 @@ final class JellyfinTasteRepository implements TasteRepository {
     required this.accessToken,
     required this.deviceId,
     required this.userId,
+    this.mediaType = CatalogMediaType.movie,
     this.timeout = const Duration(seconds: 15),
   });
+
+  /// The kind of title whose taste this repository reads.
+  final CatalogMediaType mediaType;
+
+  bool get _series => mediaType == CatalogMediaType.series;
+
+  /// Jellyfin's item type for [mediaType].
+  String get _itemType => _series ? 'Series' : 'Movie';
 
   final http.Client client;
   final String serverUrl;
@@ -43,14 +56,21 @@ final class JellyfinTasteRepository implements TasteRepository {
   @override
   Future<List<TasteItem>> loadHistory() async {
     final items = <String, TasteItem>{};
+    if (_series) {
+      for (final item in await _watchedSeries()) {
+        items[item.id] = item;
+      }
+    }
     // Jellyfin ANDs item filters, so each kind of interaction is its own
     // query. Played titles come newest first so a cap drops the oldest.
     for (final query in <Map<String, String>>[
-      {
-        'filters': 'IsPlayed',
-        'sortBy': 'DatePlayed',
-        'sortOrder': 'Descending',
-      },
+      // A series counts as watched through its episodes, read above.
+      if (!_series)
+        {
+          'filters': 'IsPlayed',
+          'sortBy': 'DatePlayed',
+          'sortOrder': 'Descending',
+        },
       {'filters': 'IsFavoriteOrLikes', 'sortBy': 'SortName'},
       {'filters': 'Dislikes', 'sortBy': 'SortName'},
     ]) {
@@ -58,7 +78,7 @@ final class JellyfinTasteRepository implements TasteRepository {
       while (startIndex < maxHistoryItems) {
         final page = await _getItems(<String, String>{
           ...query,
-          'includeItemTypes': 'Movie',
+          'includeItemTypes': _itemType,
           'recursive': 'true',
           'fields': _fields,
           'enableUserData': 'true',
@@ -77,6 +97,67 @@ final class JellyfinTasteRepository implements TasteRepository {
       }
     }
     return List<TasteItem>.unmodifiable(items.values);
+  }
+
+  /// Series with played episodes, newest first. Each carries how many
+  /// episodes were played as its play count, so a show watched for a whole
+  /// season outweighs a pilot.
+  Future<List<TasteItem>> _watchedSeries() async {
+    final episodes = <String, ({int count, DateTime? last})>{};
+    var startIndex = 0;
+    while (startIndex < maxHistoryItems) {
+      final response = await _get(<String, String>{
+        'filters': 'IsPlayed',
+        'sortBy': 'DatePlayed',
+        'sortOrder': 'Descending',
+        'includeItemTypes': 'Episode',
+        'recursive': 'true',
+        'fields': '',
+        'enableUserData': 'true',
+        'enableTotalRecordCount': 'true',
+        'startIndex': '$startIndex',
+        'limit': '$historyPageSize',
+      });
+      final raw = _rawItems(response);
+      for (final episode in raw) {
+        final seriesId = episode['SeriesId'];
+        if (episode['Type'] != 'Episode' ||
+            seriesId is! String ||
+            seriesId.isEmpty) {
+          continue;
+        }
+        final userData = episode['UserData'];
+        final played = userData is Map ? userData['LastPlayedDate'] : null;
+        final playedAt = played is String
+            ? DateTime.tryParse(played)?.toUtc()
+            : null;
+        final previous = episodes[seriesId];
+        final last = previous?.last;
+        episodes[seriesId] = (
+          count: (previous?.count ?? 0) + 1,
+          last: last == null || (playedAt != null && playedAt.isAfter(last))
+              ? playedAt ?? last
+              : last,
+        );
+      }
+      startIndex += raw.length;
+      final total = response['TotalRecordCount'];
+      if (raw.isEmpty || total is! int || startIndex >= total) {
+        break;
+      }
+    }
+    if (episodes.isEmpty) {
+      return const <TasteItem>[];
+    }
+    final series = await loadItems(episodes.keys.toSet());
+    return <TasteItem>[
+      for (final item in series)
+        if (episodes[item.id] case final watched?)
+          item.withWatchHistory(
+            playCount: watched.count,
+            lastPlayed: watched.last ?? item.lastPlayed,
+          ),
+    ];
   }
 
   @override
@@ -104,7 +185,7 @@ final class JellyfinTasteRepository implements TasteRepository {
   }
 
   @override
-  Future<Set<String>> loadMovieIdsWithPerson(
+  Future<Set<String>> loadTitleIdsWithPerson(
     String personId,
     TasteRole role,
   ) async {
@@ -115,7 +196,7 @@ final class JellyfinTasteRepository implements TasteRepository {
     final response = await _get(<String, String>{
       'personIds': id,
       'personTypes': role == TasteRole.director ? 'Director' : 'Actor',
-      'includeItemTypes': 'Movie',
+      'includeItemTypes': _itemType,
       'recursive': 'true',
       'fields': '',
       'enableUserData': 'false',
@@ -124,7 +205,7 @@ final class JellyfinTasteRepository implements TasteRepository {
     });
     return Set<String>.unmodifiable(
       _rawItems(response)
-          .where((item) => item['Type'] == 'Movie')
+          .where((item) => item['Type'] == _itemType)
           .map((item) => item['Id'])
           .whereType<String>()
           .where((value) => value.isNotEmpty),
@@ -136,7 +217,10 @@ final class JellyfinTasteRepository implements TasteRepository {
     final raw = _rawItems(decoded);
     final total = decoded['TotalRecordCount'];
     return _TastePage(
-      items: raw.map(_parseItem).whereType<TasteItem>().toList(growable: false),
+      items: raw
+          .map((item) => _parseItem(item, _itemType))
+          .whereType<TasteItem>()
+          .toList(growable: false),
       rawCount: raw.length,
       total: total is int && total >= 0 ? total : null,
     );
@@ -208,10 +292,10 @@ final class JellyfinTasteRepository implements TasteRepository {
         : const <Map<Object?, Object?>>[];
   }
 
-  static TasteItem? _parseItem(Map<Object?, Object?> item) {
+  static TasteItem? _parseItem(Map<Object?, Object?> item, String type) {
     final id = item['Id'];
     final name = item['Name'];
-    if (item['Type'] != 'Movie' ||
+    if (item['Type'] != type ||
         id is! String ||
         id.isEmpty ||
         name is! String) {

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:jellyfilter/core/media/entities/catalog_series_progress.dart';
+
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
@@ -22,8 +24,13 @@ abstract interface class CatalogRepository {
 
   Future<CatalogResult<CatalogCandidate>> loadDetails(String itemId);
 
-  /// The ids of every movie the user has marked as a Jellyfin favorite.
+  /// The ids of every title the user has marked as a Jellyfin favorite.
   Future<CatalogResult<Set<String>>> loadFavoriteIds();
+
+  /// The seasons of the series [seriesId] and the episode to watch next.
+  Future<CatalogResult<CatalogSeriesProgress>> loadSeriesProgress(
+    String seriesId,
+  );
 
   Stream<CatalogPage> streamPages({
     CatalogFilter filter = const CatalogFilter(),

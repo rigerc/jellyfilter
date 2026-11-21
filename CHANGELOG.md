@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — 2026-11-21
+
+- Discover TV shows. When your server has both movies and shows, a switch in the header flips between them.
+- Movies and shows each keep their own filters, presets, likes, passes, and shortlist, while your tab and layout stay the same when you switch.
+- Jellyfilter remembers whether you were looking at movies or shows, and opens on shows if your server only has TV.
+- Show cards list the years a show aired and its number of seasons. Shows you have started show how many episodes are left and how far you are.
+- Filter shows by whether they are still airing, by length from miniseries to five seasons or more, and by how far you have got. In progress is also a quick filter.
+- Sort shows by new episodes to bring back the ones with fresh arrivals, and try the new show presets such as Finish what you started and Bingeable minis.
+- Open a show's Episodes tab to see the next episode to watch and your progress through each season.
+- For you recommends shows from the shows you have watched, favorited, rated, and swiped, separately from movies.
+- Shows can be tagged, but not added to playlists, since Jellyfin would add every episode.
+
 ## 1.0.36 — 2026-11-21
 
 - Long-press a movie in Browse to select several at once, in both the grid and the list.

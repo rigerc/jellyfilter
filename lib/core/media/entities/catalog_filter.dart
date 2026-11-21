@@ -27,9 +27,33 @@ enum CatalogSort {
   releaseYear,
   communityRating,
   runtime,
+
+  /// Series whose latest episode arrived most recently.
+  newEpisodes,
 }
 
 enum CatalogSeriesStatus { continuing, ended }
+
+/// How long a series runs, by its number of seasons.
+enum CatalogSeriesLength {
+  /// A single season.
+  miniseries,
+
+  /// Two to four seasons.
+  short,
+
+  /// Five seasons or more.
+  long;
+
+  bool matches(int seasons) => switch (this) {
+    CatalogSeriesLength.miniseries => seasons == 1,
+    CatalogSeriesLength.short => seasons >= 2 && seasons <= 4,
+    CatalogSeriesLength.long => seasons >= 5,
+  };
+}
+
+/// How far the user has got through a title.
+enum CatalogWatchProgress { notStarted, inProgress, finished }
 
 /// Filter dimensions are ANDed; multi-valued attributes require every value.
 final class CatalogFilter {
@@ -50,6 +74,8 @@ final class CatalogFilter {
     Set<int> decades = const <int>{},
     Set<String> officialRatings = const <String>{},
     Set<CatalogSeriesStatus> seriesStatuses = const <CatalogSeriesStatus>{},
+    Set<CatalogSeriesLength> seriesLengths = const <CatalogSeriesLength>{},
+    Set<CatalogWatchProgress> watchProgress = const <CatalogWatchProgress>{},
     this.watched,
     this.favorite,
     this.sortReversed = false,
@@ -83,7 +109,11 @@ final class CatalogFilter {
        _officialRatings = officialRatings,
        // Public constructor names intentionally differ from backing fields.
        // ignore: prefer_initializing_formals
-       _seriesStatuses = seriesStatuses;
+       _seriesStatuses = seriesStatuses,
+       // ignore: prefer_initializing_formals
+       _seriesLengths = seriesLengths,
+       // ignore: prefer_initializing_formals
+       _watchProgress = watchProgress;
 
   final Set<CatalogMediaType> _mediaTypes;
   final String? libraryId;
@@ -101,6 +131,8 @@ final class CatalogFilter {
   final Set<int> _decades;
   final Set<String> _officialRatings;
   final Set<CatalogSeriesStatus> _seriesStatuses;
+  final Set<CatalogSeriesLength> _seriesLengths;
+  final Set<CatalogWatchProgress> _watchProgress;
   final bool? watched;
   final bool? favorite;
 
@@ -144,6 +176,14 @@ final class CatalogFilter {
       sort != CatalogSort.forYou &&
       sort != CatalogSort.random;
 
+  /// Season counts a series must fall in; any of them will do.
+  Set<CatalogSeriesLength> get seriesLengths =>
+      UnmodifiableSetView<CatalogSeriesLength>(_seriesLengths);
+
+  /// How far through a title the user must be; any of them will do.
+  Set<CatalogWatchProgress> get watchProgress =>
+      UnmodifiableSetView<CatalogWatchProgress>(_watchProgress);
+
   Set<CatalogMediaType> get mediaTypes =>
       UnmodifiableSetView<CatalogMediaType>(_mediaTypes);
 
@@ -172,6 +212,8 @@ final class CatalogFilter {
       decades.isNotEmpty ||
       _hasOfficialRatingConstraint ||
       seriesStatuses.isNotEmpty ||
+      _seriesLengths.isNotEmpty ||
+      _watchProgress.isNotEmpty ||
       watched != null ||
       favorite != null ||
       _tags.isNotEmpty ||
@@ -188,11 +230,68 @@ final class CatalogFilter {
       _matchesDecades(candidate) &&
       _matchesOfficialRating(candidate) &&
       _matchesSeries(candidate) &&
+      _matchesSeriesLength(candidate) &&
+      _matchesWatchProgress(candidate) &&
       _matchesFlags(candidate);
 
+  /// This filter with only the constraints that apply to [type]. The media
+  /// type itself comes from the library being browsed, so it is dropped too.
+  CatalogFilter forMediaType(CatalogMediaType type) {
+    final series = type == CatalogMediaType.series;
+    final hasForeign =
+        _mediaTypes.isNotEmpty ||
+        (!series &&
+            (_seriesStatuses.isNotEmpty ||
+                _seriesLengths.isNotEmpty ||
+                _watchProgress.isNotEmpty ||
+                sort == CatalogSort.newEpisodes));
+    if (!hasForeign) {
+      return this;
+    }
+    return series
+        ? copyWith(mediaTypes: const <CatalogMediaType>{})
+        : copyWith(
+            mediaTypes: const <CatalogMediaType>{},
+            seriesStatuses: const <CatalogSeriesStatus>{},
+            seriesLengths: const <CatalogSeriesLength>{},
+            watchProgress: const <CatalogWatchProgress>{},
+            sort: sort == CatalogSort.newEpisodes
+                ? CatalogSort.defaultOrder
+                : sort,
+          );
+  }
+
   bool _matchesMediaType(CatalogCandidate candidate) =>
-      candidate.mediaType == CatalogMediaType.movie &&
-      (mediaTypes.isEmpty || mediaTypes.contains(CatalogMediaType.movie));
+      mediaTypes.isEmpty || mediaTypes.contains(candidate.mediaType);
+
+  bool _matchesSeriesLength(CatalogCandidate candidate) {
+    if (_seriesLengths.isEmpty) {
+      return true;
+    }
+    final seasons = candidate.series?.seasonCount;
+    return seasons != null &&
+        _seriesLengths.any((length) => length.matches(seasons));
+  }
+
+  bool _matchesWatchProgress(CatalogCandidate candidate) =>
+      _watchProgress.isEmpty ||
+      _watchProgress.contains(watchProgressOf(candidate));
+
+  /// How far the user has got through [candidate]. A series counts as
+  /// started once any episode is played.
+  static CatalogWatchProgress watchProgressOf(CatalogCandidate candidate) {
+    if (candidate.watched == true) {
+      return CatalogWatchProgress.finished;
+    }
+    final series = candidate.series;
+    final played = series?.playedEpisodeCount;
+    if (played == null || played == 0) {
+      return CatalogWatchProgress.notStarted;
+    }
+    return series?.unplayedEpisodeCount == 0
+        ? CatalogWatchProgress.finished
+        : CatalogWatchProgress.inProgress;
+  }
 
   bool _matchesSearch(CatalogCandidate candidate) {
     final normalizedSearchTerm = _prepared.search;
@@ -335,6 +434,8 @@ final class CatalogFilter {
     Set<int>? decades,
     Set<String>? officialRatings,
     Set<CatalogSeriesStatus>? seriesStatuses,
+    Set<CatalogSeriesLength>? seriesLengths,
+    Set<CatalogWatchProgress>? watchProgress,
     Object? watched = _unset,
     Object? favorite = _unset,
     bool? sortReversed,
@@ -378,6 +479,8 @@ final class CatalogFilter {
     decades: decades ?? this.decades,
     officialRatings: officialRatings ?? this.officialRatings,
     seriesStatuses: seriesStatuses ?? this.seriesStatuses,
+    seriesLengths: seriesLengths ?? this.seriesLengths,
+    watchProgress: watchProgress ?? this.watchProgress,
     watched: _copyBool(watched, this.watched),
     favorite: _copyBool(favorite, this.favorite),
     sortReversed: sortReversed ?? this.sortReversed,

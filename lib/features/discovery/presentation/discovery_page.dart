@@ -13,6 +13,7 @@ import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_bu
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_clear_dialog.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_controls.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_media_scope.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_selector.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_mode_switcher.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_selection.dart';
@@ -36,8 +37,19 @@ final class DiscoveryPage extends StatelessWidget {
     this.imageHeaders = const <String, String>{},
     this.onOrganize,
     this.onAddToPlaylist,
+    this.mediaTypes = const <CatalogMediaType>{},
+    this.onMediaTypeChanged,
+    this.onLoadSeriesProgress,
     super.key,
   });
+
+  /// The kinds of title the server holds; with both, the header offers a
+  /// switch that calls [onMediaTypeChanged].
+  final Set<CatalogMediaType> mediaTypes;
+  final ValueChanged<CatalogMediaType>? onMediaTypeChanged;
+
+  /// Loads seasons and the next episode for a show's details.
+  final SeriesProgressLoader? onLoadSeriesProgress;
 
   /// Opens playlists & tags for a title; null hides those actions.
   final CandidateOrganizer? onOrganize;
@@ -63,18 +75,24 @@ final class DiscoveryPage extends StatelessWidget {
           create: (_) => BrowseSelectionCubit(),
         ),
       ],
-      child: DiscoveryOrganizerScope(
-        organize: onOrganize,
-        child: _DiscoveryView(
-          onToggleFavorite: onToggleFavorite,
-          onAddToPlaylist: onAddToPlaylist,
-          onLoadDetails: onLoadDetails,
-          onOpenTrailer: onOpenTrailer,
-          onLoadMore: onLoadMore,
-          onRetryCatalog: onRetryCatalog,
-          libraries: libraries,
-          facets: facets,
-          imageHeaders: imageHeaders,
+      child: DiscoveryMediaScope(
+        mediaType: cubit.mediaType,
+        available: mediaTypes,
+        onChanged: onMediaTypeChanged,
+        loadSeriesProgress: onLoadSeriesProgress,
+        child: DiscoveryOrganizerScope(
+          organize: onOrganize,
+          child: _DiscoveryView(
+            onToggleFavorite: onToggleFavorite,
+            onAddToPlaylist: onAddToPlaylist,
+            onLoadDetails: onLoadDetails,
+            onOpenTrailer: onOpenTrailer,
+            onLoadMore: onLoadMore,
+            onRetryCatalog: onRetryCatalog,
+            libraries: libraries,
+            facets: facets,
+            imageHeaders: imageHeaders,
+          ),
         ),
       ),
     );

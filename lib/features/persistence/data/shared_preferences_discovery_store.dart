@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
 
@@ -87,6 +88,25 @@ final class SharedPreferencesDiscoveryStore implements DiscoveryStore {
   @override
   Future<void> clear(String scope) =>
       preferences.remove(preferences.keyFor(scope));
+
+  @override
+  Future<CatalogMediaType?> readMediaType(String scope) async {
+    try {
+      final value = await preferences.read(_mediaTypeKey(scope));
+      return CatalogMediaType.values
+          .where((type) => type.name == value)
+          .firstOrNull;
+    } on Object catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> writeMediaType(String scope, CatalogMediaType mediaType) =>
+      preferences.write(_mediaTypeKey(scope), mediaType.name);
+
+  String _mediaTypeKey(String scope) =>
+      '${preferences.keyFor(scope)}.mediaType';
 }
 
 final class DiscoveryPersistenceException implements Exception {

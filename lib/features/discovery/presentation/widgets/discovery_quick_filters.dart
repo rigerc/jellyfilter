@@ -40,6 +40,16 @@ final class DiscoveryQuickFilters extends StatelessWidget {
             selected: data.favorites,
             onSelected: data.onFavoritesChanged,
           ),
+          if ((data.inProgress, data.onInProgressChanged) case (
+            final selected?,
+            final onSelected?,
+          ))
+            (
+              key: WidgetKeys.discoveryInProgressFilter,
+              label: localization.discoveryWatchProgressInProgress,
+              selected: selected,
+              onSelected: onSelected,
+            ),
         ];
     return DiscoveryFilterGroup(
       title: localization.discoveryQuickFiltersLabel,

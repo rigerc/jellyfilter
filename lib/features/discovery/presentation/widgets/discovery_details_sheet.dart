@@ -12,6 +12,8 @@ import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart'
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_metadata.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_series.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_media_scope.dart';
 import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
@@ -47,6 +49,9 @@ Future<void> showDiscoveryDetails(
 }) {
   // Modal routes sit above the page, so hand the page's actions across.
   final organize = DiscoveryOrganizerScope.maybeOf(context);
+  final loadSeriesProgress = DiscoveryMediaScope.maybeOf(
+    context,
+  )?.loadSeriesProgress;
   final shortlist = context.read<ShortlistCubit?>();
   final reasons =
       context.read<DiscoveryCubit?>()?.state.affinity.reasonsFor(
@@ -64,6 +69,7 @@ Future<void> showDiscoveryDetails(
         onLoadDetails: onLoadDetails,
         onOpenTrailer: onOpenTrailer,
         imageHeaders: imageHeaders,
+        onLoadSeriesProgress: loadSeriesProgress,
         onOrganize: organize == null
             ? null
             : (current) => organize(sheetContext, current),
@@ -82,6 +88,7 @@ final class DiscoveryDetailsSheet extends StatefulWidget {
     this.onLoadDetails,
     this.onOpenTrailer,
     this.onOrganize,
+    this.onLoadSeriesProgress,
     this.imageHeaders = const <String, String>{},
     super.key,
   });
@@ -92,6 +99,9 @@ final class DiscoveryDetailsSheet extends StatefulWidget {
   /// Why this title is a personal match; empty hides the line.
   final List<AffinityReason> reasons;
   final CandidateDetailsLoader? onLoadDetails;
+
+  /// Loads a show's seasons for the Episodes tab; null hides the tab.
+  final SeriesProgressLoader? onLoadSeriesProgress;
   final TrailerLauncher? onOpenTrailer;
   final ValueChanged<CatalogCandidate>? onOrganize;
 
@@ -119,6 +129,7 @@ final class _DiscoveryDetailsSheetState extends State<DiscoveryDetailsSheet> {
         imageHeaders: widget.imageHeaders,
         onOpenTrailer: widget.onOpenTrailer,
         onOrganize: widget.onOrganize,
+        onLoadSeriesProgress: widget.onLoadSeriesProgress,
       );
     }
     return FutureBuilder<CatalogCandidate?>(
@@ -130,6 +141,7 @@ final class _DiscoveryDetailsSheetState extends State<DiscoveryDetailsSheet> {
         imageHeaders: widget.imageHeaders,
         onOpenTrailer: widget.onOpenTrailer,
         onOrganize: widget.onOrganize,
+        onLoadSeriesProgress: widget.onLoadSeriesProgress,
       ),
     );
   }
@@ -143,11 +155,13 @@ final class _DetailsLayout extends StatelessWidget {
     required this.onOpenTrailer,
     required this.onOrganize,
     required this.imageHeaders,
+    required this.onLoadSeriesProgress,
   });
 
   final Map<String, String> imageHeaders;
   final CatalogCandidate candidate;
   final List<AffinityReason> reasons;
+  final SeriesProgressLoader? onLoadSeriesProgress;
   final bool loading;
   final TrailerLauncher? onOpenTrailer;
   final ValueChanged<CatalogCandidate>? onOrganize;
@@ -163,8 +177,11 @@ final class _DetailsLayout extends StatelessWidget {
     );
     final trailers = candidate.trailers;
     final organize = onOrganize;
+    final series = candidate.mediaType == CatalogMediaType.series;
+    final loadSeries = series ? onLoadSeriesProgress : null;
     final tabs = <String>[
       l10n.discoveryTabOverview,
+      if (loadSeries != null) l10n.discoveryTabEpisodes,
       l10n.discoveryTabDetails,
       if (trailers.isNotEmpty) l10n.discoveryTrailersLabel,
     ];
@@ -236,9 +253,17 @@ final class _DetailsLayout extends StatelessWidget {
                         child: OutlinedButton.icon(
                           key: WidgetKeys.discoveryOrganizeButton,
                           onPressed: () => organize(candidate),
-                          icon: const Icon(Icons.playlist_add_rounded),
+                          icon: Icon(
+                            series
+                                ? Icons.sell_outlined
+                                : Icons.playlist_add_rounded,
+                          ),
                           label: Text(
-                            l10n.discoveryOrganizeLabel,
+                            // Shows only get tags: a playlist would take
+                            // every episode.
+                            series
+                                ? l10n.discoveryTagsTab
+                                : l10n.discoveryOrganizeLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -269,6 +294,11 @@ final class _DetailsLayout extends StatelessWidget {
                     key: WidgetKeys.discoveryDetails,
                     candidate: candidate,
                   ),
+                  if (loadSeries != null)
+                    DiscoverySeriesEpisodes(
+                      candidate: candidate,
+                      load: loadSeries,
+                    ),
                   DiscoveryDetailsFacts(candidate: candidate),
                   if (trailers.isNotEmpty)
                     _TrailerList(
@@ -540,10 +570,15 @@ final class _DiscoveryOrganizerSheetState
 
   String get _itemId => widget.candidate.id;
 
+  /// Shows get tags only: Jellyfin would add every episode to a playlist.
+  bool get _tagsOnly => widget.candidate.mediaType == CatalogMediaType.series;
+
   @override
   void initState() {
     super.initState();
-    unawaited(_loadPlaylists());
+    if (!_tagsOnly) {
+      unawaited(_loadPlaylists());
+    }
     final initialTags = widget.initialTags;
     if (initialTags == null) {
       unawaited(_loadTags());
@@ -678,7 +713,7 @@ final class _DiscoveryOrganizerSheetState
     );
     final message = _message;
     return DefaultTabController(
-      length: 2,
+      length: _tagsOnly ? 1 : 2,
       child: SizedBox(
         key: WidgetKeys.discoveryOrganizer,
         height: height,
@@ -725,10 +760,11 @@ final class _DiscoveryOrganizerSheetState
                 labelColor: theme.colorScheme.primary,
                 unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
                 tabs: <Widget>[
-                  Tab(
-                    key: WidgetKeys.discoveryOrganizerTab(0),
-                    text: l10n.discoveryPlaylistsTab,
-                  ),
+                  if (!_tagsOnly)
+                    Tab(
+                      key: WidgetKeys.discoveryOrganizerTab(0),
+                      text: l10n.discoveryPlaylistsTab,
+                    ),
                   Tab(
                     key: WidgetKeys.discoveryOrganizerTab(1),
                     text: l10n.discoveryTagsTab,
@@ -737,7 +773,10 @@ final class _DiscoveryOrganizerSheetState
               ),
               Expanded(
                 child: TabBarView(
-                  children: <Widget>[_playlistTab(l10n), _tagTab(l10n)],
+                  children: <Widget>[
+                    if (!_tagsOnly) _playlistTab(l10n),
+                    _tagTab(l10n),
+                  ],
                 ),
               ),
             ],

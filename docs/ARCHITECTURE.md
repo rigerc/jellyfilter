@@ -26,10 +26,16 @@ The dependency rules are:
   never imports the catalog feature domain; catalog data maps transport data
   into the same neutral model.
 - Recommendations live in `lib/features/recommendations/`. Its domain ranks
-  movies with pure Dart and publishes the result as the neutral
+  titles with pure Dart and publishes the result as the neutral
   `MediaAffinity` in `lib/core/media/`, which discovery reads for the For you
   sort and Shuffle source. `lib/composition/` feeds it the catalog and the
   user's choices, and it fetches nothing until a For you view is used.
+- Movies and TV shows are discovered separately. `lib/composition/` builds one
+  `MediaSession` per `CatalogMediaType` (catalog, discovery, shortlist, and
+  recommendation cubits), the shows one only when first shown. The cubits and
+  repositories take a media type and stay unaware of the other kind. Movies
+  keep their original storage keys; shows use the same keys with `|series`
+  appended to the scope.
 - App composition injects one `GoRouter` instance into the root widget so
   rebuilds cannot reset navigation state.
 

@@ -42,7 +42,7 @@ final class FakeTasteRepository implements TasteRepository {
   }
 
   @override
-  Future<Set<String>> loadMovieIdsWithPerson(
+  Future<Set<String>> loadTitleIdsWithPerson(
     String personId,
     TasteRole role,
   ) async {

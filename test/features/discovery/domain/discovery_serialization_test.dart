@@ -9,6 +9,34 @@ import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.da
 import 'package:jellyfilter/features/discovery/domain/serialization/catalog_filter_codec.dart';
 
 void main() {
+  test('should round-trip show filters and the new episodes sort', () {
+    const filter = CatalogFilter(
+      sort: CatalogSort.newEpisodes,
+      seriesStatuses: <CatalogSeriesStatus>{CatalogSeriesStatus.continuing},
+      seriesLengths: <CatalogSeriesLength>{
+        CatalogSeriesLength.miniseries,
+        CatalogSeriesLength.long,
+      },
+      watchProgress: <CatalogWatchProgress>{CatalogWatchProgress.inProgress},
+    );
+
+    final decoded = CatalogFilterCodec.decode(
+      CatalogFilterCodec.encode(filter),
+    );
+
+    expect(decoded?.sort, CatalogSort.newEpisodes);
+    expect(decoded?.seriesStatuses, filter.seriesStatuses);
+    expect(decoded?.seriesLengths, filter.seriesLengths);
+    expect(decoded?.watchProgress, filter.watchProgress);
+  });
+
+  test('should reject unknown show filter values', () {
+    final encoded = CatalogFilterCodec.encode(const CatalogFilter())
+      ..['seriesLengths'] = <String>['endless'];
+
+    expect(CatalogFilterCodec.decode(encoded), isNull);
+  });
+
   test('should round-trip the For you sort without a direction', () {
     const filter = CatalogFilter(sort: CatalogSort.forYou, sortReversed: true);
     final decoded = CatalogFilterCodec.decode(
@@ -228,7 +256,7 @@ void main() {
     expect(CatalogFilterCodec.encode(decoded!), encoded);
   });
 
-  test('should discard legacy TV constraints while restoring movies', () {
+  test('should restore TV constraints as they were saved', () {
     final decoded = CatalogFilterCodec.decode(<String, Object?>{
       'mediaTypes': <String>['movie', 'series'],
       'minimumRuntimeMinutes': null,
@@ -244,8 +272,13 @@ void main() {
       'favorite': null,
     });
 
-    expect(decoded?.mediaTypes, <CatalogMediaType>{CatalogMediaType.movie});
-    expect(decoded?.seriesStatuses, isEmpty);
+    expect(decoded?.mediaTypes, <CatalogMediaType>{
+      CatalogMediaType.movie,
+      CatalogMediaType.series,
+    });
+    expect(decoded?.seriesStatuses, <CatalogSeriesStatus>{
+      CatalogSeriesStatus.continuing,
+    });
   });
 
   test('should restore old filter snapshots with new defaults', () {

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:jellyfilter/core/media/entities/catalog_series_progress.dart';
+
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
@@ -40,6 +42,21 @@ abstract base class CatalogRepositoryFakeBase implements CatalogRepository {
       const CatalogResult<CatalogCandidate>.failure(
         IncompatibleCatalogFailure(),
       );
+
+  /// Answer for [loadSeriesProgress]; null reports a failure.
+  CatalogSeriesProgress? seriesProgress;
+
+  @override
+  Future<CatalogResult<CatalogSeriesProgress>> loadSeriesProgress(
+    String seriesId,
+  ) async {
+    final progress = seriesProgress;
+    return progress == null
+        ? const CatalogResult<CatalogSeriesProgress>.failure(
+            IncompatibleCatalogFailure(),
+          )
+        : CatalogResult<CatalogSeriesProgress>.success(progress);
+  }
 }
 
 final class FakeCatalogRepository extends CatalogRepositoryFakeBase {

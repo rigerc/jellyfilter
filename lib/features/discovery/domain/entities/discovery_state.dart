@@ -26,6 +26,7 @@ final class DiscoveryState {
     this.browseLayout = BrowseLayout.grid,
     MediaAffinity? affinity,
     this.shuffleForYou = false,
+    this.mediaType = CatalogMediaType.movie,
   }) : affinity = affinity ?? MediaAffinity.empty,
        favoriteBias = favoriteBias.isNaN ? 0 : favoriteBias.clamp(0, 1),
        candidates = List<CatalogCandidate>.unmodifiable(candidates),
@@ -65,6 +66,10 @@ final class DiscoveryState {
 
   /// Whether Shuffle draws from the best personal matches.
   final bool shuffleForYou;
+
+  /// The kind of title being discovered. It belongs to the session, so it
+  /// is never saved with the rest of the state.
+  final CatalogMediaType mediaType;
 
   // Derived lists are computed once per state; every view reads them.
   late final List<CatalogCandidate> filteredCandidates = List.unmodifiable(
@@ -133,6 +138,7 @@ final class DiscoveryState {
     browseLayout: browseLayout ?? this.browseLayout,
     affinity: affinity ?? this.affinity,
     shuffleForYou: shuffleForYou ?? this.shuffleForYou,
+    mediaType: mediaType,
   );
 }
 

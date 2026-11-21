@@ -7,10 +7,57 @@ import 'package:jellyfilter/core/media/entities/media_affinity.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
 import 'package:jellyfilter/features/discovery/domain/repositories/discovery_store.dart';
 import '../../../shared/fake_discovery_store.dart';
 
 void main() {
+  test('should keep show filters and only shows in a show cubit', () async {
+    final store = FakeDiscoveryStore()
+      ..snapshot = const DiscoverySnapshot(
+        filter: CatalogFilter(
+          seriesStatuses: <CatalogSeriesStatus>{CatalogSeriesStatus.ended},
+        ),
+      );
+    final cubit = DiscoveryCubit(
+      store: store,
+      scopeKey: 'server/user|series',
+      selector: FakeDiscoverySelector(null),
+      mediaType: CatalogMediaType.series,
+    );
+    await cubit.hydrate();
+    await cubit.replaceCandidates(<CatalogCandidate>[
+      _candidate('movie-1'),
+      _candidate('series-1', type: CatalogMediaType.series),
+    ]);
+
+    expect(cubit.state.mediaType, CatalogMediaType.series);
+    expect(cubit.state.filter.seriesStatuses, {CatalogSeriesStatus.ended});
+    expect(cubit.state.candidates.map((item) => item.id), ['series-1']);
+    await cubit.close();
+  });
+
+  test('should take on the tab and layout of the session left', () async {
+    final cubit = _cubit(FakeDiscoverySelector(null));
+    await cubit.hydrate();
+    final other = DiscoveryState(
+      mode: DiscoveryMode.shuffle,
+      browseLayout: BrowseLayout.list,
+      fadeWatched: true,
+      shuffleDuration: ShuffleDuration.instant,
+      filter: const CatalogFilter(watched: true),
+    );
+
+    await cubit.adoptPresentation(other);
+
+    expect(cubit.state.mode, DiscoveryMode.shuffle);
+    expect(cubit.state.browseLayout, BrowseLayout.list);
+    expect(cubit.state.fadeWatched, isTrue);
+    expect(cubit.state.shuffleDuration, ShuffleDuration.instant);
+    expect(cubit.state.filter.watched, isNull);
+    await cubit.close();
+  });
+
   test(
     'should save and restore the selected shuffle duration without redundant writes',
     () async {
@@ -776,6 +823,12 @@ final class FailingDiscoveryStore implements DiscoveryStore {
     clearCalls++;
     throw StateError('clear failed');
   }
+
+  @override
+  Future<CatalogMediaType?> readMediaType(String scope) async => null;
+
+  @override
+  Future<void> writeMediaType(String scope, CatalogMediaType value) async {}
 }
 
 void favoriteBiasTests() {

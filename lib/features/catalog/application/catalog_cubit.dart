@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:jellyfilter/core/media/entities/catalog_series_progress.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_candidate.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_facets.dart';
 import 'package:jellyfilter/features/catalog/domain/entities/catalog_filter.dart';
@@ -296,6 +297,30 @@ final class CatalogCubit extends Cubit<CatalogState> {
     }
     return _detailCache[normalizedId] ?? result;
   }
+
+  /// The seasons and next episode of [seriesId]. Answers are kept for the
+  /// session; failures are not, so opening the title again retries.
+  Future<CatalogResult<CatalogSeriesProgress>> loadSeriesProgress(
+    String seriesId,
+  ) {
+    final id = seriesId.trim();
+    final cached = _seriesProgress[id];
+    if (cached != null) {
+      return cached;
+    }
+    final request = _seriesProgress[id] = repository.loadSeriesProgress(id);
+    unawaited(
+      request.then((result) {
+        if (result.value == null) {
+          _seriesProgress.remove(id);
+        }
+      }),
+    );
+    return request;
+  }
+
+  final _seriesProgress =
+      <String, Future<CatalogResult<CatalogSeriesProgress>>>{};
 
   /// The latest known favorite state of [itemId], including local changes
   /// that Jellyfin has not confirmed yet.

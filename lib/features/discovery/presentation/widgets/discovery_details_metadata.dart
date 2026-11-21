@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Overview tab: synopsis, genres, and cast, each under its own heading.
@@ -86,10 +87,24 @@ final class DiscoveryDetailsFacts extends StatelessWidget {
     final unknown = l10n.discoveryUnknownValue;
     final runtime = candidate.runtimeMinutes;
     final added = candidate.dateCreated;
+    final series = candidate.series;
+    final seasons = series?.seasonCount;
+    final episodes = series?.episodeCount;
     final facts = <(String, String)>[
-      (l10n.discoveryYearTitle, candidate.year?.toString() ?? unknown),
+      if (series == null)
+        (l10n.discoveryYearTitle, candidate.year?.toString() ?? unknown)
+      else ...[
+        (
+          l10n.discoveryAiredTitle,
+          discoveryAiredYears(l10n, candidate) ?? unknown,
+        ),
+        (l10n.discoverySeasonsTitle, seasons == null ? unknown : '$seasons'),
+        (l10n.discoveryTabEpisodes, episodes == null ? unknown : '$episodes'),
+      ],
       (
-        l10n.discoveryRuntimeTitle,
+        series == null
+            ? l10n.discoveryRuntimeTitle
+            : l10n.discoveryEpisodeLengthTitle,
         runtime == null ? unknown : l10n.discoveryRuntimeMinutes(runtime),
       ),
       (

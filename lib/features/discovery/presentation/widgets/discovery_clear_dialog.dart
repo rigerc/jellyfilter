@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_media_kind.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 Future<void> confirmClearDiscovery(BuildContext context) async {
   final localization = AppLocalizations.of(context);
+  final kind = readDiscoveryKind(context);
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      content: Text(localization.discoveryClearConfirmation),
+      content: Text(localization.discoveryClearConfirmation(kind)),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.pop(context, false),

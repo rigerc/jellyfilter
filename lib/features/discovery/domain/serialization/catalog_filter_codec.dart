@@ -19,6 +19,10 @@ abstract final class CatalogFilterCodec {
     'officialRatings': filter.officialRatings.toList()..sort(),
     'seriesStatuses':
         filter.seriesStatuses.map((status) => status.name).toList()..sort(),
+    'seriesLengths': filter.seriesLengths.map((length) => length.name).toList()
+      ..sort(),
+    'watchProgress':
+        filter.watchProgress.map((progress) => progress.name).toList()..sort(),
     'watched': filter.watched,
     'favorite': filter.favorite,
     'sortReversed': filter.sortReversed,
@@ -76,7 +80,15 @@ abstract final class CatalogFilterCodec {
     final seriesStatuses = value.containsKey('seriesStatuses')
         ? _seriesStatuses(value['seriesStatuses'])
         : <CatalogSeriesStatus>{};
+    final seriesLengths = value.containsKey('seriesLengths')
+        ? _enumSet(value['seriesLengths'], CatalogSeriesLength.values)
+        : <CatalogSeriesLength>{};
+    final watchProgress = value.containsKey('watchProgress')
+        ? _enumSet(value['watchProgress'], CatalogWatchProgress.values)
+        : <CatalogWatchProgress>{};
     if (mediaTypes == null ||
+        seriesLengths == null ||
+        watchProgress == null ||
         genres == null ||
         decades == null ||
         searchTerm == null ||
@@ -131,6 +143,8 @@ abstract final class CatalogFilterCodec {
       decades: decades,
       officialRatings: officialRatings,
       seriesStatuses: seriesStatuses,
+      seriesLengths: seriesLengths,
+      watchProgress: watchProgress,
       watched: value['watched'] as bool?,
       favorite: value['favorite'] as bool?,
       sortReversed: sortReversed == true,
@@ -156,9 +170,7 @@ abstract final class CatalogFilterCodec {
       if (type == null) {
         return null;
       }
-      if (type == CatalogMediaType.movie) {
-        result.add(type);
-      }
+      result.add(type);
     }
     return result;
   }
@@ -188,6 +200,7 @@ abstract final class CatalogFilterCodec {
     'releaseYear' => CatalogSort.releaseYear,
     'communityRating' => CatalogSort.communityRating,
     'runtime' => CatalogSort.runtime,
+    'newEpisodes' => CatalogSort.newEpisodes,
     null => CatalogSort.defaultOrder,
     _ => null,
   };
@@ -206,8 +219,24 @@ abstract final class CatalogFilterCodec {
       if (status == null) {
         return null;
       }
-      // Accept legacy TV filters so stored sessions remain readable, but drop
-      // them because discovery is movie-only.
+      result.add(status);
+    }
+    return result;
+  }
+
+  /// Values of [values] named in [value], or null when any name is unknown.
+  static Set<T>? _enumSet<T extends Enum>(Object? value, List<T> values) {
+    if (value is! List) {
+      return null;
+    }
+    final byName = <String, T>{for (final item in values) item.name: item};
+    final result = <T>{};
+    for (final item in value) {
+      final match = byName[item];
+      if (match == null) {
+        return null;
+      }
+      result.add(match);
     }
     return result;
   }

@@ -11,8 +11,10 @@ import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart'
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_series_section.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_header.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_media_kind.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_selection.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
@@ -151,7 +153,10 @@ final class DiscoveryActiveFilters extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final filters = _activeFilters(l10n);
+    final filters = _activeFilters(
+      l10n,
+      series: watchDiscoveringSeries(context),
+    );
     final duration = reduceMotion ? Duration.zero : CandyMotion.standard;
     return AnimatedSize(
       duration: duration,
@@ -173,7 +178,10 @@ final class DiscoveryActiveFilters extends StatelessWidget {
     );
   }
 
-  List<_ActiveFilter> _activeFilters(AppLocalizations l10n) {
+  List<_ActiveFilter> _activeFilters(
+    AppLocalizations l10n, {
+    required bool series,
+  }) {
     final library = filter.libraryId;
     final search = filter.searchTerm.trim();
     final added = filter.addedWithin;
@@ -218,6 +226,7 @@ final class DiscoveryActiveFilters extends StatelessWidget {
                 DiscoveryBasicsFilterTab.sortLabel(
                   l10n,
                   filter.sort,
+                  series: series,
                 ).toLowerCase(),
               ),
           remove: (value) => value.copyWith(
@@ -246,6 +255,30 @@ final class DiscoveryActiveFilters extends StatelessWidget {
               ? l10n.discoveryActiveFavorites
               : l10n.discoveryActiveNotFavorites,
           remove: (value) => value.copyWith(favorite: null),
+        ),
+      for (final status in filter.seriesStatuses)
+        (
+          id: 'status-${status.name}',
+          label: DiscoverySeriesFilterTab.statusLabel(l10n, status),
+          remove: (value) => value.copyWith(
+            seriesStatuses: value.seriesStatuses.difference({status}),
+          ),
+        ),
+      for (final length in filter.seriesLengths)
+        (
+          id: 'length-${length.name}',
+          label: DiscoverySeriesFilterTab.lengthLabel(l10n, length),
+          remove: (value) => value.copyWith(
+            seriesLengths: value.seriesLengths.difference({length}),
+          ),
+        ),
+      for (final progress in filter.watchProgress)
+        (
+          id: 'progress-${progress.name}',
+          label: DiscoverySeriesFilterTab.progressLabel(l10n, progress),
+          remove: (value) => value.copyWith(
+            watchProgress: value.watchProgress.difference({progress}),
+          ),
         ),
       for (final genre in filter.genres.toList()..sort())
         (

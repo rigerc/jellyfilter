@@ -12,6 +12,7 @@ import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart'
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_bulk_playlist_sheet.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_media_kind.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Replaces the header while titles are selected: cancel, count, select all.
@@ -120,6 +121,7 @@ final class _DiscoverySelectionActionsState
     required bool remove,
   }) async {
     final l10n = AppLocalizations.of(context);
+    final kind = readDiscoveryKind(context);
     final movies = _selected();
     final saved = remove
         ? await shortlist.removeAll(movies.map((movie) => movie.id).toSet())
@@ -129,8 +131,8 @@ final class _DiscoverySelectionActionsState
         !saved
             ? l10n.discoveryShortlistSaveError
             : remove
-            ? l10n.discoveryBulkShortlistRemoved(movies.length)
-            : l10n.discoveryBulkShortlistAdded(movies.length),
+            ? l10n.discoveryBulkShortlistRemoved(movies.length, kind)
+            : l10n.discoveryBulkShortlistAdded(movies.length, kind),
       );
     }
     return saved;
@@ -140,6 +142,7 @@ final class _DiscoverySelectionActionsState
   Future<bool> _favorite(FavoriteToggle toggle, {required bool remove}) async {
     final l10n = AppLocalizations.of(context);
     final cubit = context.read<DiscoveryCubit>();
+    final kind = cubit.mediaType.name;
     final changing = _selected()
         .where((movie) => (movie.favorite == true) == remove)
         .toList(growable: false);
@@ -152,10 +155,10 @@ final class _DiscoverySelectionActionsState
     if (mounted) {
       _say(
         failed > 0
-            ? l10n.discoveryBulkFavoriteFailed(failed)
+            ? l10n.discoveryBulkFavoriteFailed(failed, kind)
             : remove
-            ? l10n.discoveryBulkUnfavorited(changing.length)
-            : l10n.discoveryBulkFavorited(changing.length),
+            ? l10n.discoveryBulkUnfavorited(changing.length, kind)
+            : l10n.discoveryBulkFavorited(changing.length, kind),
       );
     }
     return failed == 0;

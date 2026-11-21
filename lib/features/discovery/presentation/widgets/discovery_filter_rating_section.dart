@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_models.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_media_kind.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// Ratings tab: runtime window and minimum scores.
@@ -23,7 +24,9 @@ final class DiscoveryRatingFilterTab extends StatelessWidget {
     return DiscoveryFilterTabList(
       children: <Widget>[
         DiscoveryFilterGroup(
-          title: l10n.discoveryRuntimeTitle,
+          title: watchDiscoveringSeries(context)
+              ? l10n.discoveryEpisodeLengthTitle
+              : l10n.discoveryRuntimeTitle,
           value: runtimeActive
               ? l10n.discoveryRuntimeRangeValue(
                   data.runtime.start.round(),

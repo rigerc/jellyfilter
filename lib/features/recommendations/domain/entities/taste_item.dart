@@ -74,6 +74,27 @@ final class TasteItem {
   /// Seen or already judged, so it is not worth recommending.
   bool get isSettled => played || _rated || likes == false;
 
+  /// This item marked as watched, with history gathered elsewhere such as
+  /// the played episodes of a series. A started series is already known to
+  /// the user, so it is settled like a watched movie.
+  TasteItem withWatchHistory({required int playCount, DateTime? lastPlayed}) =>
+      TasteItem(
+        id: id,
+        name: name,
+        genres: genres,
+        studios: studios,
+        tags: tags,
+        people: people,
+        year: year,
+        communityRating: communityRating,
+        played: true,
+        playCount: playCount,
+        favorite: favorite,
+        likes: likes,
+        rating: rating,
+        lastPlayed: lastPlayed,
+      );
+
   TasteItem withPeople(Iterable<TastePerson> value) => TasteItem(
     id: id,
     name: name,

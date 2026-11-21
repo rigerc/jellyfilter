@@ -277,8 +277,8 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryCandidateCount.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 title} other{{count} titles}}'**
-  String discoveryCandidateCount(int count);
+  /// **'{kind, select, series{{count, plural, =1{1 show} other{{count} shows}}} other{{count, plural, =1{1 title} other{{count} titles}}}}'**
+  String discoveryCandidateCount(int count, String kind);
 
   /// No description provided for @discoveryBrowseLabel.
   ///
@@ -373,32 +373,32 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryBulkShortlistAdded.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Added 1 movie to your shortlist} other{Added {count} movies to your shortlist}}'**
-  String discoveryBulkShortlistAdded(int count);
+  /// **'{kind, select, series{{count, plural, =1{Added 1 show to your shortlist} other{Added {count} shows to your shortlist}}} other{{count, plural, =1{Added 1 movie to your shortlist} other{Added {count} movies to your shortlist}}}}'**
+  String discoveryBulkShortlistAdded(int count, String kind);
 
   /// No description provided for @discoveryBulkShortlistRemoved.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Removed 1 movie from your shortlist} other{Removed {count} movies from your shortlist}}'**
-  String discoveryBulkShortlistRemoved(int count);
+  /// **'{kind, select, series{{count, plural, =1{Removed 1 show from your shortlist} other{Removed {count} shows from your shortlist}}} other{{count, plural, =1{Removed 1 movie from your shortlist} other{Removed {count} movies from your shortlist}}}}'**
+  String discoveryBulkShortlistRemoved(int count, String kind);
 
   /// No description provided for @discoveryBulkFavorited.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Added 1 movie to favorites} other{Added {count} movies to favorites}}'**
-  String discoveryBulkFavorited(int count);
+  /// **'{kind, select, series{{count, plural, =1{Added 1 show to favorites} other{Added {count} shows to favorites}}} other{{count, plural, =1{Added 1 movie to favorites} other{Added {count} movies to favorites}}}}'**
+  String discoveryBulkFavorited(int count, String kind);
 
   /// No description provided for @discoveryBulkUnfavorited.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Removed 1 movie from favorites} other{Removed {count} movies from favorites}}'**
-  String discoveryBulkUnfavorited(int count);
+  /// **'{kind, select, series{{count, plural, =1{Removed 1 show from favorites} other{Removed {count} shows from favorites}}} other{{count, plural, =1{Removed 1 movie from favorites} other{Removed {count} movies from favorites}}}}'**
+  String discoveryBulkUnfavorited(int count, String kind);
 
   /// No description provided for @discoveryBulkFavoriteFailed.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Couldn’t update 1 movie. Try again.} other{Couldn’t update {count} movies. Try again.}}'**
-  String discoveryBulkFavoriteFailed(int count);
+  /// **'{kind, select, series{{count, plural, =1{Couldn’t update 1 show. Try again.} other{Couldn’t update {count} shows. Try again.}}} other{{count, plural, =1{Couldn’t update 1 movie. Try again.} other{Couldn’t update {count} movies. Try again.}}}}'**
+  String discoveryBulkFavoriteFailed(int count, String kind);
 
   /// No description provided for @discoveryBulkPlaylistTitle.
   ///
@@ -490,6 +490,228 @@ abstract class AppLocalizations {
   /// **'Shortlist'**
   String get discoveryShortlistLabel;
 
+  /// No description provided for @discoveryMoviesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get discoveryMoviesLabel;
+
+  /// No description provided for @discoveryShowsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows'**
+  String get discoveryShowsLabel;
+
+  /// No description provided for @discoveryShowMoviesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover movies'**
+  String get discoveryShowMoviesTooltip;
+
+  /// No description provided for @discoveryShowShowsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover TV shows'**
+  String get discoveryShowShowsTooltip;
+
+  /// No description provided for @discoverySeasonCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 season} other{{count} seasons}}'**
+  String discoverySeasonCount(int count);
+
+  /// No description provided for @discoveryEpisodeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 episode} other{{count} episodes}}'**
+  String discoveryEpisodeCount(int count);
+
+  /// No description provided for @discoveryAiredRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{start}–{end}'**
+  String discoveryAiredRange(String start, String end);
+
+  /// No description provided for @discoveryAiredSince.
+  ///
+  /// In en, this message translates to:
+  /// **'{start}–'**
+  String discoveryAiredSince(String start);
+
+  /// No description provided for @discoveryEpisodesLeftBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} left'**
+  String discoveryEpisodesLeftBadge(int count);
+
+  /// No description provided for @discoveryEpisodesLeftLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 unwatched episode} other{{count} unwatched episodes}}'**
+  String discoveryEpisodesLeftLabel(int count);
+
+  /// No description provided for @discoveryWatchedEpisodesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{played} of {total} episodes watched'**
+  String discoveryWatchedEpisodesLabel(int played, int total);
+
+  /// No description provided for @discoverySeriesContinuing.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuing'**
+  String get discoverySeriesContinuing;
+
+  /// No description provided for @discoverySeriesEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended'**
+  String get discoverySeriesEnded;
+
+  /// No description provided for @discoveryFilterTabShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get discoveryFilterTabShow;
+
+  /// No description provided for @discoverySeriesStatusTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get discoverySeriesStatusTitle;
+
+  /// No description provided for @discoverySeriesLengthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Length'**
+  String get discoverySeriesLengthTitle;
+
+  /// No description provided for @discoverySeriesLengthMiniseries.
+  ///
+  /// In en, this message translates to:
+  /// **'Miniseries'**
+  String get discoverySeriesLengthMiniseries;
+
+  /// No description provided for @discoverySeriesLengthShort.
+  ///
+  /// In en, this message translates to:
+  /// **'2–4 seasons'**
+  String get discoverySeriesLengthShort;
+
+  /// No description provided for @discoverySeriesLengthLong.
+  ///
+  /// In en, this message translates to:
+  /// **'5+ seasons'**
+  String get discoverySeriesLengthLong;
+
+  /// No description provided for @discoveryWatchProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your progress'**
+  String get discoveryWatchProgressTitle;
+
+  /// No description provided for @discoveryWatchProgressNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Not started'**
+  String get discoveryWatchProgressNotStarted;
+
+  /// No description provided for @discoveryWatchProgressInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get discoveryWatchProgressInProgress;
+
+  /// No description provided for @discoveryWatchProgressFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get discoveryWatchProgressFinished;
+
+  /// No description provided for @discoveryEpisodeLengthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode length'**
+  String get discoveryEpisodeLengthTitle;
+
+  /// No description provided for @discoverySortNewEpisodesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New episodes'**
+  String get discoverySortNewEpisodesLabel;
+
+  /// No description provided for @discoverySortFirstAiredLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'First aired'**
+  String get discoverySortFirstAiredLabel;
+
+  /// No description provided for @discoveryPresetFinishStartedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish what you started'**
+  String get discoveryPresetFinishStartedLabel;
+
+  /// No description provided for @discoveryPresetBingeableMinisLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bingeable minis'**
+  String get discoveryPresetBingeableMinisLabel;
+
+  /// No description provided for @discoveryPresetStillAiringLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Still airing'**
+  String get discoveryPresetStillAiringLabel;
+
+  /// No description provided for @discoveryPresetUnstartedGemsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unstarted gems'**
+  String get discoveryPresetUnstartedGemsLabel;
+
+  /// No description provided for @discoveryTabEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes'**
+  String get discoveryTabEpisodes;
+
+  /// No description provided for @discoveryNextUpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Next up'**
+  String get discoveryNextUpTitle;
+
+  /// No description provided for @discoveryEpisodeCode.
+  ///
+  /// In en, this message translates to:
+  /// **'S{season} · E{episode}'**
+  String discoveryEpisodeCode(int season, int episode);
+
+  /// No description provided for @discoverySeasonsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Seasons'**
+  String get discoverySeasonsTitle;
+
+  /// No description provided for @discoverySeasonProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{played} of {total} watched'**
+  String discoverySeasonProgress(int played, int total);
+
+  /// No description provided for @discoveryNoSeasons.
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin has no seasons for this show yet.'**
+  String get discoveryNoSeasons;
+
+  /// No description provided for @discoveryAiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Aired'**
+  String get discoveryAiredTitle;
+
   /// No description provided for @discoveryShortlistAddLabel.
   ///
   /// In en, this message translates to:
@@ -505,8 +727,8 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryShortlistCount.
   ///
   /// In en, this message translates to:
-  /// **'Shortlist · {count, plural, =1{1 movie} other{{count} movies}}'**
-  String discoveryShortlistCount(int count);
+  /// **'Shortlist · {kind, select, series{{count, plural, =1{1 show} other{{count} shows}}} other{{count, plural, =1{1 movie} other{{count} movies}}}}'**
+  String discoveryShortlistCount(int count, String kind);
 
   /// No description provided for @discoveryShortlistViewLabel.
   ///
@@ -523,14 +745,14 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryShortlistEmpty.
   ///
   /// In en, this message translates to:
-  /// **'Bookmark movies to shuffle them here.'**
-  String get discoveryShortlistEmpty;
+  /// **'{kind, select, series{Bookmark shows to shuffle them here.} other{Bookmark movies to shuffle them here.}}'**
+  String discoveryShortlistEmpty(String kind);
 
   /// No description provided for @discoveryShortlistBrowseLabel.
   ///
   /// In en, this message translates to:
-  /// **'Browse movies'**
-  String get discoveryShortlistBrowseLabel;
+  /// **'{kind, select, series{Browse shows} other{Browse movies}}'**
+  String discoveryShortlistBrowseLabel(String kind);
 
   /// No description provided for @discoveryShortlistLoading.
   ///
@@ -553,8 +775,8 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryShortlistNoneAvailable.
   ///
   /// In en, this message translates to:
-  /// **'None of your saved movies are available.'**
-  String get discoveryShortlistNoneAvailable;
+  /// **'{kind, select, series{None of your saved shows are available.} other{None of your saved movies are available.}}'**
+  String discoveryShortlistNoneAvailable(String kind);
 
   /// No description provided for @discoveryShortlistLookupError.
   ///
@@ -571,8 +793,8 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryShortlistRevealLabel.
   ///
   /// In en, this message translates to:
-  /// **'Reveal movie'**
-  String get discoveryShortlistRevealLabel;
+  /// **'{kind, select, series{Reveal show} other{Reveal movie}}'**
+  String discoveryShortlistRevealLabel(String kind);
 
   /// No description provided for @discoveryShortlistRemoved.
   ///
@@ -1585,8 +1807,8 @@ abstract class AppLocalizations {
   /// No description provided for @discoveryClearConfirmation.
   ///
   /// In en, this message translates to:
-  /// **'Clear filters, presets, recent picks, likes, and dismissals on this device? Your Jellyfin login stays connected.'**
-  String get discoveryClearConfirmation;
+  /// **'{kind, select, series{Clear filters, presets, recent picks, likes, and dismissals for shows on this device? Your movies and Jellyfin login stay as they are.} other{Clear filters, presets, recent picks, likes, and dismissals on this device? Your Jellyfin login stays connected.}}'**
+  String discoveryClearConfirmation(String kind);
 
   /// No description provided for @discoveryCancelLabel.
   ///

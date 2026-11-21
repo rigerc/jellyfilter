@@ -14,10 +14,13 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     required this.store,
     required this.scopeKey,
     required this.selector,
+    this.mediaType = CatalogMediaType.movie,
     DateTime Function()? now,
   }) : _clock = now ?? _utcNow,
-       super(DiscoveryState());
+       super(DiscoveryState(mediaType: mediaType));
 
+  /// The kind of title this cubit discovers. Filters are trimmed to it.
+  final CatalogMediaType mediaType;
   final DiscoveryStore store;
   final String scopeKey;
   final DiscoverySelector selector;
@@ -50,8 +53,10 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     _lastWritten = restored;
     emit(
       state.copyWith(
-        filter: _withFreshDateWindowAnchor(restored.filter),
-        presets: restored.presets,
+        filter: _withFreshDateWindowAnchor(_forMediaType(restored.filter)),
+        presets: restored.presets.map(
+          (name, filter) => MapEntry(name, _forMediaType(filter)),
+        ),
         likedIds: restored.likedIds,
         rejectedIds: restored.rejectedIds,
         recentPickIds: restored.recentPickIds,
@@ -93,7 +98,21 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
   }
 
   Future<void> updateFilter(CatalogFilter filter) =>
-      _commit(_withFilter(_withFreshDateWindowAnchor(filter)));
+      _commit(_withFilter(_withFreshDateWindowAnchor(_forMediaType(filter))));
+
+  /// Takes on the view settings of [other], the session being left, so
+  /// switching between movies and shows keeps the same tab and layout.
+  Future<void> adoptPresentation(DiscoveryState other) => _commit(
+    state.copyWith(
+      mode: other.mode,
+      browseLayout: other.browseLayout,
+      fadeWatched: other.fadeWatched,
+      shuffleDuration: other.shuffleDuration,
+    ),
+  );
+
+  CatalogFilter _forMediaType(CatalogFilter filter) =>
+      filter.forMediaType(mediaType);
 
   Future<void> resetFilters() => updateFilter(const CatalogFilter());
 
@@ -280,7 +299,7 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
     }
     final presets = <String, CatalogFilter>{
       ...state.presets,
-      normalized: filter ?? state.filter,
+      normalized: _forMediaType(filter ?? state.filter),
     };
     final boundedPresets = presets.length > 20
         ? Map<String, CatalogFilter>.fromEntries(
@@ -369,7 +388,10 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
 
   DiscoveryState _withCandidates(List<CatalogCandidate> candidates) {
     final unique = <String, CatalogCandidate>{};
-    for (final candidate in candidates) {
+    // Each cubit discovers one kind of title; strays never reach its views.
+    for (final candidate in candidates.where(
+      (candidate) => candidate.mediaType == mediaType,
+    )) {
       unique.putIfAbsent(candidate.id, () => candidate);
     }
     final values = unique.values.toList(growable: false);

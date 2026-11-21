@@ -195,7 +195,7 @@ final class RecommendationCubit extends Cubit<RecommendationState> {
       final key = TasteFeatures.personKey(person.role, person.id);
       _personRequested.add(key);
       try {
-        _personMovies[key] = await repository.loadMovieIdsWithPerson(
+        _personMovies[key] = await repository.loadTitleIdsWithPerson(
           person.id,
           person.role,
         );

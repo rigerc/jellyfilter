@@ -196,7 +196,7 @@ void main() {
 
     final ids = await repository(
       client,
-    ).loadMovieIdsWithPerson('p1', TasteRole.director);
+    ).loadTitleIdsWithPerson('p1', TasteRole.director);
 
     final query = client.requests.single.url.queryParameters;
     expect(query['personIds'], 'p1');
@@ -213,7 +213,7 @@ void main() {
       try {
         await repository(
           RecordingHttpClient((_) => respond()),
-        ).loadMovieIdsWithPerson('p1', TasteRole.actor);
+        ).loadTitleIdsWithPerson('p1', TasteRole.actor);
       } on TasteFailure catch (failure) {
         return failure.reason;
       }

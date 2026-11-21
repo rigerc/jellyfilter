@@ -10,6 +10,7 @@ import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_fi
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_rating_section.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_series_section.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 /// The filter sheet: a fixed header, four tabs of grouped controls, and a
@@ -23,8 +24,12 @@ final class DiscoveryFilterBody extends StatelessWidget {
     required this.presets,
     required this.onReset,
     required this.onApply,
+    this.series,
     super.key,
   });
+
+  /// Show-only filters; null leaves out the Show tab.
+  final DiscoverySeriesFilterData? series;
 
   final DiscoveryQuickFilterData quickFilters;
   final DiscoveryQueryFilterData query;
@@ -45,9 +50,18 @@ final class DiscoveryFilterBody extends StatelessWidget {
       0.0,
       math.min(media.size.height * 0.88, media.size.height - media.padding.top),
     );
-    final counts = <int>[_basicsCount, _contentCount, _ratingsCount, 0];
+    final series = this.series;
+    final counts = <int>[
+      _basicsCount,
+      if (series != null) DiscoverySeriesFilterTab.activeCount(series),
+      _contentCount,
+      _ratingsCount,
+      0,
+    ];
     final tabs = <({String label, IconData icon})>[
       (label: l10n.discoveryFilterTabBasics, icon: Icons.tune_rounded),
+      if (series != null)
+        (label: l10n.discoveryFilterTabShow, icon: Icons.live_tv_rounded),
       (label: l10n.discoveryFilterTabContent, icon: Icons.category_outlined),
       (label: l10n.discoveryFilterTabRatings, icon: Icons.star_outline_rounded),
       (label: l10n.discoveryFilterTabPresets, icon: Icons.bookmarks_outlined),
@@ -134,6 +148,7 @@ final class DiscoveryFilterBody extends StatelessWidget {
                       quickFilters: quickFilters,
                       metadata: metadata,
                     ),
+                    if (series != null) DiscoverySeriesFilterTab(data: series),
                     DiscoveryContentFilterTab(data: metadata),
                     DiscoveryRatingFilterTab(data: ratings),
                     DiscoveryPresetFilterTab(data: presets),

@@ -19,8 +19,12 @@ final class DiscoveryHeaderActions extends StatelessWidget {
     this.onFadeWatchedChanged,
     this.browseLayout = BrowseLayout.grid,
     this.onBrowseLayoutChanged,
+    this.series = false,
     super.key,
   });
+
+  /// Whether TV series are on screen, which adds TV orders and wording.
+  final bool series;
 
   final bool filterActive;
   final VoidCallback? onOpenFilters;
@@ -46,6 +50,16 @@ final class DiscoveryHeaderActions extends StatelessWidget {
     CatalogSort.releaseYear,
     CatalogSort.communityRating,
     CatalogSort.runtime,
+  ];
+
+  /// [sortChoices] for TV series, led by the newest episodes.
+  static const seriesSortChoices = <CatalogSort>[
+    CatalogSort.defaultOrder,
+    CatalogSort.newEpisodes,
+    CatalogSort.recentlyAdded,
+    CatalogSort.title,
+    CatalogSort.releaseYear,
+    CatalogSort.communityRating,
   ];
 
   @override
@@ -87,13 +101,17 @@ final class DiscoveryHeaderActions extends StatelessWidget {
               color: sorted ? scheme.primary : null,
             ),
             itemBuilder: (context) => <PopupMenuEntry<CatalogSort>>[
-              for (final choice in sortChoices)
+              for (final choice in series ? seriesSortChoices : sortChoices)
                 CheckedPopupMenuItem<CatalogSort>(
                   key: WidgetKeys.discoverySortChoice(choice.name),
                   value: choice,
                   checked: choice == sort,
                   child: Text(
-                    DiscoveryBasicsFilterTab.sortLabel(localization, choice),
+                    DiscoveryBasicsFilterTab.sortLabel(
+                      localization,
+                      choice,
+                      series: series,
+                    ),
                   ),
                 ),
               if (onSortReversedChanged case final onReverse?) ...[

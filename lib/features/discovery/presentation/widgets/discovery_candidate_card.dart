@@ -103,6 +103,7 @@ final class DiscoveryCandidateCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        DiscoverySeriesProgressOverlay(candidate: candidate),
                         if (press.selecting)
                           PositionedDirectional(
                             top: CandySpacing.compact / 1.5,
@@ -337,11 +338,10 @@ final class DiscoveryShortlistButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (candidate.mediaType != CatalogMediaType.movie) {
-      return const SizedBox.shrink();
-    }
     final saved = context.select(
-      (ShortlistCubit? cubit) => cubit?.state.contains(candidate.id),
+      (ShortlistCubit? cubit) => cubit?.mediaType == candidate.mediaType
+          ? cubit?.state.contains(candidate.id)
+          : null,
     );
     if (saved == null) {
       return const SizedBox.shrink();
@@ -472,12 +472,115 @@ String discoveryMetaLine(
   AppLocalizations localization,
   CatalogCandidate candidate,
 ) {
+  if (candidate.series case final series?) {
+    final seasons = series.seasonCount;
+    return <String>[
+      ?discoveryAiredYears(localization, candidate),
+      if (seasons != null && seasons > 0)
+        localization.discoverySeasonCount(seasons),
+    ].join('  ·  ');
+  }
   final runtime = candidate.runtimeMinutes;
   return <String>[
     if (candidate.year case final year?) '$year',
     if (runtime != null && runtime > 0)
       localization.discoveryRuntimeMinutes(runtime),
   ].join('  ·  ');
+}
+
+/// The years a series aired: `2019–` while it runs, `2011–2018` once it
+/// ended, or a single year. Null when the first year is unknown.
+String? discoveryAiredYears(
+  AppLocalizations localization,
+  CatalogCandidate candidate,
+) {
+  final start = candidate.year;
+  if (start == null) {
+    return null;
+  }
+  final end = candidate.series?.endYear;
+  if (end != null && end > start) {
+    return localization.discoveryAiredRange('$start', '$end');
+  }
+  final status = candidate.status?.trim().toLowerCase();
+  final continuing =
+      status == 'continuing' ||
+      status == 'returning series' ||
+      status == 'in production';
+  return continuing ? localization.discoveryAiredSince('$start') : '$start';
+}
+
+/// On a started show's poster: how many episodes are left, and a bar for
+/// how far through it the user is.
+final class DiscoverySeriesProgressOverlay extends StatelessWidget {
+  const DiscoverySeriesProgressOverlay({required this.candidate, super.key});
+
+  final CatalogCandidate candidate;
+
+  @override
+  Widget build(BuildContext context) {
+    final series = candidate.series;
+    final progress = series?.progress;
+    final left = series?.unplayedEpisodeCount;
+    if (series == null ||
+        !series.isInProgress ||
+        progress == null ||
+        left == null) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Stack(
+          children: <Widget>[
+            PositionedDirectional(
+              top: CandySpacing.compact / 1.5,
+              start: CandySpacing.compact / 1.5,
+              child: Semantics(
+                label: l10n.discoveryEpisodesLeftLabel(left),
+                excludeSemantics: true,
+                child: DecoratedBox(
+                  key: WidgetKeys.discoverySeriesBadge,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(CandyShapes.pill),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      l10n.discoveryEpisodesLeftBadge(left),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: LinearProgressIndicator(
+                key: WidgetKeys.discoverySeriesProgress,
+                value: progress,
+                minHeight: 4,
+                color: scheme.primary,
+                backgroundColor: Colors.black54,
+                semanticsLabel: l10n.discoveryWatchedEpisodesLabel(
+                  series.playedEpisodeCount ?? 0,
+                  series.episodeCount ?? 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Progressive poster: blurhash or tiny preview first, then the full image.

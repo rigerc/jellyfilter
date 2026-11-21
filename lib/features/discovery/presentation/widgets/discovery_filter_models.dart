@@ -23,6 +23,10 @@ typedef DiscoveryQuickFilterData = ({
   ValueChanged<bool> onRecentChanged,
   ValueChanged<bool> onUnwatchedChanged,
   ValueChanged<bool> onFavoritesChanged,
+
+  /// Shows only: started but not finished. Null hides the chip.
+  bool? inProgress,
+  ValueChanged<bool>? onInProgressChanged,
 });
 
 typedef DiscoveryRatingFilterData = ({
@@ -65,4 +69,14 @@ typedef DiscoveryPresetFilterData = ({
   ValueChanged<CatalogFilter> onApplySuggested,
   ValueChanged<String> onDelete,
   VoidCallback onSave,
+});
+
+/// Show-only constraints; each group matches any of its chosen values.
+typedef DiscoverySeriesFilterData = ({
+  Set<CatalogSeriesStatus> statuses,
+  Set<CatalogSeriesLength> lengths,
+  Set<CatalogWatchProgress> progress,
+  ValueChanged<Set<CatalogSeriesStatus>> onStatusesChanged,
+  ValueChanged<Set<CatalogSeriesLength>> onLengthsChanged,
+  ValueChanged<Set<CatalogWatchProgress>> onProgressChanged,
 });

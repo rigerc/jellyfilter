@@ -121,6 +121,17 @@ abstract final class WidgetKeys {
   static Key discoverySeriesStatus(String value) =>
       Key('discovery-series-status-$value');
 
+  static Key discoverySeriesLength(String value) =>
+      Key('discovery-series-length-$value');
+  static Key discoveryWatchProgress(String value) =>
+      Key('discovery-watch-progress-$value');
+  static const discoveryInProgressFilter = Key('discovery-in-progress-filter');
+  static const discoveryMediaTypeToggle = Key('discovery-media-type-toggle');
+  static const discoverySeriesBadge = Key('discovery-series-badge');
+  static const discoverySeriesProgress = Key('discovery-series-progress');
+  static const discoveryNextUp = Key('discovery-next-up');
+  static Key discoverySeason(String id) => Key('discovery-season-$id');
+  static const discoverySeasonsRetry = Key('discovery-seasons-retry');
   static Key discoveryPreset(String name) => Key('discovery-preset-$name');
   static Key discoveryDeletePreset(String name) =>
       Key('discovery-delete-preset-$name');

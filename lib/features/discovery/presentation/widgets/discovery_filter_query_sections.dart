@@ -5,6 +5,7 @@ import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_models.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_sections.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_media_kind.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_quick_filters.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
@@ -24,6 +25,7 @@ final class DiscoveryBasicsFilterTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final series = watchDiscoveringSeries(context);
     return DiscoveryFilterTabList(
       children: <Widget>[
         TextField(
@@ -89,10 +91,16 @@ final class DiscoveryBasicsFilterTab extends StatelessWidget {
                         labelText: l10n.discoverySortLabel,
                       ),
                       items: CatalogSort.values
+                          .where(
+                            (value) =>
+                                series || value != CatalogSort.newEpisodes,
+                          )
                           .map(
                             (value) => DropdownMenuItem<CatalogSort>(
                               value: value,
-                              child: Text(sortLabel(l10n, value)),
+                              child: Text(
+                                sortLabel(l10n, value, series: series),
+                              ),
                             ),
                           )
                           .toList(growable: false),
@@ -147,17 +155,29 @@ final class DiscoveryBasicsFilterTab extends StatelessWidget {
     );
   }
 
-  static String sortLabel(AppLocalizations l10n, CatalogSort value) =>
-      switch (value) {
-        CatalogSort.defaultOrder => l10n.discoverySortDefaultLabel,
-        CatalogSort.forYou => l10n.discoverySortForYouLabel,
-        CatalogSort.random => l10n.discoverySortRandomLabel,
-        CatalogSort.recentlyAdded => l10n.discoverySortRecentlyAddedLabel,
-        CatalogSort.title => l10n.discoverySortTitleLabel,
-        CatalogSort.releaseYear => l10n.discoverySortReleaseYearLabel,
-        CatalogSort.communityRating => l10n.discoverySortCommunityRatingLabel,
-        CatalogSort.runtime => l10n.discoverySortRuntimeLabel,
-      };
+  /// The name of [value]; [series] uses TV words, such as First aired for
+  /// the release year.
+  static String sortLabel(
+    AppLocalizations l10n,
+    CatalogSort value, {
+    bool series = false,
+  }) => switch (value) {
+    CatalogSort.defaultOrder => l10n.discoverySortDefaultLabel,
+    CatalogSort.forYou => l10n.discoverySortForYouLabel,
+    CatalogSort.random => l10n.discoverySortRandomLabel,
+    CatalogSort.recentlyAdded => l10n.discoverySortRecentlyAddedLabel,
+    CatalogSort.title => l10n.discoverySortTitleLabel,
+    CatalogSort.releaseYear =>
+      series
+          ? l10n.discoverySortFirstAiredLabel
+          : l10n.discoverySortReleaseYearLabel,
+    CatalogSort.communityRating => l10n.discoverySortCommunityRatingLabel,
+    CatalogSort.runtime =>
+      series
+          ? l10n.discoveryEpisodeLengthTitle
+          : l10n.discoverySortRuntimeLabel,
+    CatalogSort.newEpisodes => l10n.discoverySortNewEpisodesLabel,
+  };
 
   static String windowLabel(AppLocalizations l10n, CatalogAddedWindow value) =>
       switch (value) {
