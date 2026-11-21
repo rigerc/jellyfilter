@@ -60,6 +60,10 @@ abstract final class CandyImages {
   static const posterDisplayNetworkWidth = 600;
   static const posterDisplayQuality = 90;
   static const posterCacheWidth = 600;
+
+  /// Small posters beside each title in the Browse list.
+  static const posterThumbnailNetworkWidth = 160;
+  static const posterThumbnailQuality = 80;
 }
 
 /// Shared motion values used by transitions and feedback.

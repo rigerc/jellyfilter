@@ -20,7 +20,8 @@ directly, so what you pick here is what you find there.
 
 **Three ways to pick**
 
-- **Grid** — poster-first tiles with title, year, and runtime; sort by
+- **Browse** — poster-first tiles with title, year, and runtime, or a list
+  with ratings and genres on each row (in columns on tablets); sort by
   recommended, recently added, title, release year, community rating, or
   runtime, in either direction.
 - **Swipe** — a deck of cards that follow your finger and tilt, with LIKE and

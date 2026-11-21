@@ -1,6 +1,7 @@
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/core/media/entities/media_affinity.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 
@@ -22,6 +23,7 @@ final class DiscoveryState {
     double favoriteBias = 0,
     this.fadeWatched = false,
     this.shuffleDuration = ShuffleDuration.standard,
+    this.browseLayout = BrowseLayout.grid,
     MediaAffinity? affinity,
     this.shuffleForYou = false,
   }) : affinity = affinity ?? MediaAffinity.empty,
@@ -54,6 +56,9 @@ final class DiscoveryState {
   /// Whether watched titles are shown dimmed.
   final bool fadeWatched;
   final ShuffleDuration shuffleDuration;
+
+  /// Whether Browse shows poster tiles or a list of rows.
+  final BrowseLayout browseLayout;
 
   /// The personal ranking behind the For you sort and Shuffle source.
   final MediaAffinity affinity;
@@ -101,6 +106,7 @@ final class DiscoveryState {
     double? favoriteBias,
     bool? fadeWatched,
     ShuffleDuration? shuffleDuration,
+    BrowseLayout? browseLayout,
     MediaAffinity? affinity,
     bool? shuffleForYou,
   }) => DiscoveryState(
@@ -124,6 +130,7 @@ final class DiscoveryState {
     favoriteBias: favoriteBias ?? this.favoriteBias,
     fadeWatched: fadeWatched ?? this.fadeWatched,
     shuffleDuration: shuffleDuration ?? this.shuffleDuration,
+    browseLayout: browseLayout ?? this.browseLayout,
     affinity: affinity ?? this.affinity,
     shuffleForYou: shuffleForYou ?? this.shuffleForYou,
   );

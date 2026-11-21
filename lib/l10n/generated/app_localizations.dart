@@ -280,11 +280,35 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 title} other{{count} titles}}'**
   String discoveryCandidateCount(int count);
 
-  /// No description provided for @discoveryGridLabel.
+  /// No description provided for @discoveryBrowseLabel.
   ///
   /// In en, this message translates to:
-  /// **'Grid'**
-  String get discoveryGridLabel;
+  /// **'Browse'**
+  String get discoveryBrowseLabel;
+
+  /// No description provided for @discoveryShowAsListLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as list'**
+  String get discoveryShowAsListLabel;
+
+  /// No description provided for @discoveryShowAsGridLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as grid'**
+  String get discoveryShowAsGridLabel;
+
+  /// No description provided for @discoveryListTitleColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get discoveryListTitleColumn;
+
+  /// No description provided for @discoveryListRatedColumn.
+  ///
+  /// In en, this message translates to:
+  /// **'Rated'**
+  String get discoveryListRatedColumn;
 
   /// No description provided for @discoverySwipeLabel.
   ///

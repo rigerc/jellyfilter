@@ -18,6 +18,7 @@ import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/shuffle_reel_motion.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
 enum _ShuffleSource { filtered, forYou, shortlist }
@@ -71,9 +72,11 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
   int _landings = 0;
   int _lastTickIndex = 0;
   int _lastHapticMs = -1000;
-  double _lastPosition = 0;
-  int _lastElapsedUs = 0;
+  ShuffleReelMotion? _motion;
   double _blur = 0;
+
+  /// The reel has stopped travelling and is easing back onto the pick.
+  bool _settling = false;
   Offset? _dragOrigin;
 
   bool get _spinning => _reel.isNotEmpty;
@@ -176,38 +179,15 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
       ...fillers,
       target,
     ];
-    final end = (_reel.length - 1).toDouble();
-    const start = 1.0;
-    _position = TweenSequence<double>(<TweenSequenceItem<double>>[
-      // Wind-up: the reel pulls back a touch, like a lever being drawn.
-      TweenSequenceItem<double>(
-        tween: Tween<double>(
-          begin: start,
-          end: start - 0.16,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 7,
-      ),
-      // Rapid acceleration, then a long deceleration that overshoots the pick.
-      TweenSequenceItem<double>(
-        tween: Tween<double>(
-          begin: start - 0.16,
-          end: end + 0.12,
-        ).chain(CurveTween(curve: const Cubic(0.33, 0, 0.1, 1))),
-        weight: 80,
-      ),
-      // Settle the poster back into the center.
-      TweenSequenceItem<double>(
-        tween: Tween<double>(
-          begin: end + 0.12,
-          end: end,
-        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
-        weight: 13,
-      ),
-    ]).animate(_controller);
-    _lastTickIndex = start.round();
-    _lastPosition = start;
-    _lastElapsedUs = 0;
+    final motion = ShuffleReelMotion(
+      end: (_reel.length - 1).toDouble(),
+      duration: _controller.duration ?? Duration.zero,
+    );
+    _motion = motion;
+    _position = motion.position.animate(_controller);
+    _lastTickIndex = ShuffleReelMotion.start.round();
     _blur = 0;
+    _settling = false;
     _precacheReel();
     unawaited(HapticFeedback.lightImpact());
     setState(() {});
@@ -218,22 +198,22 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
     _controller.stop();
     setState(() {
       _reel = const <CatalogCandidate>[];
+      _motion = null;
       _blur = 0;
+      _settling = false;
     });
   }
 
   void _onTick() {
-    final position = _position.value;
-    final elapsedUs = _controller.lastElapsedDuration?.inMicroseconds ?? 0;
-    final deltaUs = elapsedUs - _lastElapsedUs;
-    if (deltaUs > 0) {
-      // Reel speed in posters per second drives the motion blur.
-      final velocity = (position - _lastPosition).abs() / (deltaUs / 1e6);
-      _blur = math.min(CandyReel.maxBlurSigma, velocity * 0.55);
+    final progress = _controller.value;
+    _blur = _motion?.blurSigma(progress) ?? 0;
+    final settling = progress >= ShuffleReelMotion.settleStart;
+    if (settling != _settling) {
+      // Lift the edge shading while the poster settles, so the frame is
+      // clear by the time it lands.
+      setState(() => _settling = settling);
     }
-    _lastPosition = position;
-    _lastElapsedUs = elapsedUs;
-    final index = position.round();
+    final index = _position.value.round();
     if (index != _lastTickIndex) {
       _lastTickIndex = index;
       final now = _hapticClock.elapsedMilliseconds;
@@ -251,7 +231,9 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
     unawaited(HapticFeedback.heavyImpact());
     setState(() {
       _reel = const <CatalogCandidate>[];
+      _motion = null;
       _blur = 0;
+      _settling = false;
       _landings++;
     });
   }
@@ -364,11 +346,12 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
           ),
           child: DiscoveryWatchedFade(
             candidate: candidate,
+            // A poster still downloading when the reel lands fades in over
+            // its placeholder; a cached one shows at once.
             child: DiscoveryPoster(
               candidate: candidate,
               headers: widget.imageHeaders,
               fit: BoxFit.contain,
-              fadeIn: false,
               showFallbackTitle: true,
             ),
           ),
@@ -439,7 +422,7 @@ final class _DiscoveryShuffleState extends State<DiscoveryShuffle>
         Expanded(
           child: _ReelWindow(
             landings: _landings,
-            spinning: spinning,
+            shaded: spinning && !_settling,
             reduceMotion: reduceMotion,
             child: GestureDetector(
               key: WidgetKeys.discoveryShuffleReel,
@@ -761,13 +744,15 @@ final class _FavoriteBiasControl extends StatelessWidget {
 final class _ReelWindow extends StatelessWidget {
   const _ReelWindow({
     required this.landings,
-    required this.spinning,
+    required this.shaded,
     required this.reduceMotion,
     required this.child,
   });
 
   final int landings;
-  final bool spinning;
+
+  /// Darkens the top and bottom edges while the reel is travelling.
+  final bool shaded;
   final bool reduceMotion;
   final Widget child;
 
@@ -775,58 +760,66 @@ final class _ReelWindow extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final radius = BorderRadius.circular(CandyShapes.card);
-    return TweenAnimationBuilder<double>(
-      key: ValueKey<int>(landings),
-      tween: Tween<double>(begin: landings > 0 ? 1 : 0, end: 0),
-      duration: reduceMotion
-          ? Duration.zero
-          : const Duration(milliseconds: 1100),
-      curve: Curves.easeOutCubic,
-      builder: (context, glow, child) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: CandyColors.background,
-          borderRadius: radius,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: scheme.primary.withValues(alpha: 0.35 * glow),
-              blurRadius: 40 * glow,
-              spreadRadius: 2 * glow,
-              offset: Offset(0, 6 * glow),
+    return Stack(
+      fit: StackFit.expand,
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        // Only the glow restarts on each landing; the poster above it keeps
+        // its place in the tree, so landing never rebuilds it.
+        TweenAnimationBuilder<double>(
+          key: ValueKey<int>(landings),
+          tween: Tween<double>(begin: landings > 0 ? 1 : 0, end: 0),
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 1100),
+          curve: Curves.easeOutCubic,
+          builder: (context, glow, _) => DecoratedBox(
+            decoration: BoxDecoration(
+              color: CandyColors.background,
+              borderRadius: radius,
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: scheme.primary.withValues(alpha: 0.35 * glow),
+                  blurRadius: 40 * glow,
+                  spreadRadius: 2 * glow,
+                  offset: Offset(0, 6 * glow),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-        child: child,
-      ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            child,
-            IgnorePointer(
-              child: AnimatedOpacity(
-                opacity: spinning ? 1 : 0,
-                duration: reduceMotion ? Duration.zero : CandyMotion.standard,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[
-                        Color(0xE6000000),
-                        Color(0x00000000),
-                        Color(0x00000000),
-                        Color(0xE6000000),
-                      ],
-                      stops: <double>[0, 0.22, 0.78, 1],
+        ClipRRect(
+          borderRadius: radius,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              child,
+              IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: shaded ? 1 : 0,
+                  duration: reduceMotion ? Duration.zero : CandyMotion.standard,
+                  curve: Curves.easeInOutCubic,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[
+                          Color(0xE6000000),
+                          Color(0x00000000),
+                          Color(0x00000000),
+                          Color(0xE6000000),
+                        ],
+                        stops: <double>[0, 0.22, 0.78, 1],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -845,6 +838,9 @@ final class _ReelStrip extends StatelessWidget {
   final Animation<double> position;
   final double Function() blur;
   final Map<String, String> headers;
+
+  /// Below this sigma the blur is invisible and is skipped entirely.
+  static const _sharpSigma = 0.01;
 
   @override
   Widget build(BuildContext context) {
@@ -870,7 +866,9 @@ final class _ReelStrip extends StatelessWidget {
                         candidate: reel[index],
                         headers: headers,
                         fit: BoxFit.contain,
-                        fadeIn: false,
+                        // Fillers whiz past, but the pick may arrive late
+                        // and should fade in rather than pop.
+                        fadeIn: index == reel.length - 1,
                         showFallbackTitle: true,
                         networkWidth: index == reel.length - 1
                             ? CandyImages.posterDisplayNetworkWidth
@@ -884,14 +882,14 @@ final class _ReelStrip extends StatelessWidget {
                       ),
                     ),
               ];
-              final strip = Stack(clipBehavior: Clip.hardEdge, children: items);
               final sigma = blur();
-              if (sigma < 0.5) {
-                return strip;
-              }
+              // Stays mounted for the whole spin and switches off at zero,
+              // so the blur fades out without rebuilding the posters.
               return ImageFiltered(
+                key: WidgetKeys.discoveryShuffleReelBlur,
+                enabled: sigma > _sharpSigma,
                 imageFilter: ImageFilter.blur(sigmaY: sigma),
-                child: strip,
+                child: Stack(clipBehavior: Clip.hardEdge, children: items),
               );
             },
           );

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.35 — 2026-11-21
+
+- The Grid tab is now called Browse.
+- Switch Browse between poster tiles and a list from the header. The list shows each movie's year, runtime, ratings, and genres, in columns on wider screens.
+- Browse remembers the layout you chose, and keeps your place when you switch.
+- The Shuffle reel now comes into focus smoothly as it lands, and a poster that is still loading fades in instead of popping.
+
 ## 1.0.34 — 2026-11-20
 
 - Sort by For you to see movies that match what you've watched, rated, favorited, and swiped first.

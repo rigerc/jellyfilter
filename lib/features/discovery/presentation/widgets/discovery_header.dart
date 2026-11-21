@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jellyfilter/core/assets/app_assets.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_header_actions.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
@@ -15,6 +16,8 @@ final class DiscoveryHeader extends StatelessWidget {
     this.onSortReversedChanged,
     this.fadeWatched = false,
     this.onFadeWatchedChanged,
+    this.browseLayout = BrowseLayout.grid,
+    this.onBrowseLayoutChanged,
     super.key,
   });
 
@@ -22,6 +25,8 @@ final class DiscoveryHeader extends StatelessWidget {
   final ValueChanged<bool>? onSortReversedChanged;
   final bool fadeWatched;
   final ValueChanged<bool>? onFadeWatchedChanged;
+  final BrowseLayout browseLayout;
+  final ValueChanged<BrowseLayout>? onBrowseLayoutChanged;
 
   final int? candidateCount;
   final VoidCallback? onOpenFilters;
@@ -92,6 +97,8 @@ final class DiscoveryHeader extends StatelessWidget {
           onSortReversedChanged: onSortReversedChanged,
           fadeWatched: fadeWatched,
           onFadeWatchedChanged: onFadeWatchedChanged,
+          browseLayout: browseLayout,
+          onBrowseLayoutChanged: onBrowseLayoutChanged,
         ),
       ],
     );

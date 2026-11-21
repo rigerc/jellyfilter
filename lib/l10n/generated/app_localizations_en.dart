@@ -124,7 +124,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get discoveryGridLabel => 'Grid';
+  String get discoveryBrowseLabel => 'Browse';
+
+  @override
+  String get discoveryShowAsListLabel => 'Show as list';
+
+  @override
+  String get discoveryShowAsGridLabel => 'Show as grid';
+
+  @override
+  String get discoveryListTitleColumn => 'Title';
+
+  @override
+  String get discoveryListRatedColumn => 'Rated';
 
   @override
   String get discoverySwipeLabel => 'Swipe';

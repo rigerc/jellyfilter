@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
@@ -31,6 +32,31 @@ void main() {
       );
       await restored.hydrate();
       expect(restored.state.shuffleDuration, ShuffleDuration.sixSeconds);
+      await restored.close();
+    },
+  );
+
+  test(
+    'should save and restore the Browse layout without redundant writes',
+    () async {
+      final store = FakeDiscoveryStore();
+      final cubit = DiscoveryCubit(
+        store: store,
+        scopeKey: 'scope',
+        selector: FakeDiscoverySelector(null),
+      );
+      expect(cubit.state.browseLayout, BrowseLayout.grid);
+      await cubit.setBrowseLayout(BrowseLayout.list);
+      await cubit.setBrowseLayout(BrowseLayout.list);
+      expect(store.writeCount, 1);
+      await cubit.close();
+      final restored = DiscoveryCubit(
+        store: store,
+        scopeKey: 'scope',
+        selector: FakeDiscoverySelector(null),
+      );
+      await restored.hydrate();
+      expect(restored.state.browseLayout, BrowseLayout.list);
       await restored.close();
     },
   );

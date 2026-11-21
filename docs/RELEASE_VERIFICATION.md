@@ -126,7 +126,9 @@ timestamped result log covering:
   windows, combined filters, loading, empty, partial, and error states.
 - Quick recently-added, unwatched, and favorites filters; active-filter reset
   must preserve presets, likes, rejections, recent picks, and dismissals.
-- Grid, swipe, and shuffle/reveal mode switching with shared session state.
+- Browse, swipe, and shuffle/reveal mode switching with shared session state.
+- Browse grid and list layouts, including the wide-screen list columns, large
+  text, and keeping the top title in view when switching.
 - Like, reject, favorite add/remove, and watched-state non-mutation.
 - Local state restart, named presets, recent picks, dismissals, and clear data.
 - Missing optional Jellyfin fields and unsupported required capabilities.

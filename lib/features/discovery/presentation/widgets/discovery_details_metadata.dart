@@ -15,7 +15,7 @@ final class DiscoveryDetailsOverview extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final overview = candidate.overview?.trim();
-    final genres = candidate.genres.map(_titleCase).toList()..sort();
+    final genres = discoveryGenreNames(candidate);
     final cast = candidate.cast.take(12).toList(growable: false);
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -197,6 +197,10 @@ final class _Tag extends StatelessWidget {
     );
   }
 }
+
+/// Genre names as shown to people: capitalized and in alphabetical order.
+List<String> discoveryGenreNames(CatalogCandidate candidate) =>
+    candidate.genres.map(_titleCase).toList()..sort();
 
 String _titleCase(String value) => value.isEmpty
     ? value

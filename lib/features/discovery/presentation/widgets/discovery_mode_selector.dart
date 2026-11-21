@@ -15,7 +15,7 @@ final class DiscoveryModeSelector extends StatelessWidget {
     final destinations = <({Key key, String label, IconData icon})>[
       (
         key: WidgetKeys.discoveryGridMode,
-        label: localization.discoveryGridLabel,
+        label: localization.discoveryBrowseLabel,
         icon: Icons.grid_view_rounded,
       ),
       (

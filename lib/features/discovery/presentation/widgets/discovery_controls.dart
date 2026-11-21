@@ -37,7 +37,8 @@ final class DiscoveryControls extends StatelessWidget {
               current.filteredCandidates.length ||
           previous.filter != current.filter ||
           previous.mode != current.mode ||
-          previous.fadeWatched != current.fadeWatched,
+          previous.fadeWatched != current.fadeWatched ||
+          previous.browseLayout != current.browseLayout,
       builder: (context, state) {
         final showCatalogFilters =
             state.mode != DiscoveryMode.shuffle || !shortlistSelected;
@@ -78,6 +79,10 @@ final class DiscoveryControls extends StatelessWidget {
               onFadeWatchedChanged: context
                   .read<DiscoveryCubit>()
                   .setFadeWatched,
+              browseLayout: state.browseLayout,
+              onBrowseLayoutChanged: state.mode == DiscoveryMode.grid
+                  ? context.read<DiscoveryCubit>().setBrowseLayout
+                  : null,
             ),
             if (showCatalogFilters)
               DiscoveryActiveFilters(

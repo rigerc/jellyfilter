@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_filter_query_sections.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
 
@@ -16,6 +17,8 @@ final class DiscoveryHeaderActions extends StatelessWidget {
     this.onSortReversedChanged,
     this.fadeWatched = false,
     this.onFadeWatchedChanged,
+    this.browseLayout = BrowseLayout.grid,
+    this.onBrowseLayoutChanged,
     super.key,
   });
 
@@ -30,6 +33,10 @@ final class DiscoveryHeaderActions extends StatelessWidget {
   final ValueChanged<CatalogSort>? onSortChanged;
   final bool fadeWatched;
   final ValueChanged<bool>? onFadeWatchedChanged;
+  final BrowseLayout browseLayout;
+
+  /// Null hides the layout toggle (only Browse has layouts).
+  final ValueChanged<BrowseLayout>? onBrowseLayoutChanged;
 
   /// Orders offered in the header; Random lives in Shuffle.
   static const sortChoices = <CatalogSort>[
@@ -52,6 +59,23 @@ final class DiscoveryHeaderActions extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        if (onBrowseLayoutChanged case final onLayout?)
+          IconButton(
+            key: WidgetKeys.discoveryBrowseLayoutToggle,
+            tooltip: browseLayout == BrowseLayout.grid
+                ? localization.discoveryShowAsListLabel
+                : localization.discoveryShowAsGridLabel,
+            onPressed: () => onLayout(
+              browseLayout == BrowseLayout.grid
+                  ? BrowseLayout.list
+                  : BrowseLayout.grid,
+            ),
+            icon: Icon(
+              browseLayout == BrowseLayout.grid
+                  ? Icons.view_list_rounded
+                  : Icons.grid_view_rounded,
+            ),
+          ),
         if (onSort != null)
           PopupMenuButton<CatalogSort>(
             key: WidgetKeys.discoverySortButton,

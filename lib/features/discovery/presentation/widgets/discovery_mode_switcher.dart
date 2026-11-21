@@ -8,7 +8,7 @@ import 'package:jellyfilter/features/discovery/application/shortlist_cubit.dart'
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
-import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_grid.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_browse.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_shuffle.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_swipe.dart';
 
@@ -44,8 +44,9 @@ final class DiscoveryModeSwitcher extends StatelessWidget {
         child: KeyedSubtree(
           key: ValueKey<DiscoveryMode>(state.mode),
           child: switch (state.mode) {
-            DiscoveryMode.grid => DiscoveryGrid(
+            DiscoveryMode.grid => DiscoveryBrowse(
               candidates: state.filteredCandidates,
+              layout: state.browseLayout,
               onToggleFavorite: onToggleFavorite,
               onLoadDetails: onLoadDetails,
               onOpenTrailer: onOpenTrailer,

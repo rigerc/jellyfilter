@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/core/keys/widget_keys.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
@@ -176,6 +177,210 @@ void main() {
 
     expect(calls, 1);
     await cubit.close();
+  });
+
+  group('Browse layouts', () {
+    void useScreen(WidgetTester tester, Size size) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    List<CatalogCandidate> movies(int count) => List<CatalogCandidate>.generate(
+      count,
+      (index) => _candidate(id: 'movie-$index', name: 'Movie $index'),
+    );
+
+    testWidgets('should switch between grid and list and remember it', (
+      tester,
+    ) async {
+      useScreen(tester, const Size(390, 844));
+      final cubit = _cubit();
+      await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+      final robot = DiscoveryRobot(tester);
+
+      await _pumpPage(tester, cubit);
+      expect(find.text('Browse'), findsOneWidget);
+      robot.expectGridVisible();
+      expect(find.byTooltip('Show as list'), findsOneWidget);
+
+      await robot.toggleBrowseLayout();
+      robot.expectListVisible();
+      expect(cubit.state.browseLayout, BrowseLayout.list);
+      expect(find.byTooltip('Show as grid'), findsOneWidget);
+
+      await robot.toggleBrowseLayout();
+      robot.expectGridVisible();
+      expect(cubit.state.browseLayout, BrowseLayout.grid);
+      await cubit.close();
+    });
+
+    testWidgets('should offer the layout toggle only in Browse', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+      final robot = DiscoveryRobot(tester);
+
+      await _pumpPage(tester, cubit, disableAnimations: true);
+      robot.expectBrowseLayoutToggleVisible(visible: true);
+      await robot.openSwipe();
+      robot.expectBrowseLayoutToggleVisible(visible: false);
+      await robot.openShuffle();
+      robot.expectBrowseLayoutToggleVisible(visible: false);
+      await cubit.close();
+    });
+
+    testWidgets('should open details and toggle favorites from a list row', (
+      tester,
+    ) async {
+      useScreen(tester, const Size(390, 844));
+      final cubit = _cubit();
+      await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+      await cubit.setBrowseLayout(BrowseLayout.list);
+      final toggled = <String>[];
+
+      await _pumpPage(
+        tester,
+        cubit,
+        onToggleFavorite: (candidate) async {
+          toggled.add(candidate.id);
+          return true;
+        },
+      );
+      DiscoveryRobot(tester).expectListVisible();
+      final semantics = tester.ensureSemantics();
+      expect(
+        find.bySemanticsLabel(RegExp('Community rating: 8\\.4')),
+        findsOneWidget,
+      );
+      semantics.dispose();
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryFavorite('movie-1')));
+      await tester.pump();
+      expect(toggled, <String>['movie-1']);
+
+      await tester.tap(find.byKey(WidgetKeys.discoveryCandidate('movie-1')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(WidgetKeys.discoveryDetails), findsOneWidget);
+      await cubit.close();
+    });
+
+    testWidgets('should load more titles at the end of the list', (
+      tester,
+    ) async {
+      useScreen(tester, const Size(390, 844));
+      final cubit = _cubit();
+      await cubit.replaceCandidates(movies(30));
+      await cubit.setBrowseLayout(BrowseLayout.list);
+      var calls = 0;
+
+      await _pumpPage(tester, cubit, onLoadMore: () async => calls++);
+      await DiscoveryRobot(tester).scrollListToBottom();
+
+      expect(calls, greaterThanOrEqualTo(1));
+      await cubit.close();
+    });
+
+    testWidgets('should line up columns under a header on wide screens', (
+      tester,
+    ) async {
+      final cubit = _cubit();
+      await cubit.replaceCandidates(<CatalogCandidate>[_candidate()]);
+      await cubit.setBrowseLayout(BrowseLayout.list);
+      final robot = DiscoveryRobot(tester);
+
+      useScreen(tester, const Size(390, 844));
+      await _pumpPage(tester, cubit);
+      robot.expectListHeaderVisible(visible: false);
+
+      useScreen(tester, const Size(1024, 768));
+      await tester.pumpAndSettle();
+      robot.expectListHeaderVisible(visible: true);
+      expect(find.text('PG-13'), findsOneWidget);
+      final semantics = tester.ensureSemantics();
+      expect(
+        find.bySemanticsLabel(RegExp('Critic rating: 91')),
+        findsOneWidget,
+      );
+      semantics.dispose();
+      await cubit.close();
+    });
+
+    for (final size in const <Size>[Size(320, 568), Size(1024, 768)]) {
+      testWidgets(
+        'should fit list rows at large text on a ${size.width.toInt()} wide '
+        'screen',
+        (tester) async {
+          useScreen(tester, size);
+          final cubit = _cubit();
+          await cubit.replaceCandidates(<CatalogCandidate>[
+            _candidate(
+              name: 'An Extraordinarily Long Movie Title That Keeps Going',
+              watched: true,
+            ),
+            _candidate(id: 'movie-2', name: 'Velvet Static'),
+          ]);
+          await cubit.setBrowseLayout(BrowseLayout.list);
+          await cubit.setFadeWatched(true);
+
+          await _pumpPage(
+            tester,
+            cubit,
+            textScaler: const TextScaler.linear(2),
+          );
+
+          DiscoveryRobot(tester).expectListVisible();
+          expect(tester.takeException(), isNull);
+          await cubit.close();
+        },
+      );
+    }
+
+    testWidgets('should keep the top title in view when switching layouts', (
+      tester,
+    ) async {
+      useScreen(tester, const Size(390, 844));
+      final cubit = _cubit();
+      final all = movies(60);
+      final ids = all.map((candidate) => candidate.id).toList();
+      await cubit.replaceCandidates(all);
+      final robot = DiscoveryRobot(tester);
+
+      await _pumpPage(tester, cubit);
+      final gridStride = robot.rowStride(
+        WidgetKeys.discoveryGrid,
+        'movie-0',
+        'movie-2',
+      );
+      robot.jumpTo(WidgetKeys.discoveryGrid, gridStride * 5 + 10);
+      await tester.pump();
+      expect(
+        robot.topVisibleCandidate(WidgetKeys.discoveryGrid, ids),
+        'movie-10',
+      );
+
+      await robot.toggleBrowseLayout();
+      expect(
+        robot.topVisibleCandidate(WidgetKeys.discoveryList, ids),
+        'movie-10',
+      );
+
+      final listStride = robot.rowStride(
+        WidgetKeys.discoveryList,
+        'movie-10',
+        'movie-11',
+      );
+      robot.jumpTo(WidgetKeys.discoveryList, listStride * 7 + 5);
+      await tester.pump();
+      await robot.toggleBrowseLayout();
+      expect(
+        robot.topVisibleCandidate(WidgetKeys.discoveryGrid, ids),
+        'movie-6',
+      );
+      await cubit.close();
+    });
   });
 
   testWidgets('should render Jellyfin blurhash without a preview request', (
@@ -1685,6 +1890,62 @@ void main() {
       find.byKey(WidgetKeys.discoveryCandidate('movie-1')),
       findsOneWidget,
     );
+    await cubit.close();
+  });
+
+  testWidgets('should fade the reel blur out without remounting it', (
+    tester,
+  ) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[
+      _candidate(),
+      _candidate(id: 'movie-2', name: 'Velvet Static'),
+    ]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit);
+    await robot.openShuffle();
+    await tester.pumpAndSettle();
+    await robot.startSpin();
+    await tester.pump();
+
+    final layer = robot.shuffleReelBlurElement();
+    expect(robot.shuffleReelBlur().enabled, isFalse);
+
+    await tester.pump(CandyMotion.reelSpin * 0.3);
+    expect(robot.shuffleReelBlur().enabled, isTrue);
+    expect(robot.shuffleReelBlurElement(), same(layer));
+
+    await tester.pump(CandyMotion.reelSpin * 0.6);
+    expect(robot.shuffleReelBlur().enabled, isFalse);
+    expect(robot.shuffleReelBlurElement(), same(layer));
+
+    await tester.pump(CandyMotion.reelSpin * 0.2);
+    expect(find.byKey(WidgetKeys.discoveryShuffleReelBlur), findsNothing);
+    expect(
+      find.byKey(WidgetKeys.discoveryShuffleCandidate('movie-1')),
+      findsOneWidget,
+    );
+    await cubit.close();
+  });
+
+  testWidgets('should fade in a landed poster that is still loading', (
+    tester,
+  ) async {
+    final cubit = _cubit();
+    await cubit.replaceCandidates(<CatalogCandidate>[
+      _candidate(poster: _networkPoster()),
+    ]);
+    final robot = DiscoveryRobot(tester);
+
+    await _pumpPage(tester, cubit);
+    await robot.openShuffle();
+    await tester.pumpAndSettle();
+    await robot.startSpin();
+    await tester.pump(CandyMotion.reelSpin);
+    await tester.pump(CandyMotion.reelSettle);
+
+    robot.expectPosterFadesInWhenLate('movie-1');
     await cubit.close();
   });
 

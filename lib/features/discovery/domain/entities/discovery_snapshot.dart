@@ -1,4 +1,5 @@
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/features/discovery/domain/serialization/catalog_filter_codec.dart';
@@ -19,6 +20,7 @@ final class DiscoverySnapshot {
     this.favoriteBias = 0,
     this.fadeWatched = false,
     this.shuffleDuration = ShuffleDuration.standard,
+    this.browseLayout = BrowseLayout.grid,
   });
 
   final CatalogFilter filter;
@@ -33,6 +35,7 @@ final class DiscoverySnapshot {
   final double favoriteBias;
   final bool fadeWatched;
   final ShuffleDuration shuffleDuration;
+  final BrowseLayout browseLayout;
 
   Map<String, Object?> toJson() {
     final persistedRejectedIds = _boundedIds(rejectedIds, maxDecisionIdCount);
@@ -63,6 +66,7 @@ final class DiscoverySnapshot {
       'favoriteBias': _normalizedBias(favoriteBias),
       'fadeWatched': fadeWatched,
       'shuffleDuration': shuffleDuration.name,
+      'browseLayout': browseLayout.name,
     };
   }
 
@@ -118,6 +122,12 @@ final class DiscoverySnapshot {
               .where((duration) => duration.name == value['shuffleDuration'])
               .firstOrNull ??
           ShuffleDuration.standard,
+      // Older snapshots have no layout and open on the poster grid.
+      browseLayout:
+          BrowseLayout.values
+              .where((layout) => layout.name == value['browseLayout'])
+              .firstOrNull ??
+          BrowseLayout.grid,
     );
   }
 
@@ -138,7 +148,8 @@ final class DiscoverySnapshot {
       other.currentPickId == currentPickId &&
       other.favoriteBias == favoriteBias &&
       other.fadeWatched == fadeWatched &&
-      other.shuffleDuration == shuffleDuration;
+      other.shuffleDuration == shuffleDuration &&
+      other.browseLayout == browseLayout;
 
   @override
   int get hashCode => Object.hash(
@@ -161,6 +172,7 @@ final class DiscoverySnapshot {
     favoriteBias,
     fadeWatched,
     shuffleDuration,
+    browseLayout,
   );
 
   static Map<String, CatalogFilter>? _decodePresets(Object? value) {

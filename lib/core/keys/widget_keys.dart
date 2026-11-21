@@ -21,9 +21,15 @@ abstract final class WidgetKeys {
   static const discoverySwipeMode = Key('discovery-swipe-mode');
   static const discoveryShuffleMode = Key('discovery-shuffle-mode');
   static const discoveryGrid = Key('discovery-grid');
+  static const discoveryList = Key('discovery-list');
+  static const discoveryListHeader = Key('discovery-list-header');
+  static const discoveryBrowseLayoutToggle = Key(
+    'discovery-browse-layout-toggle',
+  );
   static const discoverySwipeDeck = Key('discovery-swipe-deck');
   static const discoveryShuffle = Key('discovery-shuffle');
   static const discoveryShuffleReel = Key('discovery-shuffle-reel');
+  static const discoveryShuffleReelBlur = Key('discovery-shuffle-reel-blur');
   static const discoveryModeTransition = Key('discovery-mode-transition');
   static const discoveryShufflePlaceholder = Key(
     'discovery-shuffle-placeholder',

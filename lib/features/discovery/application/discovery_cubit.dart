@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
 import 'package:jellyfilter/core/media/entities/media_affinity.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_mode.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_snapshot.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/discovery_state.dart';
@@ -61,6 +62,7 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
         favoriteBias: restored.favoriteBias,
         fadeWatched: restored.fadeWatched,
         shuffleDuration: restored.shuffleDuration,
+        browseLayout: restored.browseLayout,
         isHydrated: true,
         persistenceError: failed,
       ),
@@ -124,6 +126,11 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
       duration == state.shuffleDuration
       ? Future<void>.value()
       : _commit(state.copyWith(shuffleDuration: duration));
+
+  Future<void> setBrowseLayout(BrowseLayout layout) =>
+      layout == state.browseLayout
+      ? Future<void>.value()
+      : _commit(state.copyWith(browseLayout: layout));
 
   /// Sets how strongly Shuffle favors Jellyfin favorites, snapped to 5% steps.
   Future<void> setFavoriteBias(double bias) {
@@ -439,6 +446,7 @@ final class DiscoveryCubit extends Cubit<DiscoveryState> {
         favoriteBias: value.favoriteBias,
         fadeWatched: value.fadeWatched,
         shuffleDuration: value.shuffleDuration,
+        browseLayout: value.browseLayout,
       );
 
   CatalogFilter _withFreshDateWindowAnchor(CatalogFilter filter) {

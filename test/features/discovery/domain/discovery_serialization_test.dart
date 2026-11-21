@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfilter/features/discovery/domain/entities/browse_layout.dart';
 import 'package:jellyfilter/features/discovery/domain/entities/shuffle_duration.dart';
 import 'package:jellyfilter/core/media/entities/catalog_candidate.dart';
 import 'package:jellyfilter/core/media/entities/catalog_filter.dart';
@@ -54,6 +55,41 @@ void main() {
       }
     },
   );
+
+  test('should round-trip the Browse layout and include it in equality', () {
+    for (final layout in BrowseLayout.values) {
+      final snapshot = DiscoverySnapshot(browseLayout: layout);
+      final decoded = DiscoverySnapshot.fromJson(snapshot.toJson());
+      expect(decoded?.browseLayout, layout);
+      expect(decoded, snapshot);
+      expect(decoded.hashCode, snapshot.hashCode);
+    }
+    expect(
+      const DiscoverySnapshot(browseLayout: BrowseLayout.list),
+      isNot(const DiscoverySnapshot()),
+    );
+  });
+
+  test('should open Browse as a grid for older or invalid saved layouts', () {
+    final json = const DiscoverySnapshot(
+      browseLayout: BrowseLayout.list,
+    ).toJson();
+    expect(
+      DiscoverySnapshot.fromJson(
+        {...json}..remove('browseLayout'),
+      )?.browseLayout,
+      BrowseLayout.grid,
+    );
+    for (final value in [null, 'table', 1, <String>[]]) {
+      expect(
+        DiscoverySnapshot.fromJson({
+          ...json,
+          'browseLayout': value,
+        })?.browseLayout,
+        BrowseLayout.grid,
+      );
+    }
+  });
 
   group('tags, exclusions, and reversed sort', () {
     CatalogCandidate movie({

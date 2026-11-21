@@ -15,6 +15,83 @@ final class DiscoveryRobot {
     expect(find.byKey(WidgetKeys.discoveryShuffleMode), findsOneWidget);
   }
 
+  void expectListVisible() {
+    expect(find.byKey(WidgetKeys.discoveryList), findsOneWidget);
+    expect(find.byKey(WidgetKeys.discoveryGrid), findsNothing);
+  }
+
+  void expectListHeaderVisible({required bool visible}) {
+    expect(
+      find.byKey(WidgetKeys.discoveryListHeader),
+      visible ? findsOneWidget : findsNothing,
+    );
+  }
+
+  void expectBrowseLayoutToggleVisible({required bool visible}) {
+    expect(
+      find.byKey(WidgetKeys.discoveryBrowseLayoutToggle),
+      visible ? findsOneWidget : findsNothing,
+    );
+  }
+
+  Future<void> toggleBrowseLayout() async {
+    await tester.tap(find.byKey(WidgetKeys.discoveryBrowseLayoutToggle));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> scrollListToBottom() async {
+    await tester.fling(
+      find.byKey(WidgetKeys.discoveryList),
+      const Offset(0, -4000),
+      4000,
+    );
+    await tester.pumpAndSettle();
+  }
+
+  /// Distance between consecutive rows of titles in a scroll view.
+  double rowStride(Key scrollKey, String first, String nextRow) =>
+      _candidateIn(scrollKey, nextRow).top - _candidateIn(scrollKey, first).top;
+
+  void jumpTo(Key scrollKey, double offset) {
+    tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byKey(scrollKey),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position
+        .jumpTo(offset);
+  }
+
+  /// The top-left title whose middle is inside the scroll view.
+  String topVisibleCandidate(Key scrollKey, Iterable<String> ids) {
+    final viewport = tester.getRect(find.byKey(scrollKey));
+    final visible =
+        <(String, Rect)>[
+            for (final id in ids)
+              if (_candidateFinder(scrollKey, id).evaluate().isNotEmpty)
+                (id, _candidateIn(scrollKey, id)),
+          ].where((entry) {
+            final center = entry.$2.center.dy;
+            return center >= viewport.top && center <= viewport.bottom;
+          }).toList()
+          ..sort((a, b) {
+            final byTop = a.$2.top.compareTo(b.$2.top);
+            return byTop != 0 ? byTop : a.$2.left.compareTo(b.$2.left);
+          });
+    expect(visible, isNotEmpty);
+    return visible.first.$1;
+  }
+
+  Finder _candidateFinder(Key scrollKey, String id) => find.descendant(
+    of: find.byKey(scrollKey),
+    matching: find.byKey(WidgetKeys.discoveryCandidate(id)),
+  );
+
+  Rect _candidateIn(Key scrollKey, String id) =>
+      tester.getRect(_candidateFinder(scrollKey, id));
+
   void expectGridVisible() {
     expect(find.byKey(WidgetKeys.discoveryGrid), findsOneWidget);
   }
@@ -472,6 +549,44 @@ final class DiscoveryRobot {
     );
     expect(images.any((image) => image.frameBuilder != null), isTrue);
   }
+
+  /// The full-size poster fades in over its placeholder when it arrives
+  /// after the widget is built, and shows at once when already cached.
+  void expectPosterFadesInWhenLate(String id) {
+    final card = find.byKey(WidgetKeys.discoveryCandidate(id));
+    final image = tester
+        .widgetList<Image>(
+          find.descendant(of: card, matching: find.byType(Image)),
+        )
+        .singleWhere(
+          (image) =>
+              Uri.parse(
+                _networkImageFor(image.image).url,
+              ).queryParameters['maxWidth'] ==
+              '${CandyImages.posterDisplayNetworkWidth}',
+        );
+    final frameBuilder = image.frameBuilder;
+    expect(frameBuilder, isNotNull);
+    final context = tester.element(card);
+    const probe = SizedBox.shrink();
+
+    final loading = frameBuilder!(context, probe, null, false);
+    final loaded = frameBuilder(context, probe, 0, false);
+    final cached = frameBuilder(context, probe, 0, true);
+
+    expect(loading, isA<AnimatedOpacity>());
+    expect((loading as AnimatedOpacity).opacity, 0);
+    expect((loaded as AnimatedOpacity).opacity, 1);
+    expect(cached, same(probe));
+  }
+
+  /// The reel's blur layer, which must stay mounted for the whole spin.
+  ImageFiltered shuffleReelBlur() => tester.widget<ImageFiltered>(
+    find.byKey(WidgetKeys.discoveryShuffleReelBlur),
+  );
+
+  Element shuffleReelBlurElement() =>
+      tester.element(find.byKey(WidgetKeys.discoveryShuffleReelBlur));
 
   void expectGridPosterFit(String id, BoxFit fit) {
     _expectPosterFitIn(WidgetKeys.discoveryGrid, id, fit);
