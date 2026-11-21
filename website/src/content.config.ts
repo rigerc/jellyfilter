@@ -33,13 +33,7 @@ const project = defineCollection({
           }),
         )
         .min(1),
-      tour: z.object({
-        title: text,
-        intro: text,
-        steps: z.array(text).min(1),
-        label: text,
-        note: text,
-      }),
+      tour: z.object({ label: text, note: text }),
       seo: z
         .object({
           image: z.union([link, z.string().regex(/^\/(?!\/)[^\s]+$/)]),
