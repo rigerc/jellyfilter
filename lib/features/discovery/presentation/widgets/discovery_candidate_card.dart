@@ -438,7 +438,11 @@ final class DiscoveryTitleBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final meta = discoveryMetaLine(AppLocalizations.of(context), candidate);
+    final meta = discoveryMetaLine(
+      AppLocalizations.of(context),
+      candidate,
+      compact: !prominent,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -468,14 +472,17 @@ final class DiscoveryTitleBlock extends StatelessWidget {
   }
 }
 
+/// Year and runtime for a movie; air years and seasons for a show. [compact]
+/// keeps grid tiles to one line by giving an ended show its first year only.
 String discoveryMetaLine(
   AppLocalizations localization,
-  CatalogCandidate candidate,
-) {
+  CatalogCandidate candidate, {
+  bool compact = false,
+}) {
   if (candidate.series case final series?) {
     final seasons = series.seasonCount;
     return <String>[
-      ?discoveryAiredYears(localization, candidate),
+      ?discoveryAiredYears(localization, candidate, compact: compact),
       if (seasons != null && seasons > 0)
         localization.discoverySeasonCount(seasons),
     ].join('  ·  ');
@@ -489,17 +496,19 @@ String discoveryMetaLine(
 }
 
 /// The years a series aired: `2019–` while it runs, `2011–2018` once it
-/// ended, or a single year. Null when the first year is unknown.
+/// ended, or a single year. [compact] drops the end year. Null when the
+/// first year is unknown.
 String? discoveryAiredYears(
   AppLocalizations localization,
-  CatalogCandidate candidate,
-) {
+  CatalogCandidate candidate, {
+  bool compact = false,
+}) {
   final start = candidate.year;
   if (start == null) {
     return null;
   }
   final end = candidate.series?.endYear;
-  if (end != null && end > start) {
+  if (!compact && end != null && end > start) {
     return localization.discoveryAiredRange('$start', '$end');
   }
   final status = candidate.status?.trim().toLowerCase();

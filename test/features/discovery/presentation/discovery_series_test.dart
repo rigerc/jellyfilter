@@ -7,6 +7,7 @@ import 'package:jellyfilter/core/media/entities/catalog_series_progress.dart';
 import 'package:jellyfilter/core/theme/candy_theme.dart';
 import 'package:jellyfilter/features/discovery/application/discovery_cubit.dart';
 import 'package:jellyfilter/features/discovery/presentation/discovery_page.dart';
+import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_candidate_card.dart';
 import 'package:jellyfilter/features/discovery/presentation/widgets/discovery_details_sheet.dart';
 import 'package:jellyfilter/features/favorites/domain/repositories/favorite_repository.dart';
 import 'package:jellyfilter/l10n/generated/app_localizations.dart';
@@ -27,6 +28,23 @@ void main() {
     expect(find.byKey(WidgetKeys.discoverySeriesProgress), findsOneWidget);
     expect(find.text('1 show'), findsOneWidget);
     await cubit.close();
+  });
+
+  test('should shorten an ended show\'s years on compact tiles', () {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    const ended = CatalogCandidate(
+      id: 'startrek',
+      name: 'Star Trek',
+      mediaType: CatalogMediaType.series,
+      year: 1966,
+      status: 'Ended',
+      series: CatalogSeriesFacts(seasonCount: 3, endYear: 1969),
+      poster: CatalogImage.fallback(),
+      backdrop: CatalogImage.fallback(),
+    );
+
+    expect(discoveryMetaLine(l10n, ended), '1966–1969  ·  3 seasons');
+    expect(discoveryMetaLine(l10n, ended, compact: true), '1966  ·  3 seasons');
   });
 
   testWidgets('should leave the badge off shows not yet started', (
